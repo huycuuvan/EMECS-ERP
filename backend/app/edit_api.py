@@ -147,8 +147,7 @@ def history(entity_type: str, entity_id: str, db: Session = DB, user: User = Dep
     page = PAGE_OF.get(entity_type)
     if not page:
         raise HTTPException(404, "Loại bản ghi không hợp lệ")
-    if not can(user, page):
-        raise HTTPException(403, "Bạn không có quyền xem bản ghi này")
+    # đọc: mọi người đã đăng nhập (giống các API GET khác)
     return list_history(db, entity_type, entity_id)
 
 

@@ -129,7 +129,8 @@ def test_role_permissions(c):
     assert c.get("/api/contracts").status_code == 200
     assert c.post("/api/contracts/HD-2609-02/returned").status_code == 200  # kế toán: full hợp đồng
     assert c.post("/api/mismatches/SL-0002/sign").status_code == 403  # chỉ Quản lý ký
-    assert c.get("/api/weighings").status_code == 403  # kế toán không xem trạm cân
+    assert c.get("/api/weighings").status_code == 200  # đọc: mọi người đăng nhập
+    assert c.post("/api/weighings", json={"sourceId": "LSX-SD06", "kgExpected": 1}).status_code == 403  # kế toán không ghi trạm cân
     login(c, "kho")
     assert c.post("/api/lsx/LSX-HB04A/accept").status_code == 403  # kho không nhận lệnh SX
     p = c.post("/api/weighings", json={"sourceId": "LSX-SD06", "kgExpected": 1000}).json()

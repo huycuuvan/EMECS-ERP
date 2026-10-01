@@ -11,6 +11,16 @@ Lõi: đối ứng 3 số cân — cân xuất công ty = cân đến xưởng m
 | `frontend/` | React 19 + Vite + TypeScript + antd v6 + React Query |
 | `Cơ khí thép/`, `docs/` | Bản demo HTML gốc + tài liệu BA/SRS — **chỉ lưu nội bộ, không có trên Git** |
 
+## Chức năng chính
+- Đơn hàng → hợp đồng & tạm ứng → lệnh sản xuất → phiếu tiếp nhận → phiếu cân trạm → thẻ lái xe (đi mạ / giao khách)
+  → sai lệch (Quản lý ký) → kho ảo chênh lệch; đối ứng 3 số cân, sổ luân chuyển thép, công nợ theo khối lượng giao.
+- Sửa chứng từ có **lịch sử chỉnh sửa** (ai, lúc nào, cũ → mới, lý do; sửa số kg bắt buộc lý do và tự lập / cập nhật biên bản sai lệch).
+- Giao lại thẻ lái xe / phát lại lệnh SX bị từ chối; **xuất Excel** (.xlsx) mọi danh sách.
+- Danh mục: khách hàng & nhãn (Khách thân thiết / Khách lẻ… — lọc đơn hàng, hợp đồng, dashboard), xe (số tấn theo từng xe),
+  xưởng mạ; nguyên liệu mua vào + thống kê.
+- Cảnh báo cuối ngày tự động (lệnh SX chưa cập nhật / trễ hạn, hợp đồng đến hạn, thẻ / phiếu cân quá hạn) gửi theo vai trò.
+- Đăng nhập, phân quyền server, nhật ký thao tác; web responsive dùng trên điện thoại.
+
 ## Chạy máy dev
 
 Cần Docker (chạy PostgreSQL), Python 3.12, Node 20+.
@@ -103,6 +113,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 - Ảnh phiếu lưu trong volume `uploads`; link ảnh trả ra API có chữ ký + hết hạn 12 giờ (người ngoài không xem được).
 - Nên đặt sau reverse proxy có HTTPS (Caddy / Nginx + Let's Encrypt) và trỏ tên miền; đặt `CORS_ORIGINS` theo tên miền đó.
 - Bản demo cho khách xem: đặt `ALLOW_DEMO_RESET=1` và `VITE_DEMO_LOGIN=1` trong `.env`.
+- Cảnh báo cuối ngày: chạy lúc `END_OF_DAY_HOUR` (mặc định 17h, giờ Việt Nam); tắt bằng `ALERTS_ENABLED=0`.
 
 ## Trước khi chạy thật
 - Đặt `SECRET_KEY` (chuỗi ngẫu nhiên ≥ 32 ký tự), `DATABASE_URL` và mật khẩu PostgreSQL thật qua biến môi trường; tạo tài khoản thật, khóa / xóa tài khoản demo; đặt `ALLOW_DEMO_RESET=0` để tắt `/api/admin/reset` (xóa toàn bộ dữ liệu).

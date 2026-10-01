@@ -2,8 +2,8 @@
    - Bấm mã bất kỳ (DH/HD/LSX/PTN/PC/VC/SL/VK) → drawer trượt phải, có thể chồng nhiều lớp.
    - URL ?open=hd:HD-2609-01 → tự mở khi tải trang (dùng cho link chia sẻ / điều hướng chéo trang).
    Mỗi loại bản ghi đăng ký component ở ./registry.tsx. */
-import { Drawer } from 'antd'
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Drawer, Skeleton } from 'antd'
+import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { PeekContext } from './context'
 import type { PeekType } from './meta'
@@ -43,7 +43,7 @@ export function PeekProvider({ children }: { children: ReactNode }) {
           <Drawer key={e.key} open placement="right" size={reg.width ?? 640} closable={false} title={null}
             className="peek-drawer" styles={{ body: { padding: 0 } }} push={{ distance: 40 }}
             onClose={() => setStack((s) => s.filter((x) => x.key !== e.key))}>
-            <Comp id={e.id} />
+            <Suspense fallback={<Skeleton active paragraph={{ rows: 10 }} style={{ padding: 24 }} />}><Comp id={e.id} /></Suspense>
           </Drawer>
         )
       })}

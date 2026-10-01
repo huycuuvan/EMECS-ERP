@@ -1,26 +1,29 @@
 import { Spin } from 'antd'
-import type { ReactNode } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import AppLayout from '@/layout/AppLayout'
-import Contracts from '@/pages/Contracts'
-import Dashboard from '@/pages/Dashboard'
 import Login from '@/pages/Login'
-import GalvReconcile from '@/pages/GalvReconcile'
-import LsxPage from '@/pages/LsxPage'
-import Mismatches from '@/pages/Mismatches'
-import Mobile from '@/pages/Mobile'
-import Orders from '@/pages/Orders'
-import Receipts from '@/pages/Receipts'
-import Reports from '@/pages/Reports'
-import Tasks from '@/pages/Tasks'
-import Users from '@/pages/Users'
-import VirtualLoss from '@/pages/VirtualLoss'
-import Weighings from '@/pages/Weighings'
-import Customers from '@/pages/Customers'
-import Galvanizers from '@/pages/Galvanizers'
-import Materials from '@/pages/Materials'
-import Vehicles from '@/pages/Vehicles'
+
+
+// Tách tải theo trang: lần đầu chỉ tải trang đang mở (quan trọng với điện thoại 4G ở hiện trường)
+const Contracts = lazy(() => import('@/pages/Contracts'))
+const Dashboard = lazy(() => import('@/pages/Dashboard'))
+const GalvReconcile = lazy(() => import('@/pages/GalvReconcile'))
+const LsxPage = lazy(() => import('@/pages/LsxPage'))
+const Mismatches = lazy(() => import('@/pages/Mismatches'))
+const Mobile = lazy(() => import('@/pages/Mobile'))
+const Orders = lazy(() => import('@/pages/Orders'))
+const Receipts = lazy(() => import('@/pages/Receipts'))
+const Reports = lazy(() => import('@/pages/Reports'))
+const Tasks = lazy(() => import('@/pages/Tasks'))
+const Users = lazy(() => import('@/pages/Users'))
+const VirtualLoss = lazy(() => import('@/pages/VirtualLoss'))
+const Weighings = lazy(() => import('@/pages/Weighings'))
+const Customers = lazy(() => import('@/pages/Customers'))
+const Galvanizers = lazy(() => import('@/pages/Galvanizers'))
+const Materials = lazy(() => import('@/pages/Materials'))
+const Vehicles = lazy(() => import('@/pages/Vehicles'))
 
 /** Chưa đăng nhập → về /login (giữ trang đang mở để quay lại). */
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -31,8 +34,11 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+const PageLoading = () => <div style={{ minHeight: '60vh', display: 'grid', placeItems: 'center' }}><Spin size="large" /></div>
+
 export default function App() {
   return (
+    <Suspense fallback={<PageLoading />}>
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/mobile" element={<RequireAuth><Mobile /></RequireAuth>} />
@@ -57,5 +63,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
+    </Suspense>
   )
 }

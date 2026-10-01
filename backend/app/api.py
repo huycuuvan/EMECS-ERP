@@ -21,7 +21,11 @@ from .files import sign_photo
 from .ticket import ticket_img
 from .utils import fmt_kg
 
-# Mọi route dưới đây bắt buộc đăng nhập; quyền chi tiết khai báo ở từng route (xem security.require*).
+# Mọi route dưới đây bắt buộc đăng nhập.
+# ĐỌC (GET): mọi người đã đăng nhập đều đọc được — giống bản demo, menu ẩn theo vai trò; một màn hình
+#   thường cần dữ liệu liên đới (vd Đối ứng mạ cần hợp đồng). Ẩn số tiền với vai trò hiện trường: chờ khách chốt.
+# GHI (POST/PUT/PATCH): kiểm quyền chặt theo PERMISSIONS + quy tắc riêng (security.require / require_roles).
+# Xuất Excel & quản trị người dùng vẫn giới hạn theo quyền trang.
 router = APIRouter(prefix="/api", dependencies=[Depends(get_current_user)])
 DB = Depends(get_db)
 
@@ -67,7 +71,7 @@ def admin_reset(db: Session = DB):
     return {"ok": True}
 
 
-@router.get("/dashboard", dependencies=[Depends(require("dashboard"))])
+@router.get("/dashboard")
 def dashboard(tag: int | None = None, db: Session = DB):
     return svc.dashboard(db, tag)
 
@@ -92,7 +96,7 @@ async def upload(file: UploadFile = File(...)):
 
 
 # ---------------------------------------------------------------- đơn hàng
-@router.get("/orders", dependencies=[Depends(require("don-hang"))])
+@router.get("/orders")
 def list_orders(tag: int | None = None, db: Session = DB):
     rows = _list(db, Order, Order.date, S.order)
     if tag:  # lọc theo thẻ khách hàng
@@ -101,7 +105,7 @@ def list_orders(tag: int | None = None, db: Session = DB):
     return rows
 
 
-@router.get("/orders/{oid}", dependencies=[Depends(require("don-hang"))])
+@router.get("/orders/{oid}")
 def get_order(oid: str, db: Session = DB):
     return S.order(svc.get_or_404(db, Order, oid))
 
@@ -127,7 +131,7 @@ def send_to_kt(oid: str, db: Session = DB):
 
 
 # ---------------------------------------------------------------- hợp đồng
-@router.get("/contracts", dependencies=[Depends(require("hop-dong"))])
+@router.get("/contracts")
 def list_contracts(tag: int | None = None, db: Session = DB):
     out = []
     cust_of = {o.id: o.customer_id for o in db.scalars(select(Order))}
@@ -142,12 +146,12 @@ def list_contracts(tag: int | None = None, db: Session = DB):
     return out
 
 
-@router.get("/contracts/{cid}", dependencies=[Depends(require("hop-dong"))])
+@router.get("/contracts/{cid}")
 def get_contract(cid: str, db: Session = DB):
     return svc.contract_agg(db, cid)
 
 
-@router.get("/contracts/{cid}/ledger", dependencies=[Depends(require("hop-dong"))])
+@router.get("/contracts/{cid}/ledger")
 def contract_ledger(cid: str, db: Session = DB):
     return svc.contract_flow_ledger(db, cid)
 
@@ -175,12 +179,12 @@ def contract_payment(cid: str, body: SC.PaymentIn, db: Session = DB):
 
 
 # ---------------------------------------------------------------- lệnh sản xuất
-@router.get("/lsx", dependencies=[Depends(require("lsx"))])
+@router.get("/lsx")
 def list_lsx(contract_id: str | None = None, db: Session = DB):
     return _list(db, Lsx, Lsx.assigned_at, S.lsx, contract_id=contract_id)
 
 
-@router.get("/lsx/{lid}", dependencies=[Depends(require("lsx"))])
+@router.get("/lsx/{lid}")
 def get_lsx(lid: str, db: Session = DB):
     return S.lsx(svc.get_or_404(db, Lsx, lid))
 
@@ -211,12 +215,12 @@ def lsx_extend(lid: str, body: SC.LsxExtendIn, db: Session = DB):
 
 
 # ---------------------------------------------------------------- phiếu tiếp nhận
-@router.get("/receipts", dependencies=[Depends(require("tiep-nhan"))])
+@router.get("/receipts")
 def list_receipts(contract_id: str | None = None, lsx_id: str | None = None, db: Session = DB):
     return _list(db, Receipt, Receipt.date, S.receipt, contract_id=contract_id, lsx_id=lsx_id)
 
 
-@router.get("/receipts/{rid}", dependencies=[Depends(require("tiep-nhan"))])
+@router.get("/receipts/{rid}")
 def get_receipt(rid: str, db: Session = DB):
     return S.receipt(svc.get_or_404(db, Receipt, rid))
 
@@ -227,12 +231,12 @@ def create_receipt(body: SC.ReceiptCreate, db: Session = DB):
 
 
 # ---------------------------------------------------------------- phiếu cân
-@router.get("/weighings", dependencies=[Depends(require("phieu-can"))])
+@router.get("/weighings")
 def list_weighings(contract_id: str | None = None, db: Session = DB):
     return _list(db, Weighing, Weighing.date, lambda p: S.weighing(p, photo=False), contract_id=contract_id)
 
 
-@router.get("/weighings/{pid}", dependencies=[Depends(require("phieu-can"))])
+@router.get("/weighings/{pid}")
 def get_weighing(pid: str, db: Session = DB):
     return S.weighing(svc.get_or_404(db, Weighing, pid))
 
@@ -257,7 +261,7 @@ def weighing_photo(pid: str, body: SC.PhotoIn, db: Session = DB):
 
 
 # ---------------------------------------------------------------- thẻ công việc lái xe
-@router.get("/tasks", dependencies=[Depends(require("van-chuyen"))])
+@router.get("/tasks")
 def list_tasks(contract_id: str | None = None, type: str | None = None, driver: str | None = None,
                db: Session = DB, user: User = Depends(get_current_user)):
     if user.role_list == ["lx"]:  # lái xe thuần: chỉ thấy thẻ của mình
@@ -266,7 +270,7 @@ def list_tasks(contract_id: str | None = None, type: str | None = None, driver: 
                  driver=driver)
 
 
-@router.get("/tasks/{tid}", dependencies=[Depends(require("van-chuyen"))])
+@router.get("/tasks/{tid}")
 def get_task(tid: str, db: Session = DB):
     return S.task(svc.get_or_404(db, Task, tid))
 
@@ -312,12 +316,12 @@ def task_photo(tid: str, body: SC.PhotoIn, db: Session = DB):
 
 
 # ---------------------------------------------------------------- sai lệch
-@router.get("/mismatches", dependencies=[Depends(require("sai-lech"))])
+@router.get("/mismatches")
 def list_mismatches(contract_id: str | None = None, status: str | None = None, db: Session = DB):
     return _list(db, Mismatch, Mismatch.date, S.mismatch, contract_id=contract_id, status=status)
 
 
-@router.get("/mismatches/{mid}", dependencies=[Depends(require("sai-lech"))])
+@router.get("/mismatches/{mid}")
 def get_mismatch(mid: str, db: Session = DB):
     return S.mismatch(svc.get_or_404(db, Mismatch, mid))
 
@@ -328,17 +332,17 @@ def sign_mismatch(mid: str, db: Session = DB):
 
 
 # ---------------------------------------------------------------- kho ảo
-@router.get("/vloss", dependencies=[Depends(require("kho-ao"))])
+@router.get("/vloss")
 def list_vloss(db: Session = DB):
     return _list(db, VLoss, VLoss.date, S.vloss)
 
 
-@router.get("/vloss/pending-deltas", dependencies=[Depends(require("kho-ao"))])
+@router.get("/vloss/pending-deltas")
 def vloss_pending(db: Session = DB):
     return svc.pending_deltas(db)
 
 
-@router.get("/vloss/{vid}", dependencies=[Depends(require("kho-ao"))])
+@router.get("/vloss/{vid}")
 def get_vloss(vid: str, db: Session = DB):
     return S.vloss(svc.get_or_404(db, VLoss, vid))
 
@@ -354,13 +358,13 @@ def resolve_vloss(vid: str, body: SC.ResolveVlossIn, db: Session = DB):
 
 
 # ---------------------------------------------------------------- báo cáo
-@router.get("/reports/movement-log", dependencies=[Depends(require("bao-cao"))])
+@router.get("/reports/movement-log")
 def movement_log(contract_id: str | None = None, date_from: datetime | None = None, date_to: datetime | None = None,
                  db: Session = DB):
     return svc.movement_log(db, contract_id, date_from, date_to)
 
 
-@router.get("/reports/overdue-docs", dependencies=[Depends(require("bao-cao"))])
+@router.get("/reports/overdue-docs")
 def overdue_docs(db: Session = DB):
     return svc.overdue_docs(db)
 

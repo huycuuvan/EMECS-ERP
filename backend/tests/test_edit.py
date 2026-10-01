@@ -95,7 +95,7 @@ def test_weighing_edit_rules(c):
 def test_edit_permissions(c):
     login(c, "kt")
     assert c.patch("/api/weighings/PC-0201", json={"kgActual": 9000, "reason": "x"}).status_code == 403
-    assert c.get("/api/history/pc/PC-0201").status_code == 403  # kế toán không xem trạm cân
+    assert c.get("/api/history/pc/PC-0201").status_code == 200  # đọc lịch sử: mọi người đăng nhập
     assert c.get("/api/history/hd/HD-2609-01").status_code == 200
     login(c, "lx1")
     assert c.post("/api/tasks/VC-0007/reassign", json={"driver": "Phạm Văn Tài"}).status_code == 403

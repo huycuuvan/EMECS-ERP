@@ -100,14 +100,15 @@ def test_master_permissions(c):
     assert c.get("/api/tags").status_code == 200
     assert c.post("/api/customers", json={"name": "X"}).status_code == 403
     assert c.post("/api/tags", json={"name": "X"}).status_code == 403
-    assert c.get("/api/material-receipts").status_code == 403  # kế toán không xem nguyên liệu
-    assert c.get("/api/vehicles").status_code == 403
+    assert c.get("/api/material-receipts").status_code == 200  # đọc: mọi người đăng nhập
+    assert c.post("/api/material-receipts", json={"supplier": "X", "kg": 1}).status_code == 403  # kế toán không ghi nguyên liệu
+    assert c.get("/api/vehicles").status_code == 200  # đọc: mọi người đăng nhập
     assert c.post("/api/alerts/run-end-of-day").status_code == 403
     login(c, "lx1")
-    assert c.get("/api/customers").status_code == 403
+    assert c.get("/api/customers").status_code == 200  # đọc: mọi người đăng nhập
     assert c.get("/api/vehicles").status_code == 200 and c.get("/api/galvanizers").status_code == 200
     assert c.post("/api/vehicles", json={"plate": "30A-000.00"}).status_code == 403
-    assert c.get("/api/reports/vehicle-tonnage").status_code == 403  # lái xe không có báo cáo
+    assert c.get("/api/reports/vehicle-tonnage").status_code == 200  # đọc: mọi người đăng nhập
     login(c, "sx")
     assert c.get("/api/material-receipts").status_code == 200
     assert c.post("/api/material-receipts", json={"supplier": "A", "kg": 100}).status_code == 403
