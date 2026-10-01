@@ -143,7 +143,7 @@ export default function AppLayout() {
             </span>
           </Dropdown>
         </Header>
-        <Content style={{ padding: '24px 28px 48px', maxWidth: 1480, width: '100%', margin: '0 auto' }}>
+        <Content className="app-content">
           {allowed ? <Outlet /> : (
             <Result status="403" title="Không có quyền truy cập" subTitle={`Vai trò hiện tại không được xem mục "${current?.label}".`}
               extra={<Button onClick={() => navigate('/dashboard')}>Về Dashboard</Button>} />

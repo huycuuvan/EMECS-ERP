@@ -89,3 +89,28 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ff-sans);
 .mobile-nav-btn { display: none !important; }
 @media (max-width: 991px) { .mobile-nav-btn { display: inline-flex !important; } }
 @media (max-width: 640px) { .hide-sm { display: none !important; } }
+
+/* ---------- khung nội dung + responsive (web dùng trên điện thoại — yêu cầu báo giá) ---------- */
+.app-content { padding: 24px 28px 48px; max-width: 1480px; width: 100%; margin: 0 auto; }
+@media (max-width: 768px) {
+  .app-content { padding: 14px 12px 40px; }
+  .page-header { margin-bottom: 14px; }
+  .page-header p { font-size: 12.5px; }
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .kpi { padding: 14px 12px 12px; }
+  .kpi-value { font-size: 22px; }
+  .kpi-label { font-size: 9px; letter-spacing: .1em; }
+  .kpi-sub { font-size: 11.5px; }
+  .ant-table { font-size: 13px; }
+  .ant-table-thead > tr > th, .ant-table-tbody > tr > td { padding: 9px 8px !important; }
+  /* cột đầu (mã chứng từ) dính trái khi vuốt ngang bảng */
+  .ant-table-content table > thead > tr > th:first-child,
+  .ant-table-content table > tbody > tr > td:first-child {
+    position: sticky; left: 0; z-index: 2; background: var(--canvas);
+    box-shadow: 2px 0 4px -2px rgba(20, 19, 15, .18);
+  }
+  .ant-table-content table > thead > tr > th:first-child { background: var(--paper-2); }
+  .ant-table-tbody > tr.row-alert > td:first-child { background: #fbf1ef; }
+  .ant-modal { max-width: calc(100vw - 16px) !important; margin: 8px auto; }
+  .sec-title { margin: 14px 0 8px; }
+}
