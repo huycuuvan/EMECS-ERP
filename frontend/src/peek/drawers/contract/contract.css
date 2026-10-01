@@ -1,0 +1,105 @@
+/* Style riêng cho drawer Hợp đồng / Đơn hàng + trang danh sách (port hd-tabs-css của steel-data.js). */
+
+/* ---------- 3 màn hình trong bản ghi hợp đồng ---------- */
+.hdtabs { display: flex; gap: 5px; margin: 16px 0 6px; background: var(--paper-2); padding: 5px; border-radius: 12px; }
+.hdtab { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 8px; font-size: 12.5px; font-weight: 600; border: 0; border-radius: 9px; background: transparent; color: var(--ash); cursor: pointer; font-family: inherit; transition: all 130ms ease; }
+.hdtab:hover { color: var(--ink); }
+.hdtab.active { background: var(--ink); color: var(--paper); box-shadow: 0 2px 8px rgba(20, 19, 15, .25); }
+
+.hd-actbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 10px 12px; background: var(--canvas); border: 1px dashed var(--rule); border-radius: 12px; align-items: center; }
+.hd-actbar .lbl { font-family: var(--ff-mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ash); margin-right: 4px; }
+
+/* ---------- bảng cân đối nguồn = phân bổ ---------- */
+.hdbs { display: grid; grid-template-columns: 1fr auto 1.4fr; gap: 10px; align-items: stretch; margin: 10px 0; }
+.hdbs-box { background: var(--canvas); border: 1px solid var(--rule); border-radius: 12px; padding: 12px 14px; }
+.hdbs-eq { display: flex; align-items: center; font-size: 26px; font-weight: 800; color: var(--ash); }
+.hdbs-t { font-family: var(--ff-mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--ash); margin-bottom: 8px; }
+.hdbs-big { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); }
+.hdbs-row { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.hdbs-row b { margin-left: auto; }
+.hdbs-dot { width: 9px; height: 9px; border-radius: 3px; flex: none; display: inline-block; }
+.hdbal { margin: 8px 0 4px; padding: 9px 14px; border-radius: 10px; font-weight: 700; font-size: 12.5px; display: flex; align-items: center; gap: 8px; }
+.hdbal.ok { background: var(--moss-soft); color: var(--moss); }
+.hdbal.bad { background: var(--signal-soft); color: var(--signal); }
+
+/* ---------- dải phân bổ hiện tại ---------- */
+.flowbar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; border: 1px solid var(--rule); margin: 6px 0 4px; background: var(--paper-2); }
+.flowbar > i { display: block; height: 100%; }
+.flowleg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: var(--ash); margin-bottom: 8px; }
+.flowleg span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ---------- sổ luân chuyển: số dư chạy ---------- */
+.hdledger { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11.5px; background: var(--canvas); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.hdledger th { font-family: var(--ff-mono); font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ash); padding: 7px; border-bottom: 1px solid var(--rule); background: var(--paper-2); text-align: right; white-space: nowrap; font-weight: 700; }
+.hdledger th:nth-child(-n+3) { text-align: left; }
+.hdledger td { padding: 6px 7px; border-bottom: 1px solid var(--rule-hair); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.hdledger td:nth-child(-n+3) { text-align: left; }
+.hdledger td:nth-child(3) { white-space: normal; min-width: 170px; }
+.hdledger tbody tr:last-child td { border-bottom: 0; }
+.hdledger .lg-cell b { display: block; font-size: 12px; }
+.hdledger .lg-cell i { display: block; font-style: normal; font-size: 9.5px; opacity: .8; }
+.hdledger .lg-up { background: #dde8d833; }
+.hdledger .lg-up b { color: var(--moss); }
+.hdledger .lg-down { background: #f4e2d633; }
+.hdledger .lg-down b { color: #9a4a12; }
+.hdledger .lg-zero b::after { content: " \2713"; color: var(--moss); }
+.hdledger .lg-mut { color: var(--ash-3); }
+.hdledger tfoot td { background: var(--paper-2); border-top: 2px solid var(--ink); font-weight: 700; font-size: 12px; }
+
+/* ---------- tài khoản chữ T: hàng giao / tiền về ---------- */
+.hdta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.hdta-box { border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; background: var(--canvas); align-self: start; }
+.hdta-h { padding: 9px 12px; font-family: var(--ff-mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+.hdta-h.no { background: var(--rust-soft); color: #9a3608; }
+.hdta-h.co { background: var(--moss-soft); color: var(--moss); }
+.hdta-box table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.hdta-box td { padding: 6px 12px; border-bottom: 1px solid var(--rule-hair); font-variant-numeric: tabular-nums; vertical-align: top; }
+.hdta-box td:last-child { text-align: right; }
+.hdta-tot td { background: var(--paper-2); font-weight: 700; border-top: 1.5px solid var(--ink); border-bottom: 0; }
+.hdta-luy { color: var(--ash); font-size: 10.5px; font-weight: 400; }
+.hddebt { margin: 4px 0 10px; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 13.5px; font-weight: 800; }
+.hddebt.no { background: var(--signal-soft); color: var(--signal); }
+.hddebt.co { background: var(--moss-soft); color: var(--moss); }
+.hddebt small { font-weight: 500; font-size: 11.5px; }
+
+/* ---------- chip 3 điểm cân ---------- */
+.hdchecks { display: flex; flex-wrap: wrap; gap: 7px; margin: 6px 0; }
+.hdck { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--rule); background: var(--canvas); }
+.hdck.ok { border-color: var(--moss); color: var(--moss); }
+.hdck.bad { border-color: var(--signal); color: var(--signal); background: var(--signal-soft); cursor: pointer; }
+.hdck.bad:hover { text-decoration: underline; }
+
+/* ---------- bảng hàng hóa trong drawer ---------- */
+.pk-items { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; background: var(--canvas); border-radius: 10px; overflow: hidden; border: 1px solid var(--rule); }
+.pk-items th { font-family: var(--ff-mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ash); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); background: var(--paper-2); font-weight: 700; }
+.pk-items td { padding: 8px 10px; border-bottom: 1px solid var(--rule-hair); }
+.pk-items tr:last-child td { border-bottom: 0; }
+.pk-items .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- liên kết chuỗi (pill) ---------- */
+.pk-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.pk-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 13px; font-size: 12px; font-family: var(--ff-mono); background: var(--canvas); border: 1px solid var(--rule); border-radius: 10px; color: var(--ink); cursor: pointer; transition: border-color 120ms ease, transform 120ms ease; line-height: 1.35; }
+.pk-pill:hover { border-color: var(--rust); color: var(--rust); transform: translateY(-1px); }
+.pk-pill .pk-pill-t { color: var(--ash); font-size: 9.5px; text-transform: uppercase; letter-spacing: .08em; display: block; }
+.pk-empty { font-size: 12.5px; color: var(--ash); }
+
+/* ---------- danh sách: ô phụ + mini progress ---------- */
+.sub-soft { color: var(--ash); font-size: 11.5px; margin-top: 2px; }
+.mini-prog { min-width: 140px; }
+.mini-prog .lbl { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--ash); font-variant-numeric: tabular-nums; }
+.mini-prog .track { height: 7px; border-radius: 4px; background: var(--paper-2); overflow: hidden; margin: 3px 0; }
+.mini-prog .track > i { display: block; height: 100%; }
+.file-link { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--steel); background: var(--steel-soft); padding: 3px 10px; border-radius: 999px; border: 0; cursor: pointer; font-family: var(--ff-mono); max-width: 200px; }
+.file-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-link:hover { color: var(--ink); }
+.cust-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.cust-tag { display: inline-flex; align-items: center; font-size: 9.5px; font-weight: 600; letter-spacing: .02em; padding: 1px 7px; border-radius: 999px; color: #fff; }
+.list-card { background: var(--canvas); border: 1px solid var(--rule); border-radius: 12px; padding: 16px; }
+.filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.list-foot { margin-top: 12px; font-size: 12px; color: var(--ash); display: flex; gap: 6px; align-items: flex-start; }
+
+@media (max-width: 768px) {
+  .hdbs { grid-template-columns: 1fr; }
+  .hdbs-eq { justify-content: center; }
+  .hdta { grid-template-columns: 1fr; }
+}

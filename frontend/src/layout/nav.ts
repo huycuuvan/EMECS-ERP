@@ -1,0 +1,35 @@
+import {
+  Archive, ArrowLeftRight, BarChart3, Factory, FileSignature, FileWarning, LayoutDashboard, PackageCheck, Scale,
+  ShoppingCart, Truck, UsersRound, type LucideIcon,
+} from 'lucide-react'
+
+export interface NavItem { id: string; label: string; icon: LucideIcon; path: string }
+/** Menu giống layout.js của bản demo. `id` dùng làm khóa phân quyền (PERMISSIONS ở backend/config.py). */
+export const NAV: { section: string; items: NavItem[] }[] = [
+  { section: 'Điều hành', items: [
+    { id: 'dashboard', label: 'Dashboard điều hành', icon: LayoutDashboard, path: '/dashboard' },
+    { id: 'don-hang', label: 'Đơn hàng khách', icon: ShoppingCart, path: '/don-hang' },
+    { id: 'hop-dong', label: 'Hợp đồng & Tạm ứng', icon: FileSignature, path: '/hop-dong' },
+  ] },
+  { section: 'Sản xuất', items: [
+    { id: 'lsx', label: 'Lệnh sản xuất', icon: Factory, path: '/lsx' },
+  ] },
+  { section: 'Kho & Trạm cân', items: [
+    { id: 'tiep-nhan', label: 'Phiếu tiếp nhận TP', icon: PackageCheck, path: '/tiep-nhan' },
+    { id: 'phieu-can', label: 'Trạm cân · Phiếu cân', icon: Scale, path: '/phieu-can' },
+    { id: 'kho-ao', label: 'Kho ảo chênh lệch', icon: Archive, path: '/kho-ao' },
+  ] },
+  { section: 'Vận chuyển & Mạ', items: [
+    { id: 'van-chuyen', label: 'Thẻ công việc lái xe', icon: Truck, path: '/van-chuyen' },
+    { id: 'doi-ung-ma', label: 'Đối ứng gửi/nhận mạ', icon: ArrowLeftRight, path: '/doi-ung-ma' },
+  ] },
+  { section: 'Giám sát & Báo cáo', items: [
+    { id: 'bao-cao', label: 'Báo cáo đối ứng · Quá hạn', icon: BarChart3, path: '/bao-cao' },
+    { id: 'sai-lech', label: 'Sai lệch chờ ký', icon: FileWarning, path: '/sai-lech' },
+  ] },
+  { section: 'Quản trị', items: [
+    { id: 'nguoi-dung', label: 'Người dùng & phân quyền', icon: UsersRound, path: '/nguoi-dung' },
+  ] },
+]
+
+export const NAV_FLAT = NAV.flatMap((g) => g.items.map((i) => ({ ...i, section: g.section })))

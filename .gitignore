@@ -1,0 +1,30 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/data/*.db
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Node
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+
+# Tài liệu đầu vào của khách (báo giá gốc, dữ liệu cá nhân) — chỉ lưu nội bộ, KHÔNG đưa lên Git
+docs/00-input/
+
+# Claude Code: cấu hình cá nhân
+.claude/settings.local.json
+
+# Triển khai
+.env
+backups/
+
+# Tài liệu khách hàng & bản demo gốc — chỉ lưu nội bộ, KHÔNG đưa lên Git (repo public)
+docs/
+Cơ khí thép/

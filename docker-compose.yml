@@ -1,0 +1,24 @@
+# PostgreSQL cho môi trường dev:  docker compose up -d db
+# Mật khẩu dưới đây CHỈ dùng cho máy dev — môi trường thật đặt qua biến môi trường / secret.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: steel-one-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: steel_one
+      POSTGRES_USER: steel
+      POSTGRES_PASSWORD: steel_dev_pw
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "5432:5432"
+    volumes:
+      - steel_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U steel -d steel_one"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  steel_pgdata:
