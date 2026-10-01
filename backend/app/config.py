@@ -25,6 +25,10 @@ FILL_HOURS = 24     # hạn lái xe điền kg + ảnh phiếu kể từ khi xu�
 CONTRACT_DAYS = 5   # hạn kế toán trả hợp đồng kể từ khi nhận đơn
 PC_FILL_HOURS = 4   # phiếu cân trạm quá 4 giờ chưa có số/ảnh → quá hạn
 
+# Cảnh báo cuối ngày (giờ Việt Nam): sau END_OF_DAY_HOUR hệ thống tự tạo thông báo tổng hợp 1 lần/ngày.
+END_OF_DAY_HOUR = int(os.getenv("END_OF_DAY_HOUR", "17"))
+ALERTS_ENABLED = os.getenv("ALERTS_ENABLED", "1") == "1"
+
 # Tài khoản demo (seed). phone = tên đăng nhập. Một người có thể giữ nhiều vai trò.
 PEOPLE = {
     "ql": {"name": "Quản lý A", "dept": "Điều hành", "roles": ["admin"], "phone": "0900000001"},
@@ -64,12 +68,16 @@ ROLES = [
 # 'full' quản lý · 'limited' thao tác giới hạn · 'view' chỉ xem · không có = ẩn
 PERMISSIONS = {
     "kt": {"dashboard": "view", "don-hang": "view", "hop-dong": "full", "lsx": "view",
-           "kho-ao": "view", "bao-cao": "view", "sai-lech": "view"},
+           "kho-ao": "view", "bao-cao": "view", "sai-lech": "view",
+           "khach-hang": "view"},
     "sx": {"dashboard": "view", "don-hang": "view", "hop-dong": "view", "lsx": "full",
-           "tiep-nhan": "view", "bao-cao": "view", "sai-lech": "view"},
+           "tiep-nhan": "view", "bao-cao": "view", "sai-lech": "view",
+           "khach-hang": "view", "nguyen-lieu": "view"},
     "kho": {"dashboard": "view", "lsx": "view", "tiep-nhan": "full", "phieu-can": "full",
             "kho-ao": "limited", "van-chuyen": "view", "doi-ung-ma": "view",
-            "bao-cao": "view", "sai-lech": "limited"},
+            "bao-cao": "view", "sai-lech": "limited",
+            "nguyen-lieu": "full", "xe": "view", "xuong-ma": "view"},
     "lx": {"dashboard": "view", "phieu-can": "view", "van-chuyen": "full",
-           "doi-ung-ma": "view", "sai-lech": "limited"},
+           "doi-ung-ma": "view", "sai-lech": "limited",
+           "xe": "view", "xuong-ma": "view"},
 }

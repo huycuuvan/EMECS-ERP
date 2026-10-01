@@ -10,6 +10,7 @@ def order(o: Order) -> dict:
         "items": [{"id": i.id, "name": i.name, "qty": i.qty, "unit": i.unit, "kg": i.kg, "price": i.price}
                   for i in o.items],
         "totalKg": o.total_kg, "value": o.value, "status": o.status, "contractId": o.contract_id, "note": o.note,
+        "customerId": o.customer_id,
     }
 
 
@@ -62,6 +63,7 @@ def task(t: Task, photo: bool = True) -> dict:
         "kgAtGalv": t.kg_at_galv, "kgPicked": t.kg_picked, "kgDelivered": t.kg_delivered,
         "filledAt": iso(t.filled_at), "photo": sign_photo(t.photo) if photo else None, "hasPhoto": bool(t.photo), "rejectReason": t.reject_reason,
         "mismatchId": t.mismatch_id, "note": t.note, "lossAccepted": t.loss_accepted,
+        "vehiclePlate": t.vehicle_plate, "galvanizerId": t.galvanizer_id,
     }
 
 

@@ -6,7 +6,8 @@ import { useCreateOrder, useOrders, useUpdateOrder } from '@/api/hooks'
 import type { Order, OrderItem } from '@/api/types'
 import { fmtT, money } from '@/lib/format'
 import { MODAL_Z, numFormatter, numParser, positive } from '@/peek/drawers/contract/utils'
-import { CUSTOMER_TAGS, UNITS } from './customers'
+import { useCustomers } from '@/api/hooksMaster'
+import { UNITS } from './customers'
 
 const NEW = '__new__'
 type ItemVals = Omit<OrderItem, 'id'>
@@ -17,12 +18,13 @@ export default function OrderFormModal({ order, onClose, onSaved }: { order?: Or
   const create = useCreateOrder()
   const update = useUpdateOrder()
   const { data: orders = [] } = useOrders()
+  const { data: catalog = [] } = useCustomers()
   const customers = useMemo(() => {
-    const s = new Set<string>(Object.keys(CUSTOMER_TAGS))
+    const s = new Set<string>(catalog.filter((c) => c.active).map((c) => c.name))
     orders.forEach((o) => s.add(o.customer))
     if (order) s.add(order.customer)
     return [...s]
-  }, [orders, order])
+  }, [catalog, orders, order])
   const cust = Form.useWatch('cust', form)
   const items = Form.useWatch('items', form) as ItemVals[] | undefined
   const totalKg = (items ?? []).reduce((s, i) => s + (Number(i?.kg) || 0), 0)

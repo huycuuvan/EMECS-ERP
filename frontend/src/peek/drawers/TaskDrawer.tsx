@@ -2,6 +2,7 @@
 import { Tag } from 'antd'
 import { AlarmClock, Image as ImageIcon, Info, Scale } from 'lucide-react'
 import { useMeta, useTask, useTaskPhoto } from '@/api/hooks'
+import { useGalvanizers } from '@/api/hooksMaster'
 import type { Task } from '@/api/types'
 import HistoryBlock from '@/components/HistoryBlock'
 import PhotoBlock from '@/components/PhotoBlock'
@@ -20,6 +21,7 @@ export default function TaskDrawer({ id }: { id: string }) {
   const { data: meta } = useMeta()
   const { can } = useAuth()
   const photoM = useTaskPhoto()
+  const { data: galvs } = useGalvanizers(can('van-chuyen'))
   const now = useNow()
   if (!t) return <PeekShell type="vc" id={id} loading={isLoading} notFound={isError || !isLoading} />
 
@@ -43,6 +45,8 @@ export default function TaskDrawer({ id }: { id: string }) {
       <CellGrid>
         <Cell label="Loại việc">{isMa ? 'Chở hàng đi mạ kẽm' : 'Lấy hàng mạ → giao khách'}</Cell>
         <Cell label="Lái xe">{t.driver}</Cell>
+        <Cell label="Xe">{t.vehiclePlate ? <span className="mono" style={{ fontWeight: 700 }}>{t.vehiclePlate}</span> : <span className="text-ash">Chưa gán xe</span>}</Cell>
+        {isMa && <Cell label="Xưởng mạ">{galvs?.find((g) => g.id === t.galvanizerId)?.name ?? <span className="text-ash">—</span>}</Cell>}
         <Cell label="Giao việc lúc"><span className="num">{fmtDT(t.assignedAt)}</span></Cell>
         <Cell label="Xác nhận" alert={t.status === 'Từ chối'}>
           {t.acceptedAt ? `Đồng ý lúc ${fmtDT(t.acceptedAt)}` : t.status === 'Từ chối' ? 'TỪ CHỐI' : `Chờ xác nhận ${relTime(t.assignedAt)}`}

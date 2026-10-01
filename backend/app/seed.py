@@ -6,6 +6,8 @@
 - HD-2609-04 (Hòa Bình) tạm ứng chưa về, LSX-HB04A chờ nhận, LSX-HB04B bị từ chối.
 - HD-2608-15 (PEB) hoàn thành, đối ứng khớp 100%.
 - DH-2609-05 (Cầu đường 5) vừa chốt, chưa chuyển kế toán.
+Danh mục (_seed_master): khách hàng + thẻ (Khách thân thiết / Khách lẻ…), 3 xe (gán theo tài xế), xưởng mạ Việt Đức,
+6 phiếu nguyên liệu mua vào trong 30 ngày.
 """
 from sqlalchemy.orm import Session
 
@@ -305,6 +307,7 @@ def seed(db: Session) -> None:
         Notification(at=ago(0, 3), title="Đơn hàng mới DH-2609-05",
                      sub="Ban QLDA Cầu đường 5 — chờ chuyển kế toán làm hợp đồng", type="info"),
     ])
+    _seed_master(db)
     db.commit()
 
 
@@ -317,3 +320,63 @@ def reset_db(db: Session) -> None:
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     seed(db)
+
+
+# ---------------------------------------------------------------- danh mục (khách hàng, thẻ, xe, xưởng mạ, nguyên liệu)
+TAGS = {"Khách thân thiết": "#2f5d3a", "Khách lẻ": "#4a5560", "Ưu tiên": "#c5400a", "Đối tác lâu năm": "#3f6f8c",
+        "Trả đúng hạn": "#2f7a6a", "Nhạy giá": "#8a1f1f", "Ưa giao nhanh": "#6b4a8a", "Cần chăm sóc": "#9c7714"}
+CUSTOMERS = {  # tên (đúng như trên đơn hàng) → (mã ngắn, thẻ)
+    "Cty CP Kết cấu thép FECON": ("FECON", ["Khách thân thiết", "Ưu tiên", "Đối tác lâu năm"]),
+    "Nhà máy Thép Việt Ý": ("VIETY", ["Khách thân thiết", "Trả đúng hạn"]),
+    "Cty TNHH Cơ điện Delta": ("DELTA", ["Khách lẻ", "Nhạy giá"]),
+    "Tổng thầu Hòa Bình": ("HOABINH", ["Khách thân thiết", "Ưu tiên", "Ưa giao nhanh"]),
+    "Cty Nhà thép PEB Việt Nam": ("PEB", ["Khách thân thiết", "Đối tác lâu năm"]),
+    "Ban QLDA Cầu đường 5": ("CD5", ["Khách lẻ", "Cần chăm sóc"]),
+    "Cty Xây lắp Sông Đà 9": ("SD9", []),
+    "Cầu trục Doosan Vina": ("DOOSAN", []),
+}
+VEHICLES = [("29H-123.45", 10000, "nhà", LX1, ""), ("29H-678.90", 10000, "nhà", LX2, ""),
+            ("29C-246.80", 8000, "thuê", "", "Xe thuê ngoài theo chuyến — chạy các chuyến 8 tấn")]
+MATERIALS = [  # (ngày, NCC, mác thép, quy cách, SL, ĐVT, kg, ghi chú)
+    (27, "Cty TNHH Thép Minh Khang", "SS400", "Thép tấm 12×1500×6000", 40, "tấm", 33912, ""),
+    (21, "Cty CP Thép Á Châu", "Q345B", "Thép hình H-400×200×8×13 (12 m)", 30, "cây", 23760, ""),
+    (15, "Cty TNHH Thép Minh Khang", "SS400", "Thép tấm 10×1500×6000", 30, "tấm", 21195, ""),
+    (9, "Cty TNHH Thép Minh Khang", "SS400", "Thép tấm 16×2000×6000", 20, "tấm", 30144,
+     "Lô bổ sung về chậm 4 ngày — xưởng xin gia hạn LSX-FE01"),
+    (5, "Tổng kho thép Hưng Thịnh", "SS400", "Thép ống D76×3,0×6000", 200, "cây", 6480, ""),
+    (2, "Cty CP Thép Á Châu", "Q345B", "Thép hình H-300×150×6,5×9 (12 m)", 40, "cây", 17616, ""),
+]
+
+
+def _seed_master(db: Session) -> None:
+    from sqlalchemy import select
+
+    from .models import Customer, Galvanizer, MaterialReceipt, Tag, Vehicle
+    db.flush()
+    tags = {n: Tag(name=n, color=c) for n, c in TAGS.items()}
+    db.add_all(tags.values())
+    orders = db.scalars(select(Order).order_by(Order.date)).all()
+    custs = {}
+    for o in orders:
+        if o.customer not in custs:
+            code, tg = CUSTOMERS.get(o.customer, ("", []))
+            custs[o.customer] = Customer(name=o.customer, short_code=code, active=True, created_at=o.date,
+                                         tags=[tags[t] for t in tg])
+    db.add_all(custs.values())
+    db.add_all(Vehicle(plate=p, capacity_kg=cap, kind=k, default_driver=d, note=n, active=True)
+               for p, cap, k, d, n in VEHICLES)
+    galv = Galvanizer(name="Mạ kẽm Việt Đức", note="Xưởng mạ kẽm nhúng nóng — đối tác gửi mạ chính", active=True)
+    db.add(galv)
+    db.add_all(MaterialReceipt(id=f"NL-{i:04d}", date=ago(d), supplier=sup, steel_grade=g, spec=sp, qty=q, unit=u,
+                               kg=kg, note=n, by=KHO)
+               for i, (d, sup, g, sp, q, u, kg, n) in enumerate(MATERIALS, 1))
+    db.add(Sequence(key="nl", value=len(MATERIALS)))
+    db.flush()
+    for o in orders:
+        o.customer_id = custs[o.customer].id
+    # xe gán theo tài xế; các chuyến đi mạ 8 tấn của HĐ FE11 chạy xe thuê 8 tấn
+    by_driver = {d: p for p, _, _, d, _ in VEHICLES if d}
+    for t in db.scalars(select(Task)):
+        t.vehicle_plate = "29C-246.80" if (t.contract_id == "HD-2608-11" and t.type == "di_ma") else by_driver.get(t.driver)
+        if t.type == "di_ma":
+            t.galvanizer_id = galv.id

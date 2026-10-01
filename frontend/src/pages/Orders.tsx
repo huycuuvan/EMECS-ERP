@@ -3,7 +3,7 @@ import { App, Button, Input, Select, Table, type TableColumnsType } from 'antd'
 import { FileSignature, Info, Paperclip, Plus, Search, Send } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useOrders } from '@/api/hooks'
+import { useOrdersByTag } from '@/api/hooksMaster'
 import type { Order, OrderStatus } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
@@ -13,13 +13,15 @@ import { usePeek } from '@/peek/context'
 import RecordLink from '@/peek/RecordLink'
 import OrderFormModal from './orders/OrderFormModal'
 import CustomerTags from './orders/CustomerTags'
+import { TagFilter } from './customers/tags'
 import { useAskSendKT } from './orders/useAskSendKT'
 import '@/peek/drawers/contract/contract.css'
 
 const STATUSES: OrderStatus[] = ['Chốt đơn', 'Đã chuyển kế toán', 'Đã có hợp đồng']
 
 export default function Orders() {
-  const { data: orders = [], isLoading } = useOrders()
+  const [tag, setTag] = useState<number>()
+  const { data: orders = [], isLoading } = useOrdersByTag(tag)
   const { open } = usePeek()
   const { can } = useAuth()
   const { message } = App.useApp()
@@ -50,7 +52,7 @@ export default function Orders() {
       title: 'Mã đơn', key: 'id', width: 130,
       render: (_, o) => <><div className="mono" style={{ fontWeight: 700 }}>{o.id}</div><div className="sub-soft">{o.code}</div></>,
     },
-    { title: 'Khách hàng', key: 'customer', render: (_, o) => <>{o.customer}<CustomerTags name={o.customer} /></> },
+    { title: 'Khách hàng', key: 'customer', render: (_, o) => <>{o.customer}<CustomerTags name={o.customer} customerId={o.customerId} /></> },
     {
       title: 'Ngày chốt', key: 'date', width: 120, sorter: (a, b) => a.date.localeCompare(b.date),
       render: (_, o) => <span className="num">{fmtD(o.date)}<div className="sub-soft">{relTime(o.date)}</div></span>,
@@ -123,6 +125,7 @@ export default function Orders() {
             value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 220 }} />
           <Select value={fs} onChange={setFs} style={{ minWidth: 200 }}
             options={[{ value: '', label: 'Tất cả trạng thái' }, ...STATUSES.map((s) => ({ value: s, label: s }))]} />
+          <TagFilter value={tag} onChange={setTag} />
         </div>
         <Table<Order> rowKey="id" size="middle" loading={isLoading} columns={columns} dataSource={rows}
           scroll={{ x: 1100 }} pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false}

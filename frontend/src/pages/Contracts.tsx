@@ -5,7 +5,8 @@ import { Button, Input, Select, Table, Tag, type TableColumnsType } from 'antd'
 import { AlertTriangle, CheckCircle2, Info, Search, ShoppingCart } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useContracts, useTasks } from '@/api/hooks'
+import { useTasks } from '@/api/hooks'
+import { useContractsByTag } from '@/api/hooksMaster'
 import type { Contract, ContractRow, ContractStatus } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { AdvChip, DueChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
@@ -17,6 +18,8 @@ import { useContractFlow } from '@/peek/drawers/contract/useContractFlow'
 import RecordLink from '@/peek/RecordLink'
 import { aggregateRows } from './contracts/aggregate'
 import MiniProg, { type ProgTone } from './contracts/MiniProg'
+import CustomerTags from './orders/CustomerTags'
+import { TagFilter } from './customers/tags'
 import '@/peek/drawers/contract/contract.css'
 
 const STATUSES: ContractStatus[] = ['Soạn thảo', 'Đã trả khách', 'Đã ký', 'Đang triển khai', 'Hoàn thành']
@@ -26,7 +29,8 @@ const QUICK_LABEL: Record<Exclude<Quick, ''>, string> = {
 }
 
 export default function Contracts() {
-  const { data: contracts = [], isLoading } = useContracts()
+  const [tag, setTag] = useState<number>()
+  const { data: contracts = [], isLoading } = useContractsByTag(tag)
   const { data: giao = [] } = useTasks({ type: 'giao_khach' })
   const { open } = usePeek()
   const { can } = useAuth()
@@ -90,7 +94,7 @@ export default function Contracts() {
     },
     {
       title: 'Khách hàng', key: 'customer',
-      render: (_, c) => <>{c.customer}<div className="sub-soft num">{fmtNum(c.totalQty)} {c.unit} · {fmtT(c.totalKg)}</div></>,
+      render: (_, c) => <>{c.customer}<CustomerTags name={c.customer} customerId={c.customerId} /><div className="sub-soft num">{fmtNum(c.totalQty)} {c.unit} · {fmtT(c.totalKg)}</div></>,
     },
     {
       title: 'Giá trị', key: 'value', align: 'right', sorter: (a, b) => a.value - b.value,
@@ -169,6 +173,7 @@ export default function Contracts() {
               { value: '', label: 'Hạn trả HĐ: tất cả' }, { value: 'overdue', label: 'Quá hạn trả' },
               { value: 'due', label: 'Đến hạn (≤1 ngày)' }, { value: 'ok', label: 'Đã trả khách' },
             ]} />
+          <TagFilter value={tag} onChange={setTag} />
           {quick && <Tag closable onClose={() => setQuick('')} color="volcano" style={{ margin: 0 }}>{QUICK_LABEL[quick]}</Tag>}
         </div>
         <Table<ContractRow> rowKey="id" size="middle" loading={isLoading} columns={columns} dataSource={rows}

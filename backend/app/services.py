@@ -13,8 +13,8 @@ from . import serializers as S
 from .config import CONTRACT_DAYS, FILL_HOURS, PC_FILL_HOURS, PEOPLE, TOLERANCE_KG
 from .db import utcnow
 from .security import actor
-from .models import (Contract, Lsx, LsxLog, Mismatch, Notification, Order, OrderItem, Payment, Receipt,
-                     Sequence, Task, VLoss, Weighing)
+from .models import (Contract, Customer, Lsx, LsxLog, Mismatch, Notification, Order, OrderItem, Payment, Receipt,
+                     Sequence, Task, VLoss, Weighing, customer_tags)
 from .utils import add_days, add_hours, fmt_d, fmt_kg, money, money_short
 
 QL, KT, SX, KHO = (PEOPLE[k]["name"] for k in ("ql", "kt", "sx", "kho"))
@@ -272,29 +272,39 @@ def pending_deltas(db: Session) -> list[dict]:
     return out
 
 
-def dashboard(db: Session) -> dict:
-    contracts = db.scalars(select(Contract)).all()
+def dashboard(db: Session, tag: int | None = None) -> dict:
+    # tag: chỉ lấy các khối gắn với hợp đồng của khách mang thẻ này (vd Khách thân thiết)
+    cids = contract_ids_for_tag(db, tag) if tag else None
+    keep = (lambda cid: cid in cids) if cids is not None else (lambda cid: True)
+    contracts = [c for c in db.scalars(select(Contract)).all() if keep(c.id)]
     active = [c for c in contracts if c.status in ("Đang triển khai", "Đã ký")]
-    pending_sl = db.scalars(select(Mismatch).where(Mismatch.status == "Chờ QL ký")).all()
-    delivered_total = _sum(db.scalars(select(Task).where(Task.type == "giao_khach")).all(), lambda t: t.kg_delivered)
+    pending_sl = [m for m in db.scalars(select(Mismatch).where(Mismatch.status == "Chờ QL ký")).all() if keep(m.contract_id)]
+    delivered_total = _sum([t for t in db.scalars(select(Task).where(Task.type == "giao_khach")).all() if keep(t.contract_id)],
+                           lambda t: t.kg_delivered)
     return {
         "activeContracts": len(active), "deliveredKgTotal": delivered_total,
-        "contractAlerts": contract_alerts(db), "overdueDocs": overdue_docs(db),
+        "contractAlerts": [a for a in contract_alerts(db) if keep(a["contract"]["id"])],
+        "overdueDocs": [o for o in overdue_docs(db) if keep(o["contractId"])],
         "pendingMismatches": [S.mismatch(m) for m in pending_sl],
         "pendingMismatchKg": _sum(pending_sl, lambda m: abs(m.delta)),
-        "pendingLSX": [S.lsx(x) for x in db.scalars(select(Lsx).where(Lsx.status.in_(("Chờ nhận", "Từ chối"))))],
-        "pendingTasks": [S.task(t, photo=False) for t in db.scalars(select(Task).where(Task.status.in_(("Chờ xác nhận", "Từ chối"))))],
+        "pendingLSX": [S.lsx(x) for x in db.scalars(select(Lsx).where(Lsx.status.in_(("Chờ nhận", "Từ chối"))))
+                       if keep(x.contract_id)],
+        "pendingTasks": [S.task(t, photo=False) for t in db.scalars(select(Task).where(Task.status.in_(("Chờ xác nhận", "Từ chối"))))
+                         if keep(t.contract_id)],
         "contracts": [contract_agg(db, c.id, detail=False) for c in contracts],
     }
 
 
 # ---------------------------------------------------------------- đơn hàng & hợp đồng
-def create_order(db: Session, customer: str, items: list[dict], file: str | None, note: str, code: str | None) -> Order:
+def create_order(db: Session, customer: str, items: list[dict], file: str | None, note: str, code: str | None,
+                 customer_id: int | None = None) -> Order:
     total_kg = sum(float(i["kg"]) for i in items)
     value = round(sum(float(i["kg"]) * float(i["price"]) for i in items))
+    cu = ensure_customer(db, customer, customer_id)
+    customer = cu.name
     o = Order(id=next_id(db, "DH", "dh", month_code=True), customer=customer, code=code or "MOI", date=utcnow(),
               file=file or "don-hang-ky-chot.pdf", total_kg=total_kg, value=value, status="Chốt đơn",
-              contract_id=None, note=note or "")
+              contract_id=None, note=note or "", customer_id=cu.id)
     o.items = [OrderItem(name=i["name"], qty=i["qty"], unit=i.get("unit") or "cấu kiện", kg=i["kg"], price=i["price"])
                for i in items]
     db.add(o)
@@ -305,6 +315,9 @@ def create_order(db: Session, customer: str, items: list[dict], file: str | None
 
 def update_order(db: Session, oid: str, data: dict) -> Order:
     o = get_or_404(db, Order, oid)
+    if data.get("customer") is not None or data.get("customer_id") is not None:
+        cu = ensure_customer(db, data.get("customer") or o.customer, data.get("customer_id"))
+        data["customer"], o.customer_id = cu.name, cu.id
     for k in ("customer", "file", "note", "code"):
         if data.get(k) is not None:
             setattr(o, k, data[k])
@@ -497,12 +510,14 @@ def fill_weighing(db: Session, pid: str, kg_actual: float, photo: str | None, re
 
 # ---------------------------------------------------------------- thẻ công việc lái xe
 def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | None, kg_required: float,
-                note: str) -> Task:
+                note: str, vehicle_plate: str | None = None, galvanizer_id: int | None = None) -> Task:
     if type_ not in ("di_ma", "giao_khach"):
         raise HTTPException(400, "Loại thẻ phải là di_ma hoặc giao_khach")
     get_or_404(db, Contract, cid)
     t = Task(id=next_id(db, "VC", "vc"), type=type_, driver=driver, contract_id=cid, ref_id=ref_id,
-             assigned_at=utcnow(), status="Chờ xác nhận", kg_required=kg_required or 0, note=note or "")
+             assigned_at=utcnow(), status="Chờ xác nhận", kg_required=kg_required or 0, note=note or "",
+             vehicle_plate=(vehicle_plate or "").strip().upper() or None,
+             galvanizer_id=galvanizer_id if type_ == "di_ma" else None)
     db.add(t)
     notify(db, f"Thẻ công việc mới {t.id}",
            f"{'Chở hàng đi mạ' if type_ == 'di_ma' else 'Lấy hàng mạ giao khách'} — gán {driver}", "info")
@@ -624,3 +639,32 @@ def resolve_vloss(db: Session, vid: str, resolution: str, note: str | None) -> V
     notify(db, f"Kho ảo: đã xử lý {e.id}", f"{fmt_kg(abs(e.kg))} — {resolution}", "success")
     db.commit()
     return e
+
+
+# ---------------------------------------------------------------- khách hàng & thẻ (danh mục)
+def ensure_customer(db: Session, name: str, customer_id: int | None = None) -> Customer:
+    """Khách theo id; không có id thì tìm theo tên (không phân biệt hoa thường), chưa có thì tạo mới."""
+    if customer_id is not None:
+        cu = db.get(Customer, customer_id)
+        if not cu:
+            raise HTTPException(404, f"Không tìm thấy khách hàng #{customer_id}")
+        return cu
+    name = (name or "").strip()
+    if not name:
+        raise HTTPException(400, "Chưa nhập tên khách hàng")
+    cu = next((c for c in db.scalars(select(Customer)) if c.name.strip().lower() == name.lower()), None)
+    if cu is None:
+        cu = Customer(name=name, active=True, created_at=utcnow())
+        db.add(cu)
+        db.flush()
+    return cu
+
+
+def customer_ids_for_tag(db: Session, tag: int) -> set[int]:
+    return set(db.scalars(select(customer_tags.c.customer_id).where(customer_tags.c.tag_id == tag)))
+
+
+def contract_ids_for_tag(db: Session, tag: int) -> set[str]:
+    """Hợp đồng thuộc khách mang thẻ `tag` (qua đơn hàng gốc → khách hàng)."""
+    cus = customer_ids_for_tag(db, tag)
+    return {o.contract_id for o in db.scalars(select(Order).where(Order.customer_id.in_(cus))) if o.contract_id}

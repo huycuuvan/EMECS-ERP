@@ -3,7 +3,7 @@
 Chuỗi nghiệp vụ: Đơn hàng (DH) → Hợp đồng (HD) → Lệnh SX (LSX) → Phiếu tiếp nhận TP (PTN)
 → Phiếu cân trạm (PC) → Thẻ lái xe (VC: đi mạ / giao khách) → Sai lệch (SL) → Kho ảo (VK).
 """
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base, UTCDateTime
@@ -57,6 +57,7 @@ class Order(Base):
     status: Mapped[str] = mapped_column(String(40))  # Chốt đơn | Đã chuyển kế toán | Đã có hợp đồng
     contract_id: Mapped[str | None] = mapped_column(String(32))
     note: Mapped[str] = mapped_column(Text, default="")
+    customer_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # → customers.id
     items: Mapped[list["OrderItem"]] = relationship(
         back_populates="order", cascade="all, delete-orphan", order_by="OrderItem.id")
 
@@ -200,6 +201,8 @@ class Task(Base):
     mismatch_id: Mapped[str | None] = mapped_column(String(32))
     note: Mapped[str] = mapped_column(Text, default="")
     loss_accepted: Mapped[bool] = mapped_column(Boolean, default=False)
+    vehicle_plate: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)  # biển số xe chạy chuyến
+    galvanizer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # → galvanizers.id (thẻ đi mạ)
 
 
 class Mismatch(Base):
@@ -249,6 +252,8 @@ class Notification(Base):
     sub: Mapped[str] = mapped_column(Text, default="")
     type: Mapped[str] = mapped_column(String(16), default="info")  # info | success | warning | error
     read: Mapped[bool] = mapped_column(Boolean, default=False)
+    # vai trò nhận thông báo, ngăn cách dấu phẩy ("sx,admin"); None = mọi người
+    roles: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
 
 class FieldChange(Base):
@@ -265,3 +270,72 @@ class FieldChange(Base):
     user_id: Mapped[str | None] = mapped_column(String(32))
     user_name: Mapped[str | None] = mapped_column(String(120))
     reason: Mapped[str] = mapped_column(Text, default="")
+
+
+# ================================================================ danh mục (M01, M04, M06)
+customer_tags = Table(
+    "customer_tags", Base.metadata,
+    Column("customer_id", ForeignKey("customers.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class Tag(Base):
+    """Thẻ khách hàng do người dùng tạo (Khách thân thiết, Khách lẻ…) — dùng làm bộ lọc."""
+    __tablename__ = "tags"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(60), unique=True)
+    color: Mapped[str] = mapped_column(String(16), default="#4a5560")
+
+
+class Customer(Base):
+    __tablename__ = "customers"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(200), unique=True)
+    short_code: Mapped[str] = mapped_column(String(32), default="")
+    tax_code: Mapped[str] = mapped_column(String(32), default="")
+    address: Mapped[str] = mapped_column(String(255), default="")
+    contact_name: Mapped[str] = mapped_column(String(120), default="")
+    phone: Mapped[str] = mapped_column(String(32), default="")
+    note: Mapped[str] = mapped_column(Text, default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at = mapped_column(UTCDateTime, nullable=True)
+    tags: Mapped[list[Tag]] = relationship(secondary=customer_tags, order_by="Tag.name", lazy="selectin")
+
+
+class Vehicle(Base):
+    """Danh mục xe — giám sát số tấn theo từng xe."""
+    __tablename__ = "vehicles"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    plate: Mapped[str] = mapped_column(String(20), unique=True)
+    capacity_kg: Mapped[float] = mapped_column(Float, default=0)
+    kind: Mapped[str] = mapped_column(String(8), default="nhà")  # nhà | thuê
+    default_driver: Mapped[str] = mapped_column(String(120), default="")
+    note: Mapped[str] = mapped_column(Text, default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class Galvanizer(Base):
+    """Danh mục xưởng mạ kẽm."""
+    __tablename__ = "galvanizers"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(200), unique=True)
+    address: Mapped[str] = mapped_column(String(255), default="")
+    phone: Mapped[str] = mapped_column(String(32), default="")
+    note: Mapped[str] = mapped_column(Text, default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class MaterialReceipt(Base):
+    """Phiếu nhập nguyên liệu mua vào (thép tấm, thép hình…) — kho nhập để thống kê."""
+    __tablename__ = "material_receipts"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)  # NL-0001
+    date = mapped_column(UTCDateTime, index=True)
+    supplier: Mapped[str] = mapped_column(String(200))
+    steel_grade: Mapped[str] = mapped_column(String(40), default="")  # mác thép: SS400, Q345B…
+    spec: Mapped[str] = mapped_column(String(200), default="")  # quy cách
+    qty: Mapped[float] = mapped_column(Float, default=0)
+    unit: Mapped[str] = mapped_column(String(32), default="tấm")
+    kg: Mapped[float] = mapped_column(Float, default=0)
+    note: Mapped[str] = mapped_column(Text, default="")
+    by: Mapped[str] = mapped_column(String(120), default="")

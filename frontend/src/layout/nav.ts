@@ -2,6 +2,7 @@ import {
   Archive, ArrowLeftRight, BarChart3, Factory, FileSignature, FileWarning, LayoutDashboard, PackageCheck, Scale,
   ShoppingCart, Truck, UsersRound, type LucideIcon,
 } from 'lucide-react'
+import { Boxes, Contact, TruckElectric, Warehouse } from 'lucide-react'
 
 export interface NavItem { id: string; label: string; icon: LucideIcon; path: string }
 /** Menu giống layout.js của bản demo. `id` dùng làm khóa phân quyền (PERMISSIONS ở backend/config.py). */
@@ -18,6 +19,7 @@ export const NAV: { section: string; items: NavItem[] }[] = [
     { id: 'tiep-nhan', label: 'Phiếu tiếp nhận TP', icon: PackageCheck, path: '/tiep-nhan' },
     { id: 'phieu-can', label: 'Trạm cân · Phiếu cân', icon: Scale, path: '/phieu-can' },
     { id: 'kho-ao', label: 'Kho ảo chênh lệch', icon: Archive, path: '/kho-ao' },
+    { id: 'nguyen-lieu', label: 'Nguyên liệu mua vào', icon: Boxes, path: '/nguyen-lieu' },
   ] },
   { section: 'Vận chuyển & Mạ', items: [
     { id: 'van-chuyen', label: 'Thẻ công việc lái xe', icon: Truck, path: '/van-chuyen' },
@@ -26,6 +28,11 @@ export const NAV: { section: string; items: NavItem[] }[] = [
   { section: 'Giám sát & Báo cáo', items: [
     { id: 'bao-cao', label: 'Báo cáo đối ứng · Quá hạn', icon: BarChart3, path: '/bao-cao' },
     { id: 'sai-lech', label: 'Sai lệch chờ ký', icon: FileWarning, path: '/sai-lech' },
+  ] },
+  { section: 'Danh mục', items: [
+    { id: 'khach-hang', label: 'Khách hàng & nhãn', icon: Contact, path: '/danh-muc/khach-hang' },
+    { id: 'xe', label: 'Xe', icon: TruckElectric, path: '/danh-muc/xe' },
+    { id: 'xuong-ma', label: 'Xưởng mạ', icon: Warehouse, path: '/danh-muc/xuong-ma' },
   ] },
   { section: 'Quản trị', items: [
     { id: 'nguoi-dung', label: 'Người dùng & phân quyền', icon: UsersRound, path: '/nguoi-dung' },

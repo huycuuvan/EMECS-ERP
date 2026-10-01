@@ -3,12 +3,13 @@
 import { App, Button, Result, Select, Skeleton, Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  AlarmClock, AlertTriangle, ArrowRight, BarChart3, ClipboardX, FileSignature, Hourglass, Info, RotateCcw, Scale,
+  AlarmClock, AlertTriangle, ArrowRight, BarChart3, BellRing, ClipboardX, FileSignature, Hourglass, Info, RotateCcw, Scale,
   Smartphone, TimerOff, XCircle,
 } from 'lucide-react'
 import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useDashboard, useMovementLog, useResetDemo } from '@/api/hooks'
+import { useMovementLog, useResetDemo } from '@/api/hooks'
+import { useDashboardByTag, useRunEndOfDay } from '@/api/hooksMaster'
 import type { ContractAggLite, MovementRow } from '@/api/types'
 import { AdvChip, DueChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
@@ -20,12 +21,15 @@ import { ThreePointChecks, threePoint } from './dashboard/checks'
 import { AlertCard, AlertEmpty, AlertItem, Chip, Grid, Panel, SectionLabel } from './dashboard/common'
 import { MovementFilterBar, MovementTable, tierTotals, useMovementFilter } from './dashboard/movement'
 import { signedKg, useSignMismatchDialog } from './mismatches/sign'
+import CustomerTags from './orders/CustomerTags'
+import { TagFilter } from './customers/tags'
 
 const DONUT_COLORS = ['#2f5d3a', '#4a5560', '#e85a2a', '#9c7714', '#d8d2c2']
 const tons1 = (kg: number) => Math.round(kg / 100) / 10
 
 export default function Dashboard() {
-  const { data: d, isLoading, isError } = useDashboard()
+  const [tag, setTag] = useState<number>()
+  const { data: d, isLoading, isError } = useDashboardByTag(tag)
   const { can } = useAuth()
   const { open } = usePeek()
   const { modal } = App.useApp()
@@ -38,8 +42,9 @@ export default function Dashboard() {
   const refMismatch = useRef<HTMLDivElement>(null)
   const scrollTo = (r: RefObject<HTMLDivElement | null>) => r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
-  if (isLoading) return <><Header /><Skeleton active paragraph={{ rows: 12 }} /></>
-  if (isError || !d) return <><Header /><Result status="error" title="Không tải được dữ liệu dashboard" /></>
+  const header = <Header tag={tag} setTag={setTag} />
+  if (isLoading) return <>{header}<Skeleton active paragraph={{ rows: 12 }} /></>
+  if (isError || !d) return <>{header}<Result status="error" title="Không tải được dữ liệu dashboard" /></>
 
   const alerts = d.contractAlerts
   const nOver = alerts.filter((a) => a.due.state === 'overdue').length
@@ -50,7 +55,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <Header />
+      {header}
 
       {/* ================= KPI ================= */}
       <KpiGrid>
@@ -167,12 +172,26 @@ export default function Dashboard() {
   )
 }
 
-function Header() {
-  const { can } = useAuth()
+function Header({ tag, setTag }: { tag?: number; setTag: (v?: number) => void }) {
+  const { can, hasRole } = useAuth()
   const navigate = useNavigate()
+  const { message, modal } = App.useApp()
+  const runEod = useRunEndOfDay()
+  const run = async (force = false) => {
+    const r = await runEod.mutateAsync(force)
+    if (r.ran) message.success(r.created ? `Đã gửi ${r.created} cảnh báo cuối ngày tới đúng bộ phận` : 'Không có việc tồn cần cảnh báo hôm nay')
+    else modal.confirm({
+      title: 'Hôm nay đã chạy cảnh báo cuối ngày', content: 'Chạy lại sẽ tạo thêm một lượt thông báo. Tiếp tục?',
+      okText: 'Chạy lại', cancelText: 'Hủy', onOk: () => run(true),
+    })
+  }
   return (
     <PageHeader title="Dashboard điều hành" desc="Quản lý A nhìn 1 màn biết cả công ty: hợp đồng — cảnh báo — đối ứng 3 điểm cân"
       extra={<>
+        <TagFilter value={tag} onChange={setTag} />
+        {hasRole('admin') && (
+          <Button icon={<BellRing size={14} />} loading={runEod.isPending} onClick={() => run()}>Chạy cảnh báo cuối ngày</Button>
+        )}
         <Button type="primary" icon={<Smartphone size={14} />} onClick={() => navigate('/mobile')}>Giao diện điện thoại</Button>
         {can('bao-cao') && <Button icon={<BarChart3 size={14} />} onClick={() => navigate('/bao-cao')}>Báo cáo đối ứng</Button>}
         {can('hop-dong') && (
@@ -318,7 +337,8 @@ function ContractChecks({ contracts }: { contracts: ContractAggLite[] }) {
   const columns: ColumnsType<ContractAggLite> = [
     {
       title: 'Hợp đồng', key: 'id', render: (_, g) => (
-        <div><RecordLink id={g.contract.id} type="hd" /><div style={{ fontSize: 11, color: 'var(--ash)' }}>{g.contract.code} · {g.contract.customer}</div></div>
+        <div><RecordLink id={g.contract.id} type="hd" /><div style={{ fontSize: 11, color: 'var(--ash)' }}>{g.contract.code} · {g.contract.customer}</div>
+          <CustomerTags name={g.contract.customer} /></div>
       ),
     },
     { title: 'Cân xuất công ty', key: 'pc', align: 'right', render: (_, g) => kgCell(g.weighedKg) },

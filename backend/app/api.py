@@ -15,6 +15,7 @@ from .db import get_db
 from .history import contract_snapshot, order_snapshot, track
 from .security import can, get_current_user, require, require_roles
 from .models import (Contract, Lsx, Mismatch, Notification, Order, Receipt, Task, User, VLoss, Weighing)
+from .alerts import visible_to
 from .seed import reset_db
 from .files import sign_photo
 from .ticket import ticket_img
@@ -67,8 +68,8 @@ def admin_reset(db: Session = DB):
 
 
 @router.get("/dashboard", dependencies=[Depends(require("dashboard"))])
-def dashboard(db: Session = DB):
-    return svc.dashboard(db)
+def dashboard(tag: int | None = None, db: Session = DB):
+    return svc.dashboard(db, tag)
 
 
 @router.get("/demo-ticket")
@@ -92,8 +93,12 @@ async def upload(file: UploadFile = File(...)):
 
 # ---------------------------------------------------------------- đơn hàng
 @router.get("/orders", dependencies=[Depends(require("don-hang"))])
-def list_orders(db: Session = DB):
-    return _list(db, Order, Order.date, S.order)
+def list_orders(tag: int | None = None, db: Session = DB):
+    rows = _list(db, Order, Order.date, S.order)
+    if tag:  # lọc theo thẻ khách hàng
+        cus = svc.customer_ids_for_tag(db, tag)
+        rows = [o for o in rows if o["customerId"] in cus]
+    return rows
 
 
 @router.get("/orders/{oid}", dependencies=[Depends(require("don-hang"))])
@@ -103,7 +108,8 @@ def get_order(oid: str, db: Session = DB):
 
 @router.post("/orders", dependencies=[Depends(require("don-hang", "full"))])
 def create_order(body: SC.OrderCreate, db: Session = DB):
-    o = svc.create_order(db, body.customer, [i.model_dump() for i in body.items], body.file, body.note, body.code)
+    o = svc.create_order(db, body.customer, [i.model_dump() for i in body.items], body.file, body.note, body.code,
+                         body.customer_id)
     return S.order(o)
 
 
@@ -122,10 +128,15 @@ def send_to_kt(oid: str, db: Session = DB):
 
 # ---------------------------------------------------------------- hợp đồng
 @router.get("/contracts", dependencies=[Depends(require("hop-dong"))])
-def list_contracts(db: Session = DB):
+def list_contracts(tag: int | None = None, db: Session = DB):
     out = []
+    cust_of = {o.id: o.customer_id for o in db.scalars(select(Order))}
+    keep = svc.contract_ids_for_tag(db, tag) if tag else None
     for c in db.scalars(select(Contract).order_by(Contract.sent_to_kt_at.desc())):
+        if keep is not None and c.id not in keep:
+            continue
         d = S.contract(c)
+        d["customerId"] = cust_of.get(c.order_id)
         d["due"], d["adv"] = svc.contract_due_info(c), svc.advance_info(c)
         out.append(d)
     return out
@@ -263,7 +274,7 @@ def get_task(tid: str, db: Session = DB):
 @router.post("/tasks", dependencies=[Depends(require_roles("admin"))])
 def create_task(body: SC.TaskCreate, db: Session = DB):
     return S.task(svc.create_task(db, body.type, body.driver, body.contract_id, body.ref_id, body.kg_required,
-                                  body.note))
+                                  body.note, body.vehicle_plate, body.galvanizer_id))
 
 
 @router.post("/tasks/{tid}/accept", dependencies=[Depends(own_task)])
@@ -356,13 +367,14 @@ def overdue_docs(db: Session = DB):
 
 # ---------------------------------------------------------------- thông báo
 @router.get("/notifications")
-def list_notifications(db: Session = DB):
-    return [S.notification(n) for n in db.scalars(select(Notification).order_by(Notification.at.desc()).limit(50))]
+def list_notifications(db: Session = DB, user: User = Depends(get_current_user)):
+    q = visible_to(select(Notification), user)  # thông báo nhắm theo vai trò (cảnh báo cuối ngày)
+    return [S.notification(n) for n in db.scalars(q.order_by(Notification.at.desc()).limit(50))]
 
 
 @router.post("/notifications/read-all")
-def read_all(db: Session = DB):
-    for n in db.scalars(select(Notification).where(Notification.read.is_(False))):
+def read_all(db: Session = DB, user: User = Depends(get_current_user)):
+    for n in db.scalars(visible_to(select(Notification).where(Notification.read.is_(False)), user)):
         n.read = True
     db.commit()
     return {"ok": True}

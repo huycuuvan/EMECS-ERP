@@ -30,10 +30,12 @@ class OrderCreate(In):
     items: list[OrderItemIn] = Field(min_length=1)
     file: str | None = None
     note: str = ""
+    customer_id: int | None = None  # chọn khách có sẵn; không có thì tìm/tạo theo tên `customer`
 
 
 class OrderUpdate(In):
     customer: str | None = None
+    customer_id: int | None = None
     code: str | None = None
     items: list[OrderItemIn] | None = None
     file: str | None = None
@@ -103,6 +105,8 @@ class TaskCreate(In):
     ref_id: str | None = None
     kg_required: float = Field(gt=0)
     note: str = ""
+    vehicle_plate: str | None = None
+    galvanizer_id: int | None = None
 
 
 class TaskFillGalv(In):

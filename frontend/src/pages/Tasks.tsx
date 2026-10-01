@@ -55,7 +55,7 @@ export default function Tasks() {
     return tasks.filter((t) => {
       if (driver && t.driver !== driver) return false
       if (contract && t.contractId !== contract) return false
-      if (s && !(t.id + ' ' + t.contractId + ' ' + (t.refId ?? '') + ' ' + t.driver + ' ' + t.note).toLowerCase().includes(s)) return false
+      if (s && !(t.id + ' ' + t.contractId + ' ' + (t.refId ?? '') + ' ' + t.driver + ' ' + (t.vehiclePlate ?? '') + ' ' + t.note).toLowerCase().includes(s)) return false
       return true
     }).sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))
   }, [tasks, driver, contract, q])
@@ -71,7 +71,7 @@ export default function Tasks() {
     { title: 'Mã thẻ', dataIndex: 'id', width: 110, render: (_, t) => (
       <div><span className="mono" style={{ fontWeight: 700 }}>{t.id}</span><div className="caption" style={{ fontSize: 11 }}>{relTime(t.assignedAt)}</div></div>) },
     { title: 'Loại việc', dataIndex: 'type', render: (_, t) => <TypeChip type={t.type} /> },
-    { title: 'Tài xế', dataIndex: 'driver' },
+    { title: 'Tài xế', dataIndex: 'driver', render: (_, t) => <>{t.driver}{t.vehiclePlate && <div className="caption mono" style={{ fontSize: 11 }}>{t.vehiclePlate}</div>}</> },
     { title: 'HĐ', dataIndex: 'contractId', render: (v: string) => <RecordLink id={v} style={{ color: 'var(--rust)', fontSize: 12 }} /> },
     { title: 'Chứng từ gốc', dataIndex: 'refId', render: (_, t) => <RefCell t={t} /> },
     { title: 'KG yêu cầu', dataIndex: 'kgRequired', align: 'right', render: (v: number) => <span className="num mono">{fmtKg(v)}</span> },
@@ -112,7 +112,7 @@ export default function Tasks() {
         <Tabs activeKey={tab} onChange={(k) => setTab(k as TabKey)}
           items={tabItems.map((x) => ({ key: x.key, label: <span>{x.label} <span className="caption num" style={{ color: x.key === 'quahan' && cnt(x.key) ? 'var(--signal)' : undefined, fontWeight: 700 }}>{cnt(x.key)}</span></span> }))} />
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-          <Input allowClear prefix={<Search size={14} color="var(--ash)" />} placeholder="Tìm mã thẻ, hợp đồng, chứng từ, tài xế..." value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
+          <Input allowClear prefix={<Search size={14} color="var(--ash)" />} placeholder="Tìm mã thẻ, hợp đồng, chứng từ, tài xế, biển số..." value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
           <Select allowClear placeholder="Tất cả tài xế" value={driver} onChange={setDriver} style={{ minWidth: 180 }}
             options={(meta?.drivers ?? []).map((d) => ({ value: d, label: d }))} />
           <Select allowClear placeholder="Tất cả hợp đồng" value={contract} onChange={setContract} style={{ minWidth: 170 }}

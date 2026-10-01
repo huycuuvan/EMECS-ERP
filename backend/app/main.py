@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 from contextlib import asynccontextmanager
 
 from alembic import command
@@ -7,14 +9,16 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
+from .alerts import end_of_day_loop
 from .api import router
 from .auth_api import public as auth_public
 from .auth_api import router as auth_router
 from .edit_api import router as edit_router
 from .files import router as files_router
-from .config import BASE_DIR, CORS_ORIGINS
+from .config import ALERTS_ENABLED, BASE_DIR, CORS_ORIGINS
 from .db import SessionLocal, utcnow
 from .models import AuditLog, User
+from .master_api import router as master_router
 from .seed import seed
 
 
@@ -32,7 +36,13 @@ async def lifespan(app: FastAPI):
     with SessionLocal() as db:
         if db.scalar(select(User).limit(1)) is None:
             seed(db)
+    # cảnh báo cuối ngày (asyncio task nền) — tắt bằng ALERTS_ENABLED=0
+    alerts_task = asyncio.create_task(end_of_day_loop()) if ALERTS_ENABLED else None
     yield
+    if alerts_task:
+        alerts_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await alerts_task
 
 
 app = FastAPI(title="STEEL ONE — ERP Cơ khí thép", version="0.1.0", lifespan=lifespan)
@@ -41,6 +51,7 @@ app.include_router(auth_public)
 app.include_router(auth_router)
 app.include_router(router)
 app.include_router(edit_router)
+app.include_router(master_router)
 
 
 @app.middleware("http")

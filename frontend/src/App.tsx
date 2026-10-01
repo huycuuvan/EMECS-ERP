@@ -17,6 +17,10 @@ import Tasks from '@/pages/Tasks'
 import Users from '@/pages/Users'
 import VirtualLoss from '@/pages/VirtualLoss'
 import Weighings from '@/pages/Weighings'
+import Customers from '@/pages/Customers'
+import Galvanizers from '@/pages/Galvanizers'
+import Materials from '@/pages/Materials'
+import Vehicles from '@/pages/Vehicles'
 
 /** Chưa đăng nhập → về /login (giữ trang đang mở để quay lại). */
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -46,6 +50,10 @@ export default function App() {
         <Route path="/bao-cao" element={<Reports />} />
         <Route path="/sai-lech" element={<Mismatches />} />
         <Route path="/nguoi-dung" element={<Users />} />
+        <Route path="/nguyen-lieu" element={<Materials />} />
+        <Route path="/danh-muc/khach-hang" element={<Customers />} />
+        <Route path="/danh-muc/xe" element={<Vehicles />} />
+        <Route path="/danh-muc/xuong-ma" element={<Galvanizers />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>

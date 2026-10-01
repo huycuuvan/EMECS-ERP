@@ -2,19 +2,30 @@
 import { Form, Input, InputNumber, Modal, Radio, Select } from 'antd'
 import { useEffect } from 'react'
 import { useContract, useContracts, useCreateTask, useMeta } from '@/api/hooks'
+import { useGalvanizers, useVehicles } from '@/api/hooksMaster'
 import type { TaskType } from '@/api/types'
-import { fmtKg } from '@/lib/format'
+import { fmtKg, fmtT } from '@/lib/format'
 import { MODAL_Z } from './TaskActions'
 
-interface V { type: TaskType; driver: string; contractId: string; refId?: string | null; kgRequired: number; note?: string }
+interface V {
+  type: TaskType; driver: string; contractId: string; refId?: string | null; kgRequired: number; note?: string
+  vehiclePlate?: string | null; galvanizerId?: number | null
+}
 
 export default function CreateTaskModal({ open, onClose, initial }: { open: boolean; onClose: () => void; initial?: Partial<V> }) {
   const [form] = Form.useForm<V>()
   const { data: meta } = useMeta()
   const { data: contracts } = useContracts()
   const create = useCreateTask()
+  const { data: vehicles = [] } = useVehicles(open)
+  const { data: galvs = [] } = useGalvanizers(open)
   const type = Form.useWatch('type', form)
   const cid = Form.useWatch('contractId', form)
+  const plate = Form.useWatch('vehiclePlate', form)
+  const kgReq = Form.useWatch('kgRequired', form)
+  const activeVehicles = vehicles.filter((v) => v.active)
+  const vehicle = vehicles.find((v) => v.plate === plate)
+  const plateOf = (driver?: string) => activeVehicles.find((v) => v.defaultDriver && v.defaultDriver === driver)?.plate
   const { data: agg } = useContract(open ? cid : null)
 
   const cs = (contracts ?? []).filter((c) => c.status === 'Đang triển khai' || c.status === 'Đã ký')
@@ -22,10 +33,24 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
   useEffect(() => {
     if (open) {
       form.resetFields()
-      form.setFieldsValue({ type: 'di_ma', driver: meta?.drivers[0], contractId: cs[0]?.id, ...initial })
+      const driver = initial?.driver ?? meta?.drivers[0]
+      form.setFieldsValue({ type: 'di_ma', driver, contractId: cs[0]?.id, vehiclePlate: plateOf(driver),
+        galvanizerId: galvs.find((g) => g.active)?.id, ...initial })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
+  // danh mục xe / xưởng mạ tải xong sau khi mở → điền mặc định (xe của tài xế, xưởng mạ đầu tiên)
+  useEffect(() => {
+    if (!open) return
+    if (!form.getFieldValue('vehiclePlate')) {
+      const p = plateOf(form.getFieldValue('driver'))
+      if (p) form.setFieldValue('vehiclePlate', p)
+    }
+    const g = galvs.find((x) => x.active)
+    if (form.getFieldValue('galvanizerId') == null && g) form.setFieldValue('galvanizerId', g.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, vehicles.length, galvs.length])
 
   // Chứng từ gốc: đi mạ → phiếu cân xuất (PC đã cân, chưa có thẻ đi mạ nào dùng); giao khách → thẻ gửi mạ (VC mạ đã cân nhận)
   const usedPc = new Set((agg?.tasksDiMa ?? []).map((t) => t.refId).filter(Boolean))
@@ -45,7 +70,8 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
 
   const submit = async () => {
     const v = await form.validateFields()
-    await create.mutateAsync({ ...v, refId: v.refId || null })
+    const body: V = { ...v, refId: v.refId || null, galvanizerId: v.type === 'di_ma' ? v.galvanizerId ?? null : null }
+    await create.mutateAsync(body) // vehiclePlate / galvanizerId: trường bổ sung (master_api)
     onClose()
   }
 
@@ -60,8 +86,21 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
           ]} />
         </Form.Item>
         <Form.Item name="driver" label="Tài xế" rules={[{ required: true, message: 'Chưa chọn tài xế' }]}>
-          <Select options={(meta?.drivers ?? []).map((d) => ({ value: d, label: d }))} />
+          <Select options={(meta?.drivers ?? []).map((d) => ({ value: d, label: d }))}
+            onChange={(d: string) => { const p = plateOf(d); if (p) form.setFieldValue('vehiclePlate', p) }} />
         </Form.Item>
+        <div style={{ display: 'grid', gridTemplateColumns: type === 'di_ma' ? '1fr 1fr' : '1fr', gap: '0 12px' }}>
+          <Form.Item name="vehiclePlate" label="Xe" extra={vehicle && kgReq > vehicle.capacityKg
+            ? <span className="text-signal">KG yêu cầu vượt tải trọng xe ({fmtT(vehicle.capacityKg)})</span> : undefined}>
+            <Select allowClear placeholder="— Chưa gán xe —" showSearch={{ optionFilterProp: 'label' }}
+              options={activeVehicles.map((v) => ({ value: v.plate, label: `${v.plate} · ${fmtT(v.capacityKg)} · xe ${v.kind}` }))} />
+          </Form.Item>
+          {type === 'di_ma' && (
+            <Form.Item name="galvanizerId" label="Xưởng mạ">
+              <Select allowClear placeholder="— Chọn xưởng mạ —" options={galvs.filter((g) => g.active).map((g) => ({ value: g.id, label: g.name }))} />
+            </Form.Item>
+          )}
+        </div>
         <Form.Item name="contractId" label="Hợp đồng (đang triển khai)" rules={[{ required: true, message: 'Chưa chọn hợp đồng' }]}>
           <Select showSearch={{ optionFilterProp: 'label' }} options={cs.map((c) => ({ value: c.id, label: `${c.id} — ${c.customer}` }))} />
         </Form.Item>
