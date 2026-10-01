@@ -1,0 +1,73 @@
+# Triển khai STEEL ONE trên 1 máy chủ:  cp .env.example .env  (sửa giá trị)  →  docker compose -f docker-compose.prod.yml up -d --build
+# Truy cập: http://<ip-máy-chủ>:${HTTP_PORT}. Nên đặt sau reverse proxy có HTTPS (Caddy / Nginx + Let's Encrypt).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-steel_one}
+      POSTGRES_USER: ${POSTGRES_USER:-steel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Đặt POSTGRES_PASSWORD trong .env}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-steel} -d ${POSTGRES_DB:-steel_one}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-steel}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-steel_one}
+      SECRET_KEY: ${SECRET_KEY:?Đặt SECRET_KEY trong .env}
+      TOKEN_HOURS: ${TOKEN_HOURS:-12}
+      ALLOW_DEMO_RESET: ${ALLOW_DEMO_RESET:-0}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-steel123}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_DEMO_LOGIN: ${VITE_DEMO_LOGIN:-0}
+    restart: unless-stopped
+    depends_on: [backend]
+    ports:
+      - "${HTTP_PORT:-80}:80"
+
+  # Sao lưu DB mỗi ngày (giờ chạy lệch theo lúc khởi động), giữ ${BACKUP_KEEP_DAYS} ngày, file ở ./backups
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-steel}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-steel_one}
+      KEEP: ${BACKUP_KEEP_DAYS:-14}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - ./backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          f=/backups/steel_$$(date +%Y%m%d_%H%M).sql.gz
+          pg_dump --no-owner | gzip > "$$f" && echo "backup ok $$f"
+          find /backups -name 'steel_*.sql.gz' -mtime +$$KEEP -delete
+          sleep 86400
+        done
+
+volumes:
+  pgdata:
+  uploads:

@@ -5,13 +5,13 @@ from alembic.config import Config
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
 from .api import router
 from .auth_api import public as auth_public
 from .auth_api import router as auth_router
-from .config import BASE_DIR, CORS_ORIGINS, UPLOAD_DIR
+from .files import router as files_router
+from .config import BASE_DIR, CORS_ORIGINS
 from .db import SessionLocal, utcnow
 from .models import AuditLog, User
 from .seed import seed
@@ -55,7 +55,7 @@ async def audit(request: Request, call_next):
     return response
 
 
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+app.include_router(files_router)  # /uploads/{tên}?exp&sig — link ảnh có chữ ký, hết hạn sau 12h
 
 
 @app.get("/health")

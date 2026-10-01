@@ -1,5 +1,6 @@
 """ORM → JSON camelCase, giữ đúng shape bản demo để FE dùng thẳng."""
 from .models import (Contract, Lsx, Mismatch, Notification, Order, Receipt, Task, VLoss, Weighing)
+from .files import sign_photo
 from .utils import iso
 
 
@@ -46,7 +47,7 @@ def receipt(r: Receipt) -> dict:
 def weighing(p: Weighing, photo: bool = True) -> dict:
     return {
         "id": p.id, "contractId": p.contract_id, "lsxId": p.lsx_id, "date": iso(p.date),
-        "kgExpected": p.kg_expected, "kgActual": p.kg_actual, "photo": p.photo if photo else None,
+        "kgExpected": p.kg_expected, "kgActual": p.kg_actual, "photo": sign_photo(p.photo) if photo else None,
         "hasPhoto": bool(p.photo),
         "signers": {"bocXep": p.signer_boc_xep, "kho": p.signer_kho, "laiXe": p.signer_lai_xe},
         "by": p.by, "mismatchId": p.mismatch_id, "status": p.status, "lossAccepted": p.loss_accepted,
@@ -59,7 +60,7 @@ def task(t: Task, photo: bool = True) -> dict:
         "assignedAt": iso(t.assigned_at), "status": t.status, "acceptedAt": iso(t.accepted_at),
         "departedAt": iso(t.departed_at), "fillDeadline": iso(t.fill_deadline), "kgRequired": t.kg_required,
         "kgAtGalv": t.kg_at_galv, "kgPicked": t.kg_picked, "kgDelivered": t.kg_delivered,
-        "filledAt": iso(t.filled_at), "photo": t.photo if photo else None, "hasPhoto": bool(t.photo), "rejectReason": t.reject_reason,
+        "filledAt": iso(t.filled_at), "photo": sign_photo(t.photo) if photo else None, "hasPhoto": bool(t.photo), "rejectReason": t.reject_reason,
         "mismatchId": t.mismatch_id, "note": t.note, "lossAccepted": t.loss_accepted,
     }
 

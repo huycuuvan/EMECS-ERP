@@ -15,6 +15,7 @@ from .db import get_db
 from .security import can, get_current_user, require, require_roles
 from .models import (Contract, Lsx, Mismatch, Notification, Order, Receipt, Task, User, VLoss, Weighing)
 from .seed import reset_db
+from .files import sign_photo
 from .ticket import ticket_img
 from .utils import fmt_kg
 
@@ -85,7 +86,7 @@ async def upload(file: UploadFile = File(...)):
         raise HTTPException(400, "Ảnh tối đa 10MB")
     name = f"{uuid.uuid4().hex}{Path(file.filename or '').suffix.lower() or '.jpg'}"
     (C.UPLOAD_DIR / name).write_bytes(data)
-    return {"url": f"/uploads/{name}"}
+    return {"url": sign_photo(f"/uploads/{name}")}  # link ký để xem trước ngay; khi lưu sẽ bỏ phần ký
 
 
 # ---------------------------------------------------------------- đơn hàng

@@ -82,7 +82,28 @@ cd frontend && npx tsc -b
 Ở chế độ dev (`npm run dev`) trang đăng nhập có nút đăng nhập nhanh từng vai trò để demo. Bản build production ẩn các nút này
 (bật lại bằng `VITE_DEMO_LOGIN=1`). Lái xe / xưởng đăng nhập sẽ vào thẳng giao diện điện thoại `/mobile`.
 
+## Triển khai lên máy chủ (Docker)
+
+Cần 1 máy chủ Linux có Docker (2 vCPU / 4 GB RAM là đủ cho giai đoạn đầu).
+
+```bash
+git clone https://github.com/huycuuvan/EMECS-ERP.git && cd EMECS-ERP && cp .env.example .env
+```
+
+Sửa `.env` (bắt buộc `POSTGRES_PASSWORD`, `SECRET_KEY`), rồi:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+- `frontend` (nginx) phục vụ giao diện ở cổng `HTTP_PORT` và chuyển `/api`, `/uploads` sang `backend`.
+- `backend` tự chạy migration khi khởi động; DB trống thì nạp dữ liệu demo (tài khoản ở bảng trên — **đổi mật khẩu / khóa ngay** khi chạy thật).
+- `backup` sao lưu DB mỗi ngày vào `./backups` (giữ `BACKUP_KEEP_DAYS` ngày). Khôi phục:
+  `gunzip -c backups/steel_YYYYMMDD_HHMM.sql.gz | docker compose -f docker-compose.prod.yml exec -T db psql -U steel -d steel_one`
+- Ảnh phiếu lưu trong volume `uploads`; link ảnh trả ra API có chữ ký + hết hạn 12 giờ (người ngoài không xem được).
+- Nên đặt sau reverse proxy có HTTPS (Caddy / Nginx + Let's Encrypt) và trỏ tên miền; đặt `CORS_ORIGINS` theo tên miền đó.
+- Bản demo cho khách xem: đặt `ALLOW_DEMO_RESET=1` và `VITE_DEMO_LOGIN=1` trong `.env`.
+
 ## Trước khi chạy thật
 - Đặt `SECRET_KEY` (chuỗi ngẫu nhiên ≥ 32 ký tự), `DATABASE_URL` và mật khẩu PostgreSQL thật qua biến môi trường; tạo tài khoản thật, khóa / xóa tài khoản demo; đặt `ALLOW_DEMO_RESET=0` để tắt `/api/admin/reset` (xóa toàn bộ dữ liệu).
-- Sao lưu DB định kỳ (`pg_dump`); lưu ảnh lên object storage thay vì thư mục `backend/uploads`
-  (hiện ảnh phục vụ công khai theo tên file ngẫu nhiên, chưa kiểm quyền khi xem ảnh).
+- Khi nhiều người dùng / nhiều máy chủ: chuyển ảnh sang object storage (S3/MinIO) thay vì volume `uploads`.

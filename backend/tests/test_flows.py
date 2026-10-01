@@ -162,3 +162,25 @@ def test_user_management_and_audit(c):
     login(c, "ql")
     logs = c.get("/api/audit-logs").json()
     assert any(a["path"] == "/api/users" and a["userName"] == "Quản lý A" for a in logs)
+
+
+def test_uploaded_photo_requires_signed_link(c):
+    from app.files import _qs
+    up = c.post("/api/uploads", files={"file": ("phieu.png", b"\x89PNG\r\n\x1a\nfake", "image/png")}).json()
+    assert up["url"].startswith("/uploads/") and "sig=" in up["url"]  # xem trước được ngay
+    raw = up["url"].split("?")[0]
+    with TestClient(app) as anon:
+        assert anon.get(raw).status_code == 403  # không có chữ ký
+    p = c.put("/api/weighings/PC-0202/photo", json={"photo": up["url"]}).json()
+    signed = p["photo"]
+    assert "sig=" in signed and c.get(signed).status_code == 200
+    with TestClient(app) as anon:
+        assert anon.get(signed).status_code == 200  # thẻ <img> xem được bằng link ký
+        q = _qs(signed)
+        assert anon.get(raw + f"?exp={q['exp']}&sig=sai").status_code == 403
+    # gửi lại link đã ký → DB lưu đường dẫn gốc
+    p = c.put("/api/weighings/PC-0202/photo", json={"photo": signed}).json()
+    from app.db import SessionLocal
+    from app.models import Weighing
+    with SessionLocal() as db:
+        assert db.get(Weighing, "PC-0202").photo == raw

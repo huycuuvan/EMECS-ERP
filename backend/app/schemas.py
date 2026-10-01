@@ -1,12 +1,19 @@
 """Request body (camelCase từ FE)."""
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
 
 class In(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    @field_validator("photo", mode="before", check_fields=False)
+    @classmethod
+    def _strip_photo_signature(cls, v):
+        # client gửi lại link ảnh đã ký → lưu đường dẫn gốc /uploads/<tên>
+        from .files import normalize_photo
+        return normalize_photo(v) if isinstance(v, str) else v
 
 
 class OrderItemIn(In):
