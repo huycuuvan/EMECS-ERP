@@ -3,8 +3,10 @@
 import { Button, Tag } from 'antd'
 import { Factory, GitCompareArrows, Gauge, History, Info, Link2, TableProperties } from 'lucide-react'
 import { useContracts, useLsx, useReceipts, useTasks, useWeighings } from '@/api/hooks'
+import HistoryBlock from '@/components/HistoryBlock'
 import { Bar, Cell, CellGrid, Sec } from '@/components/ui'
 import { daysLeft, fmtD, fmtDT, fmtKg, fmtNum, fmtT, relTime } from '@/lib/format'
+import { LsxAdminActions } from '@/pages/lsx/LsxEditModals'
 import { useLsxActions } from '@/pages/lsx/LsxModals'
 import { effDeadline, isLate, LsxTimeline, pctOf, useLsxPerms } from '@/pages/lsx/lsxUtil'
 import { C } from '@/theme'
@@ -41,6 +43,7 @@ export default function LsxDrawer({ id }: { id: string }) {
       </>}
       {x.status === 'Đang SX' && canSx && <Button size="small" type="primary" onClick={() => act.progress(x)}>Cập nhật tiến độ</Button>}
       {open && canQl && <Button size="small" ghost danger={late} onClick={() => act.extend(x)}>Gia hạn (QL)</Button>}
+      <LsxAdminActions x={x} ghost />
     </>
   )
 
@@ -102,6 +105,8 @@ export default function LsxDrawer({ id }: { id: string }) {
         {f.rcs.map((r) => <RecordLink key={r.id} id={r.id} />)}
         {f.pcs.map((p) => <RecordLink key={p.id} id={p.id} danger={!!p.mismatchId && p.status === 'Lệch — chờ ký'} />)}
       </div>
+
+      <HistoryBlock type="lsx" id={x.id} />
 
       {act.node}
     </PeekShell>

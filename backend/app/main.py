@@ -10,6 +10,7 @@ from sqlalchemy import select
 from .api import router
 from .auth_api import public as auth_public
 from .auth_api import router as auth_router
+from .edit_api import router as edit_router
 from .files import router as files_router
 from .config import BASE_DIR, CORS_ORIGINS
 from .db import SessionLocal, utcnow
@@ -39,6 +40,7 @@ app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["*
 app.include_router(auth_public)
 app.include_router(auth_router)
 app.include_router(router)
+app.include_router(edit_router)
 
 
 @app.middleware("http")

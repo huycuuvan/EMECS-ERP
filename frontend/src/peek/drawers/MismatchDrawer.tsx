@@ -1,12 +1,15 @@
 /* Drawer "Biên bản sai lệch" — port ERPPeek.register('sl') (steel-data.js): nội dung sai lệch, ký xác nhận (chỉ Quản lý A),
    bản in biên bản 2 chữ ký, đối tượng liên quan (chứng từ gốc + hợp đồng). */
 import { App, Button } from 'antd'
-import { AlertTriangle, ExternalLink, Link2, PenLine, Printer } from 'lucide-react'
+import { AlertTriangle, ExternalLink, Link2, PenLine, Pencil, Printer } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMismatch } from '@/api/hooks'
+import HistoryBlock from '@/components/HistoryBlock'
 import { Cell, CellGrid, Sec } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtDT, fmtKg } from '@/lib/format'
+import EditMismatchModal, { useCanEditMismatch } from '@/pages/mismatches/EditMismatchModal'
 import { printDoc } from '@/pages/mismatches/print'
 import { SrcChip, signedKg, useSignMismatchDialog } from '@/pages/mismatches/sign'
 import PeekShell from '../PeekShell'
@@ -39,6 +42,8 @@ export default function MismatchDrawer({ id }: { id: string }) {
   const signDialog = useSignMismatchDialog()
   const canSign = can('sai-lech', 'full')
   const pending = m?.status === 'Chờ QL ký'
+  const canEditOf = useCanEditMismatch()
+  const [editing, setEditing] = useState(false)
 
   const onPrint = () => {
     if (!m) return
@@ -62,6 +67,7 @@ export default function MismatchDrawer({ id }: { id: string }) {
         {pending && canSign && (
           <Button type="primary" size="small" icon={<PenLine size={12} />} onClick={() => signDialog(m)}>Ký xác nhận</Button>
         )}
+        {canEditOf(m) && <Button size="small" ghost icon={<Pencil size={12} />} onClick={() => setEditing(true)}>Sửa lý do</Button>}
         <Button size="small" ghost icon={<Printer size={12} />} onClick={onPrint}>In</Button>
         <Button size="small" ghost icon={<ExternalLink size={12} />} onClick={() => { closeAll(); navigate(`/sai-lech?open=sl:${encodeURIComponent(id)}`) }}>Mở trang</Button>
       </>}>
@@ -95,6 +101,9 @@ export default function MismatchDrawer({ id }: { id: string }) {
             <Pill type={m.refType} id={m.refId} />
             <Pill type="hd" id={m.contractId} />
           </div>
+
+          <HistoryBlock type="sl" id={m.id} />
+          {editing && <EditMismatchModal m={m} onClose={() => setEditing(false)} />}
         </>
       )}
     </PeekShell>

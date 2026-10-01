@@ -4,6 +4,7 @@ import { App, Button } from 'antd'
 import { Info, Package, Paperclip, Pencil, Send } from 'lucide-react'
 import { useState } from 'react'
 import { useOrder } from '@/api/hooks'
+import HistoryBlock from '@/components/HistoryBlock'
 import { Cell, CellGrid, Sec } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtD, fmtKg, fmtNum, fmtT, money } from '@/lib/format'
@@ -82,6 +83,8 @@ export default function OrderDrawer({ id }: { id: string }) {
           )}
 
           <RelatedLinks pills={[{ type: 'hd', id: o.contractId }]} />
+
+          <HistoryBlock type="dh" id={o.id} />
 
           {editing && <OrderFormModal order={o} onClose={() => setEditing(false)} />}
         </>

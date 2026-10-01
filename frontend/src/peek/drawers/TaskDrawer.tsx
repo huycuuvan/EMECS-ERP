@@ -3,11 +3,13 @@ import { Tag } from 'antd'
 import { AlarmClock, Image as ImageIcon, Info, Scale } from 'lucide-react'
 import { useMeta, useTask, useTaskPhoto } from '@/api/hooks'
 import type { Task } from '@/api/types'
+import HistoryBlock from '@/components/HistoryBlock'
 import PhotoBlock from '@/components/PhotoBlock'
 import { Cell, CellGrid, Sec } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtDelta, fmtDT, fmtKg, relTime } from '@/lib/format'
 import TaskActions from '@/pages/tasks/TaskActions'
+import { TaskAdminActions } from '@/pages/tasks/TaskEditModals'
 import { countdown, hoursOverAt, isOverdue, useNow } from '@/pages/tasks/logic'
 import PeekShell from '../PeekShell'
 import RecordLink from '../RecordLink'
@@ -36,7 +38,7 @@ export default function TaskDrawer({ id }: { id: string }) {
   )
 
   return (
-    <PeekShell type="vc" id={id} status={t.status} sub={sub} actions={<TaskActions task={t} />}>
+    <PeekShell type="vc" id={id} status={t.status} sub={sub} actions={<><TaskActions task={t} /><TaskAdminActions task={t} ghost /></>}>
       <Sec icon={<Info />}>Thông tin điều xe</Sec>
       <CellGrid>
         <Cell label="Loại việc">{isMa ? 'Chở hàng đi mạ kẽm' : 'Lấy hàng mạ → giao khách'}</Cell>
@@ -82,6 +84,8 @@ export default function TaskDrawer({ id }: { id: string }) {
         { id: t.refId, extra: t.refId?.startsWith('VC') ? 'chuyến gửi mạ' : 'phiếu cân xuất' },
         { id: t.mismatchId, extra: 'sai lệch', danger: true },
       ]} />
+
+      <HistoryBlock type="vc" id={t.id} />
     </PeekShell>
   )
 }

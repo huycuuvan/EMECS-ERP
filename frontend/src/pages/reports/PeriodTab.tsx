@@ -6,6 +6,7 @@ import { Archive, Check } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useAcceptLoss, useMismatches, useMovementLog, useTasks, useVlossList } from '@/api/hooks'
 import type { Task } from '@/api/types'
+import ExportButton from '@/components/ExportButton'
 import { useAuth } from '@/lib/auth'
 import { fmtKg } from '@/lib/format'
 import RecordLink from '@/peek/RecordLink'
@@ -105,7 +106,8 @@ export default function PeriodTab() {
         ]} />
       </Panel>
 
-      <Panel title={<>Nhật ký chứng từ trong kỳ <span className="caption" style={{ fontWeight: 400 }}>— {shown.length} chứng từ</span></>}>
+      <Panel title={<>Nhật ký chứng từ trong kỳ <span className="caption" style={{ fontWeight: 400 }}>— {shown.length} chứng từ</span></>}
+        extra={<ExportButton kind="movement-log" size="small" params={{ contract_id: params.contractId, date_from: params.from, date_to: params.to, kind: f.kind }} />}>
         <MovementTable rows={shown} loading={isLoading} nullText="chưa điền" whoTitle="Người thực hiện" emptyText="Không có chứng từ nào trong kỳ đã chọn." />
       </Panel>
 

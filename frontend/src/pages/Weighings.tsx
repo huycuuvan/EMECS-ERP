@@ -1,11 +1,12 @@
 /* Trạm cân · Phiếu cân — port pages/06-phieu-can.html:
    KPI · danh sách phiếu cân (KL theo lệnh vs KL cân thực, chênh đỏ khi vượt dung sai, ảnh phiếu, ký 3 bên, quá hạn 4h) ·
    tạo phiếu cân xuất từ LSX/PTN · nhập kết quả cân · điều xe đi mạ. */
-import { App, Button, Card, Input, Select, Table, Tooltip, type TableColumnsType } from 'antd'
-import { Download, Image as ImageIcon, ImageOff, Info, Scale, Search, Truck } from 'lucide-react'
+import { Button, Card, Input, Select, Table, Tooltip, type TableColumnsType } from 'antd'
+import { Image as ImageIcon, ImageOff, Info, Scale, Search, Truck } from 'lucide-react'
 import { useMemo, useState, type MouseEvent } from 'react'
 import { useContracts, useMeta, useTasks, useWeighings } from '@/api/hooks'
 import type { Weighing } from '@/api/types'
+import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { fmtDT, fmtKg, fmtNum, fmtT, hoursOver, relTime } from '@/lib/format'
 import { useAuth } from '@/lib/auth'
@@ -22,7 +23,6 @@ const sameMonth = (iso?: string | null) => {
 }
 
 export default function Weighings() {
-  const { message } = App.useApp()
   const { open } = usePeek()
   const { can } = useAuth()
   const canEdit = can('phieu-can', 'edit')
@@ -147,7 +147,7 @@ export default function Weighings() {
       <PageHeader title="Phiếu cân xuất hàng — ký 3 bên"
         desc={`Mọi chuyến xe rời công ty phải qua trạm cân: số kg thực + ảnh phiếu có chữ ký Bốc xếp · Thủ kho · Lái xe. Lệch quá ±${tol} kg → báo động sai lệch.`}
         extra={<>
-          <Button icon={<Download size={14} />} onClick={() => message.info('Demo: xuất Excel sổ cân trạm')}>Xuất Excel</Button>
+          <ExportButton kind="weighings" params={{ contract_id: fh, status: fs }} ids={rows.map((p) => p.id)} total={all.length} />
           {canEdit && <Button type="primary" icon={<Scale size={14} />} onClick={() => act.create()}>+ Phiếu cân xuất</Button>}
         </>} />
 

@@ -6,11 +6,13 @@ import { Factory, History, Search } from 'lucide-react'
 import { useMemo, useState, type MouseEvent } from 'react'
 import { useContracts, useLsxList } from '@/api/hooks'
 import type { Lsx } from '@/api/types'
+import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { fmtDT, fmtKg, fmtNum, fmtT } from '@/lib/format'
 import { usePeek } from '@/peek/context'
 import RecordLink from '@/peek/RecordLink'
 import { C } from '@/theme'
+import { LsxAdminActions } from './lsx/LsxEditModals'
 import { useLsxActions } from './lsx/LsxModals'
 import { isLate, LsxDueCell, LsxMiniProgress, LsxTimeline, useLsxPerms, waitLabel } from './lsx/lsxUtil'
 
@@ -103,6 +105,7 @@ export default function LsxPage() {
           </>}
           {x.status === 'Đang SX' && canSx && <Button size="small" onClick={stop(() => act.progress(x))}>Cập nhật tiến độ</Button>}
           {isLate(x) && canQl && <Button size="small" danger onClick={stop(() => act.extend(x))}>Gia hạn (QL)</Button>}
+          {x.status === 'Từ chối' && <LsxAdminActions x={x} withEdit={false} />}
         </div>
       ),
     },
@@ -114,7 +117,10 @@ export default function LsxPage() {
     <div>
       <PageHeader title="Lệnh sản xuất"
         desc="Quản lý phát lệnh — xưởng nhận / từ chối có lý do — theo dõi tiến độ SL & kg, gia hạn có phê duyệt"
-        extra={canQl && <Button type="primary" icon={<Factory size={14} />} onClick={act.create}>+ Phát lệnh sản xuất</Button>} />
+        extra={<>
+          <ExportButton kind="lsx" params={{ status: fs }} ids={rows.map((x) => x.id)} total={all.length} />
+          {canQl && <Button type="primary" icon={<Factory size={14} />} onClick={act.create}>+ Phát lệnh sản xuất</Button>}
+        </>} />
 
       <KpiGrid>
         <Kpi tone="steel" label="Đang sản xuất" value={run.length}

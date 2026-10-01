@@ -5,6 +5,7 @@ import { Info, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useMeta, useTasks } from '@/api/hooks'
 import type { Task } from '@/api/types'
+import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtKg, hoursOver, relTime } from '@/lib/format'
@@ -12,10 +13,16 @@ import { usePeek } from '@/peek/context'
 import RecordLink from '@/peek/RecordLink'
 import CreateTaskModal from './tasks/CreateTaskModal'
 import TaskActions from './tasks/TaskActions'
+import { TaskAdminActions } from './tasks/TaskEditModals'
 import { isOverdue, useNow } from './tasks/logic'
 import { DueCell, KgCell, PhotoCell, RefCell, TaskStatusTag, TypeChip } from './tasks/util'
 
 type TabKey = 'all' | 'cho' | 'dang' | 'quahan' | 'xong' | 'tuchoi'
+
+/** Tab → bộ lọc trạng thái server hiểu khi xuất Excel (overdue / running = lọc đặc biệt ở server). */
+const TAB_STATUS: Record<TabKey, string | undefined> = {
+  all: undefined, cho: 'Chờ xác nhận', dang: 'running', quahan: 'overdue', xong: 'Hoàn thành', tuchoi: 'Từ chối',
+}
 
 const panel = { background: 'var(--canvas)', border: '1px solid var(--rule)', borderRadius: 12, padding: '6px 18px 18px' }
 
@@ -72,7 +79,8 @@ export default function Tasks() {
     { title: 'Ảnh phiếu', key: 'photo', render: (_, t) => <PhotoCell t={t} /> },
     { title: 'Hạn điền (24h)', dataIndex: 'fillDeadline', render: (_, t) => <DueCell t={t} now={now} onOpen={() => open('vc', t.id)} /> },
     { title: 'Trạng thái', dataIndex: 'status', render: (_, t) => <TaskStatusTag t={t} now={now} withReason /> },
-    ...(can('van-chuyen', 'edit') ? [{ title: 'Thao tác', key: 'act', render: (_: unknown, t: Task) => <TaskActions task={t} /> }] : []),
+    ...(can('van-chuyen', 'edit') ? [{ title: 'Thao tác', key: 'act', render: (_: unknown, t: Task) => (
+      <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}><TaskActions task={t} /><TaskAdminActions task={t} withEdit={false} /></span>) }] : []),
   ]
 
   const cnt = (k: TabKey) => base.filter((t) => inTab(t, k)).length
@@ -85,7 +93,10 @@ export default function Tasks() {
     <div>
       <PageHeader title="Thẻ công việc lái xe"
         desc={<>Đi mạ &amp; giao khách — tài xế xác nhận, xuất phát, điền số cân + ảnh phiếu trong <b>{meta?.fillHours ?? 24}h</b></>}
-        extra={canAssign && <Button type="primary" icon={<Plus size={14} />} onClick={() => setCreating(true)}>Giao việc cho lái xe</Button>} />
+        extra={<>
+          <ExportButton kind="tasks" params={{ driver, contract_id: contract, status: TAB_STATUS[tab] }} ids={rows.map((t) => t.id)} total={tasks.length} />
+          {canAssign && <Button type="primary" icon={<Plus size={14} />} onClick={() => setCreating(true)}>Giao việc cho lái xe</Button>}
+        </>} />
 
       <KpiGrid>
         <Kpi tone="amber" label="Chờ tài xế xác nhận" value={wait} sub="thẻ vừa giao, chưa đồng ý / từ chối" onClick={() => setTab('cho')} />

@@ -6,6 +6,7 @@ import { CheckCircle2, Info, PenLine, Printer, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useMismatches } from '@/api/hooks'
 import type { Mismatch } from '@/api/types'
+import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtD, fmtDT, fmtKg } from '@/lib/format'
@@ -102,7 +103,11 @@ export default function Mismatches() {
     <div>
       <PageHeader title="Biên bản sai lệch & Ký xác nhận"
         desc="Mọi kg lệch quá dung sai ±30 kg phải có lý do và được Quản lý A ký xác nhận mới khép hồ sơ"
-        extra={<Button icon={<Printer size={14} />} onClick={() => message.info('Demo: in sổ biên bản sai lệch')}>In sổ sai lệch</Button>} />
+        extra={<>
+          <ExportButton kind="mismatches" params={{ status: tab === 'pending' ? 'Chờ QL ký' : tab === 'signed' ? 'Đã ký xác nhận' : undefined }}
+            ids={rows.map((m) => m.id)} total={all.length} />
+          <Button icon={<Printer size={14} />} onClick={() => message.info('Demo: in sổ biên bản sai lệch')}>In sổ sai lệch</Button>
+        </>} />
 
       <KpiGrid>
         <Kpi tone="signal" label="Chờ quản lý ký" value={<span className={pending.length ? 'text-signal' : ''}>{isLoading ? '—' : pending.length}</span>}

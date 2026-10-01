@@ -1,10 +1,11 @@
 /* Phiếu tiếp nhận thành phẩm — port pages/05-tiep-nhan.html:
    KPI · danh sách phiếu (lọc HĐ, tìm kiếm) · lập phiếu từ LSX (chặn vượt số SX báo) · gợi ý tạo phiếu cân xuất đi mạ. */
 import { App, Button, Card, Input, Select, Table, type TableColumnsType } from 'antd'
-import { Download, Info, PackagePlus, Search } from 'lucide-react'
+import { Info, PackagePlus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useContracts, useDashboard, useReceipts } from '@/api/hooks'
 import type { Receipt } from '@/api/types'
+import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader } from '@/components/ui'
 import { fmtDT, fmtKg, fmtNum, fmtT, relTime } from '@/lib/format'
 import { useAuth } from '@/lib/auth'
@@ -22,7 +23,7 @@ const sameMonth = (iso?: string | null) => {
 }
 
 export default function Receipts() {
-  const { message, modal } = App.useApp()
+  const { modal } = App.useApp()
   const { open } = usePeek()
   const { can } = useAuth()
   const canEdit = can('tiep-nhan', 'edit')
@@ -80,7 +81,7 @@ export default function Receipts() {
       <PageHeader title="Phiếu tiếp nhận thành phẩm"
         desc="Kho lập phiếu nhận thành phẩm từ sản xuất theo lệnh SX — đối chiếu với số kg xưởng đã báo hoàn thành"
         extra={<>
-          <Button icon={<Download size={14} />} onClick={() => message.info('Demo: xuất Excel sổ tiếp nhận thành phẩm')}>Xuất Excel</Button>
+          <ExportButton kind="receipts" params={{ contract_id: fh }} ids={rows.map((r) => r.id)} total={all.length} />
           {canEdit && <Button type="primary" icon={<PackagePlus size={14} />} onClick={() => setCreating(true)}>+ Phiếu tiếp nhận</Button>}
         </>} />
 

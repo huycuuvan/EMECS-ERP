@@ -5,6 +5,7 @@ import { Button } from 'antd'
 import { ArrowLeftRight, BadgeCheck, Banknote, Factory, Info, Pencil, Scale, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { useContract, useLedger } from '@/api/hooks'
+import HistoryBlock from '@/components/HistoryBlock'
 import { useAuth } from '@/lib/auth'
 import { fmtNum, fmtT } from '@/lib/format'
 import PeekShell from '../PeekShell'
@@ -83,6 +84,8 @@ export default function ContractDrawer({ id }: { id: string }) {
             ...g.lsxs.map((x) => ({ type: 'lsx' as const, id: x.id, extra: x.status })),
             ...g.mismatches.map((m) => ({ type: 'sl' as const, id: m.id, extra: m.status })),
           ]} />
+
+          <HistoryBlock type="hd" id={c.id} />
 
           {dialog === 'edit' && <ContractEditModal contract={c} onClose={() => setDialog(null)} />}
           {dialog === 'pay' && <PaymentModal contract={c} onClose={() => setDialog(null)} />}

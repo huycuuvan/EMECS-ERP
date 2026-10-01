@@ -12,6 +12,7 @@ from . import schemas as SC
 from . import serializers as S
 from . import services as svc
 from .db import get_db
+from .history import contract_snapshot, order_snapshot, track
 from .security import can, get_current_user, require, require_roles
 from .models import (Contract, Lsx, Mismatch, Notification, Order, Receipt, Task, User, VLoss, Weighing)
 from .seed import reset_db
@@ -109,7 +110,9 @@ def create_order(body: SC.OrderCreate, db: Session = DB):
 @router.patch("/orders/{oid}", dependencies=[Depends(require("don-hang", "full"))])
 def update_order(oid: str, body: SC.OrderUpdate, db: Session = DB):
     data = body.model_dump(exclude_none=True)
-    return S.order(svc.update_order(db, oid, data))
+    with track(db, "dh", oid, lambda: order_snapshot(svc.get_or_404(db, Order, oid))):  # lưu lịch sử sửa
+        o = svc.update_order(db, oid, data)
+    return S.order(o)
 
 
 @router.post("/orders/{oid}/send-to-kt", dependencies=[Depends(require("don-hang", "full"))])
@@ -140,7 +143,9 @@ def contract_ledger(cid: str, db: Session = DB):
 
 @router.patch("/contracts/{cid}", dependencies=[Depends(require("hop-dong", "edit"))])
 def update_contract(cid: str, body: SC.ContractUpdate, db: Session = DB):
-    return S.contract(svc.update_contract(db, cid, body.model_dump(by_alias=True, exclude_none=True)))
+    with track(db, "hd", cid, lambda: contract_snapshot(svc.get_or_404(db, Contract, cid))):  # lưu lịch sử sửa
+        c = svc.update_contract(db, cid, body.model_dump(by_alias=True, exclude_none=True))
+    return S.contract(c)
 
 
 @router.post("/contracts/{cid}/returned", dependencies=[Depends(require("hop-dong", "edit"))])

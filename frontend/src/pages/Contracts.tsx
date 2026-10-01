@@ -1,12 +1,13 @@
 /* Hợp đồng & Tạm ứng (port pages/03-hop-dong.html — trang tham chiếu của demo):
    KPI · danh sách (hạn trả HĐ, tạm ứng, lũy kế giao — tiền) · tìm kiếm + lọc trạng thái + lọc hạn ·
-   thao tác dòng Đã trả HĐ / Đã ký / + Tiền về · Xuất Excel (CSV) · Đơn hàng chờ làm HĐ. */
+   thao tác dòng Đã trả HĐ / Đã ký / + Tiền về · Xuất Excel (.xlsx từ server, theo bộ lọc) · Đơn hàng chờ làm HĐ. */
 import { Button, Input, Select, Table, Tag, type TableColumnsType } from 'antd'
-import { AlertTriangle, CheckCircle2, Download, Info, Search, ShoppingCart } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Info, Search, ShoppingCart } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useContracts, useTasks } from '@/api/hooks'
 import type { Contract, ContractRow, ContractStatus } from '@/api/types'
+import ExportButton from '@/components/ExportButton'
 import { AdvChip, DueChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtNum, fmtT, moneyShort } from '@/lib/format'
@@ -15,7 +16,6 @@ import { PaymentModal } from '@/peek/drawers/contract/modals'
 import { useContractFlow } from '@/peek/drawers/contract/useContractFlow'
 import RecordLink from '@/peek/RecordLink'
 import { aggregateRows } from './contracts/aggregate'
-import { exportContractsCsv } from './contracts/exportCsv'
 import MiniProg, { type ProgTone } from './contracts/MiniProg'
 import '@/peek/drawers/contract/contract.css'
 
@@ -136,7 +136,7 @@ export default function Contracts() {
       <PageHeader title="Hợp đồng & Tạm ứng"
         desc="Kế toán làm hợp đồng trong 05 ngày · theo dõi tạm ứng & lũy kế hàng — tiền"
         extra={<>
-          <Button icon={<Download size={14} />} onClick={() => exportContractsCsv(rows, agg)}>Xuất Excel</Button>
+          <ExportButton kind="contracts" params={{ status: fs, due: fd }} ids={rows.map((c) => c.id)} total={contracts.length} />
           <Button type="primary" icon={<ShoppingCart size={14} />} onClick={() => navigate('/don-hang?status=' + encodeURIComponent('Chốt đơn'))}>Đơn hàng chờ làm HĐ</Button>
         </>} />
 

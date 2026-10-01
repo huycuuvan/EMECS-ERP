@@ -1,12 +1,15 @@
 /* Drawer Phiếu cân trạm — port ERPPeek.register('pc') trong steel-data.js:
    thông tin cân (lệch đỏ khi vượt dung sai) · ký 3 bên · ảnh phiếu ký tay (xem/tải/ảnh demo/xóa) · nhập kết quả cân · liên kết. */
 import { Button } from 'antd'
-import { Image as ImageIcon, Info, Link2, Scale, Truck, Users } from 'lucide-react'
+import { Image as ImageIcon, Info, Link2, Pencil, Scale, Truck, Users } from 'lucide-react'
+import { useState } from 'react'
 import { useMeta, useTasks, useWeighing, useWeighingPhoto } from '@/api/hooks'
+import HistoryBlock from '@/components/HistoryBlock'
 import PhotoBlock from '@/components/PhotoBlock'
 import { Cell, CellGrid, Sec } from '@/components/ui'
 import { fmtDT, fmtKg, fmtNum, hoursOver } from '@/lib/format'
 import { useAuth } from '@/lib/auth'
+import EditWeighingModal from '@/pages/weighings/EditWeighingModal'
 import { isOverdue, PC_FILL_HOURS, useWeighingActions } from '@/pages/weighings/WeighingModals'
 import { C } from '@/theme'
 import PeekShell from '../PeekShell'
@@ -21,6 +24,7 @@ export default function WeighingDrawer({ id }: { id: string }) {
   const setPhoto = useWeighingPhoto()
   const act = useWeighingActions()
   const tol = meta?.toleranceKg ?? 30
+  const [editing, setEditing] = useState(false)
 
   if (!p) return <PeekShell type="pc" id={id} loading={isLoading} notFound={!isLoading && (isError || !p)} />
 
@@ -34,6 +38,7 @@ export default function WeighingDrawer({ id }: { id: string }) {
     <>
       {p.status === 'Chờ cân' && <Button size="small" type="primary" icon={<Scale size={13} />} onClick={() => act.fill(p)}>Nhập kết quả cân</Button>}
       {p.kgActual != null && !vc && <Button size="small" ghost icon={<Truck size={13} />} onClick={() => act.dispatch(p)}>Điều xe đi mạ</Button>}
+      <Button size="small" ghost icon={<Pencil size={12} />} onClick={() => setEditing(true)}>Sửa</Button>
     </>
   )
 
@@ -79,7 +84,10 @@ export default function WeighingDrawer({ id }: { id: string }) {
         {p.mismatchId && <span><RecordLink id={p.mismatchId} danger /> <span className="caption" style={{ color: C.signal }}>sai lệch</span></span>}
       </div>
 
+      <HistoryBlock type="pc" id={p.id} />
+
       {act.node}
+      {editing && <EditWeighingModal p={p} onClose={() => setEditing(false)} />}
     </PeekShell>
   )
 }

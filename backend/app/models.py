@@ -249,3 +249,19 @@ class Notification(Base):
     sub: Mapped[str] = mapped_column(Text, default="")
     type: Mapped[str] = mapped_column(String(16), default="info")  # info | success | warning | error
     read: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class FieldChange(Base):
+    """Lịch sử chỉnh sửa từng trường của chứng từ: ai sửa, lúc nào, giá trị cũ → mới, lý do.
+    entity_type: dh | hd | lsx | ptn | pc | vc | sl · field: tên trường phía API (camelCase, vd kgActual)."""
+    __tablename__ = "field_changes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    at = mapped_column(UTCDateTime, index=True)
+    entity_type: Mapped[str] = mapped_column(String(8))
+    entity_id: Mapped[str] = mapped_column(String(32), index=True)
+    field: Mapped[str] = mapped_column(String(64))
+    old_value: Mapped[str | None] = mapped_column(Text)
+    new_value: Mapped[str | None] = mapped_column(Text)
+    user_id: Mapped[str | None] = mapped_column(String(32))
+    user_name: Mapped[str | None] = mapped_column(String(120))
+    reason: Mapped[str] = mapped_column(Text, default="")

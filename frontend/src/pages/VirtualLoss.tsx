@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePendingDeltas, useVlossList } from '@/api/hooks'
 import type { VLoss } from '@/api/types'
+import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtDT, fmtKg } from '@/lib/format'
@@ -67,6 +68,7 @@ export default function VirtualLoss() {
       <PageHeader title="Kho ảo chênh lệch"
         desc={'Nơi "ném" mọi phần rơi rớt / lệch cân đã được Quản lý cho phép — treo tại đây cho tới khi xử lý dứt điểm'}
         extra={<>
+          <ExportButton kind="vloss" params={{ source: src, status: st }} ids={rows.map((e) => e.id)} total={all.length} />
           {can('bao-cao') && <Button icon={<BarChart3 size={14} />} onClick={() => nav('/bao-cao')}>Báo cáo đối ứng</Button>}
           <Button type={canApprove ? 'primary' : 'default'} icon={<ArchiveRestore size={14} />} onClick={() => setThrowing(true)}>
             {canApprove ? 'Ném chênh lệch vào kho' : 'Xem chênh lệch chưa duyệt'}

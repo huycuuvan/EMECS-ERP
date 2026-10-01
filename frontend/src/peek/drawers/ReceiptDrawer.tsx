@@ -1,11 +1,14 @@
 /* Drawer Phiếu tiếp nhận thành phẩm — port ERPPeek.register('ptn') trong steel-data.js:
    thông tin phiếu · đối chiếu với số SX báo trên lệnh · phiếu cân xuất từ cùng lệnh · tạo phiếu cân xuất (kho). */
 import { Button } from 'antd'
-import { Info, Link2, Scale, Factory } from 'lucide-react'
+import { Info, Link2, Pencil, Scale, Factory } from 'lucide-react'
+import { useState } from 'react'
 import { useLsx, useReceipt, useReceipts, useWeighings } from '@/api/hooks'
+import HistoryBlock from '@/components/HistoryBlock'
 import { Cell, CellGrid, Sec, StatusTag } from '@/components/ui'
 import { fmtDT, fmtKg, fmtNum } from '@/lib/format'
 import { useAuth } from '@/lib/auth'
+import EditReceiptModal from '@/pages/receipts/EditReceiptModal'
 import { stockOfLsx, useWeighingActions } from '@/pages/weighings/WeighingModals'
 import { C } from '@/theme'
 import PeekShell from '../PeekShell'
@@ -18,7 +21,9 @@ export default function ReceiptDrawer({ id }: { id: string }) {
   const { data: allPcs = [] } = useWeighings()
   const { can } = useAuth()
   const canWeigh = can('phieu-can', 'edit')
+  const canEditR = can('tiep-nhan', 'edit')
   const wAct = useWeighingActions()
+  const [editing, setEditing] = useState(false)
 
   if (!r) return <PeekShell type="ptn" id={id} loading={isLoading} notFound={!isLoading && (isError || !r)} />
 
@@ -30,7 +35,10 @@ export default function ReceiptDrawer({ id }: { id: string }) {
 
   return (
     <PeekShell type="ptn" id={r.id} status="Đã tiếp nhận" sub={`LSX ${r.lsxId} → kho`}
-      actions={canWeigh && stock > 0 && <Button size="small" type="primary" icon={<Scale size={13} />} onClick={() => wAct.create({ lsxId: r.lsxId, receiptId: r.id })}>Tạo phiếu cân xuất</Button>}>
+      actions={<>
+        {canWeigh && stock > 0 && <Button size="small" type="primary" icon={<Scale size={13} />} onClick={() => wAct.create({ lsxId: r.lsxId, receiptId: r.id })}>Tạo phiếu cân xuất</Button>}
+        {canEditR && <Button size="small" ghost icon={<Pencil size={12} />} onClick={() => setEditing(true)}>Sửa</Button>}
+      </>}>
       <Sec icon={<Info />}>Thông tin phiếu</Sec>
       <CellGrid>
         <Cell label="Ngày tiếp nhận">{fmtDT(r.date)}</Cell>
@@ -85,7 +93,10 @@ export default function ReceiptDrawer({ id }: { id: string }) {
         <RecordLink id={r.lsxId} /><RecordLink id={r.contractId} />
       </div>
 
+      <HistoryBlock type="ptn" id={r.id} />
+
       {wAct.node}
+      {editing && <EditReceiptModal r={r} onClose={() => setEditing(false)} />}
     </PeekShell>
   )
 }

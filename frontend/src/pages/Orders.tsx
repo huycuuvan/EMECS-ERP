@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useOrders } from '@/api/hooks'
 import type { Order, OrderStatus } from '@/api/types'
+import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtD, fmtNum, fmtT, moneyShort, relTime } from '@/lib/format'
@@ -99,6 +100,7 @@ export default function Orders() {
       <PageHeader title="Đơn hàng khách"
         desc="Khách ký chốt đơn kèm file — Quản lý chuyển kế toán làm hợp đồng trong 05 ngày, giá theo giá thị trường ngày chốt"
         extra={<>
+          <ExportButton kind="orders" params={{ status: fs }} ids={rows.map((o) => o.id)} total={orders.length} />
           <Button icon={<FileSignature size={14} />} onClick={() => navigate('/hop-dong')}>Sổ hợp đồng</Button>
           {canEdit && <Button type="primary" icon={<Plus size={14} />} onClick={() => setCreating(true)}>Đơn hàng mới</Button>}
         </>} />
