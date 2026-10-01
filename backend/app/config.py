@@ -10,6 +10,10 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 # PostgreSQL (docker compose up -d db). Có thể trỏ sang SQLite để thử nhanh: sqlite:///./data/steel.db
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://steel:steel_dev_pw@localhost:5432/steel_one")
+# Railway / Render / Neon cấp dạng postgres:// hoặc postgresql:// → dùng driver psycopg 3
+for _p in ("postgres://", "postgresql://"):
+    if DATABASE_URL.startswith(_p):
+        DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL[len(_p):]
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
 
 # Đăng nhập: ĐỔI SECRET_KEY khi chạy thật (biến môi trường). Token hết hạn sau TOKEN_HOURS giờ.

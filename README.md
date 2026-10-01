@@ -115,6 +115,22 @@ docker compose -f docker-compose.prod.yml up -d --build
 - Bản demo cho khách xem: đặt `ALLOW_DEMO_RESET=1` và `VITE_DEMO_LOGIN=1` trong `.env`.
 - Cảnh báo cuối ngày: chạy lúc `END_OF_DAY_HOUR` (mặc định 17h, giờ Việt Nam); tắt bằng `ALERTS_ENABLED=0`.
 
+## Triển khai tách: frontend Vercel + backend Railway/Render
+
+Vercel chỉ dùng cho **frontend** (backend cần ổ lưu ảnh, tiến trình cảnh báo 17h và PostgreSQL — không chạy được trên Vercel).
+
+1. **Backend** (Railway hoặc Render — dịch vụ Docker, thư mục gốc `backend/`):
+   - Tạo PostgreSQL trên cùng nền tảng → đặt `DATABASE_URL` dạng `postgresql+psycopg://user:pass@host:5432/db`
+     (nếu nền tảng cấp `postgres://…` thì đổi tiền tố thành `postgresql+psycopg://`).
+   - Đặt `SECRET_KEY`, `ALLOW_DEMO_RESET` (1 cho bản demo), `TZ=Asia/Ho_Chi_Minh`.
+   - Gắn **volume / disk** vào `/app/uploads` để ảnh phiếu không mất khi deploy lại.
+   - Kiểm tra: `https://<domain-backend>/health` trả `{"ok": true}`.
+2. **Frontend** (Vercel): Import repo → *Root Directory* = `frontend` → sửa 3 chỗ `THAY-BANG-DOMAIN-BACKEND`
+   trong `frontend/vercel.json` thành domain backend → Deploy. Bản demo cho khách: thêm biến môi trường
+   `VITE_DEMO_LOGIN=1` (hiện nút đăng nhập nhanh) rồi deploy lại.
+
+Vercel chuyển tiếp `/api` và `/uploads` sang backend nên trình duyệt chỉ thấy một tên miền — không cần cấu hình CORS.
+
 ## Trước khi chạy thật
 - Đặt `SECRET_KEY` (chuỗi ngẫu nhiên ≥ 32 ký tự), `DATABASE_URL` và mật khẩu PostgreSQL thật qua biến môi trường; tạo tài khoản thật, khóa / xóa tài khoản demo; đặt `ALLOW_DEMO_RESET=0` để tắt `/api/admin/reset` (xóa toàn bộ dữ liệu).
 - Khi nhiều người dùng / nhiều máy chủ: chuyển ảnh sang object storage (S3/MinIO) thay vì volume `uploads`.
