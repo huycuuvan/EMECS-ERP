@@ -84,14 +84,14 @@ export default function Weighings() {
       title: 'KL cân thực', key: 'act', align: 'right',
       render: (_, p) => {
         if (p.kgActual == null) return <span className="text-signal" style={{ fontWeight: 800, fontSize: 11.5, letterSpacing: '.04em' }}>CHƯA CÂN</span>
-        const bad = Math.abs(p.kgActual - p.kgExpected) > tol
+        const bad = !p.receiptId && Math.abs(p.kgActual - p.kgExpected) > tol
         return <span className="mono num" style={{ fontWeight: bad ? 800 : 600, color: bad ? C.signal : undefined }}>{fmtKg(p.kgActual)}</span>
       },
     },
     {
       title: 'Chênh', key: 'delta', align: 'right',
       render: (_, p) => {
-        if (p.kgActual == null) return <span style={sub}>—</span>
+        if (p.kgActual == null || p.receiptId) return <span style={sub}>—</span>  // chênh của phiếu Chuẩn bị hàng: Quản lý tự xử lý
         const d = p.kgActual - p.kgExpected
         if (d === 0) return <span className="mono text-moss">±0</span>
         const bad = Math.abs(d) > tol

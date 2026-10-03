@@ -91,7 +91,7 @@ function DetailPc({ id }: { id: string }) {
   const photo = useWeighingPhoto()
   if (isLoading) return <Loading />
   if (!p) return <NotFound id={id} />
-  const delta = p.kgActual != null ? p.kgActual - p.kgExpected : null
+  const delta = p.kgActual != null && !p.receiptId ? p.kgActual - p.kgExpected : null
   const bad = delta != null && Math.abs(delta) > m.tol
   return (
     <>

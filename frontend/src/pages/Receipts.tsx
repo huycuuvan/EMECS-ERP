@@ -3,7 +3,7 @@
 import { Button, Card, Input, Select, Table, type TableColumnsType } from 'antd'
 import { Info, PackagePlus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useContracts, useDashboard, useReceipts, useWeighings } from '@/api/hooks'
+import { useContracts, useReceipts, useWeighings } from '@/api/hooks'
 import type { Receipt } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader } from '@/components/ui'
@@ -29,7 +29,6 @@ export default function Receipts() {
   const canEdit = can('tiep-nhan', 'edit')
   const { data: all = [], isLoading } = useReceipts()
   const { data: contracts = [] } = useContracts()
-  const { data: dash } = useDashboard()
   const wAct = useWeighingActions()
   const { data: weighings = [] } = useWeighings()
   const wOf = useMemo(() => Object.fromEntries(weighings.filter((p) => p.receiptId).map((p) => [p.receiptId!, p])), [weighings])
@@ -54,8 +53,6 @@ export default function Receipts() {
   /* KPI */
   const inMonth = all.filter((r) => sameMonth(r.date))
   const kgMonth = inMonth.reduce((s, r) => s + (Number(r.kg) || 0), 0)
-  const withStock = (dash?.contracts ?? []).filter((g) => g.stockKg > 0)
-  const stockAll = withStock.reduce((s, g) => s + g.stockKg, 0)
 
 
   const columns: TableColumnsType<Receipt> = [
@@ -85,11 +82,6 @@ export default function Receipts() {
         <Kpi tone="rust" label="Chờ Quản lý duyệt" value={<span className={pendingApprove.length ? 'text-signal' : ''}>{pendingApprove.length}</span>}
           sub={pendingApprove.length ? 'phiếu cân lệch — kho đã ghi lý do' : 'không có phiếu chờ duyệt'} />
         <Kpi tone="moss" label="KG chuẩn bị tháng" value={fmtT(kgMonth)} sub="thành phẩm nhập kho từ sản xuất" />
-        <Kpi tone="amber" label="Tồn kho chờ cân" value={fmtKg(stockAll)} sub="toàn công ty: kho nhận − đã cân xuất" />
-        <Kpi tone="signal" label="Hợp đồng có tồn" value={<span className="text-signal">{withStock.length}</span>}
-          sub={withStock.length
-            ? <span className="text-signal">HĐ còn tồn — cần cân xuất đi mạ: {withStock.map((g, i) => <span key={g.contract.id}>{i > 0 && ' · '}<RecordLink id={g.contract.id} danger /></span>)}</span>
-            : <span className="text-signal">không còn tồn kho chờ cân</span>} />
       </KpiGrid>
 
       <Card styles={{ body: { padding: 16 } }}>

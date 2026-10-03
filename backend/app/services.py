@@ -74,7 +74,8 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
 
     produced_kg = _sum(lsxs, lambda x: x.kg_done)
     produced_qty = _sum(lsxs, lambda x: x.qty_done)
-    received_kg = _sum(rcs, lambda x: x.kg)
+    eff = stock_kg_of_receipts(db, rcs)
+    received_kg = _sum(rcs, lambda x: eff[x.id])
     weighed_kg = _sum([p for p in pcs if p.kg_actual is not None], lambda p: p.kg_actual)
     sent_galv_kg = _sum([t for t in di_ma if t.kg_at_galv is not None], lambda t: t.kg_at_galv)
     in_transit_kg = _sum([t for t in di_ma if t.kg_at_galv is None and t.status != "Từ chối"], lambda t: t.kg_required)
@@ -126,14 +127,25 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
     }
 
 
+def stock_kg_of_receipts(db: Session, receipts) -> dict[str, float]:
+    """KG tính tồn kho của phiếu chuẩn bị hàng: đã cân → = số cân (chênh với số QL giao do Quản lý tự xử lý,
+    phần mềm không theo dõi thành tồn kho / sai lệch); chưa cân → số QL giao."""
+    ids = [r.id for r in receipts]
+    weighed = {p.receipt_id: p.kg_actual for p in db.scalars(select(Weighing).where(Weighing.receipt_id.in_(ids)))
+               if p.kg_actual is not None} if ids else {}
+    return {r.id: weighed.get(r.id, r.kg) for r in receipts}
+
+
 def contract_flow_ledger(db: Session, cid: str) -> dict:
     """Sổ cân đối luân chuyển thép: NGUỒN (kho tiếp nhận) = PHÂN BỔ (tồn kho + đang tới mạ + tại mạ
     + đã giao + lệch). Hợp đồng xong thì các vị trí trung gian phải về 0."""
     c = get_or_404(db, Contract, cid)
     ev = []
-    for r in db.scalars(select(Receipt).where(Receipt.contract_id == cid)):
-        ev.append({"date": r.date, "id": r.id, "type": "ptn", "kg": r.kg, "label": "SX bàn giao — kho tiếp nhận",
-                   "delta": {"kho": r.kg}, "source": True})
+    rcs = db.scalars(select(Receipt).where(Receipt.contract_id == cid)).all()
+    eff = stock_kg_of_receipts(db, rcs)
+    for r in rcs:
+        ev.append({"date": r.date, "id": r.id, "type": "ptn", "kg": eff[r.id], "label": "SX bàn giao — kho tiếp nhận",
+                   "delta": {"kho": eff[r.id]}, "source": True})
     for p in db.scalars(select(Weighing).where(Weighing.contract_id == cid)):
         if p.kg_actual is None:
             continue

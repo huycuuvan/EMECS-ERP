@@ -322,12 +322,15 @@ def lsx_extend(lid: str, body: SC.LsxExtendIn, db: Session = DB):
 # ---------------------------------------------------------------- phiếu chuẩn bị hàng
 @router.get("/receipts")
 def list_receipts(contract_id: str | None = None, lsx_id: str | None = None, db: Session = DB):
-    return _list(db, Receipt, Receipt.date, S.receipt, contract_id=contract_id, lsx_id=lsx_id)
+    rows = _list(db, Receipt, Receipt.date, S.receipt, contract_id=contract_id, lsx_id=lsx_id)
+    eff = svc.stock_kg_of_receipts(db, [db.get(Receipt, r["id"]) for r in rows])
+    return [{**r, "kgStock": eff[r["id"]]} for r in rows]
 
 
 @router.get("/receipts/{rid}")
 def get_receipt(rid: str, db: Session = DB):
-    return S.receipt(svc.get_or_404(db, Receipt, rid))
+    r = svc.get_or_404(db, Receipt, rid)
+    return {**S.receipt(r), "kgStock": svc.stock_kg_of_receipts(db, [r])[r.id]}
 
 
 @router.post("/receipts", dependencies=[Depends(require("tiep-nhan", "edit"))])

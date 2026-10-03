@@ -1,5 +1,6 @@
 /* Drawer Chuẩn bị hàng — port ERPPeek.register('ptn') trong steel-data.js:
    thông tin phiếu · đối chiếu với số SX báo trên lệnh · phiếu cân xuất từ cùng lệnh · tạo phiếu cân xuất (kho). */
+import { stockKgOf } from '@/api/types'
 import { Button } from 'antd'
 import { Info, Link2, Pencil, Scale, Factory } from 'lucide-react'
 import { useState } from 'react'
@@ -29,7 +30,7 @@ export default function ReceiptDrawer({ id }: { id: string }) {
   if (!r) return <PeekShell type="ptn" id={id} loading={isLoading} notFound={!isLoading && (isError || !r)} />
 
   const lsxRcs = rcs.filter((z) => z.lsxId === r.lsxId)
-  const recKg = lsxRcs.reduce((s, z) => s + (Number(z.kg) || 0), 0)
+  const recKg = lsxRcs.reduce((s, z) => s + stockKgOf(z), 0)
   const pcs = allPcs.filter((p) => p.lsxId === r.lsxId).sort((a, b) => (a.date || '').localeCompare(b.date || ''))
   const stock = stockOfLsx(r.lsxId, lsxRcs, pcs)
   const overSx = x ? recKg - x.kgDone : 0
@@ -95,7 +96,7 @@ export default function ReceiptDrawer({ id }: { id: string }) {
       {pcs.length ? (
         <div style={{ border: `1px solid ${C.rule}`, borderRadius: 10, background: C.canvas, overflow: 'hidden' }}>
           {pcs.map((p, i) => {
-            const d = p.kgActual != null ? p.kgActual - p.kgExpected : null
+            const d = p.kgActual != null && !p.receiptId ? p.kgActual - p.kgExpected : null
             return (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderTop: i ? `1px solid ${C.ruleHair}` : undefined, fontSize: 12.5 }}>
                 <RecordLink id={p.id} danger={p.status === 'Lệch — chờ ký'} />

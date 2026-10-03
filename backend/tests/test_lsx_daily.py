@@ -148,3 +148,17 @@ def test_prepare_goods_assigns_driver_task(c):
     c.post(f"/api/weighings/{w['id']}/fill", json={"grossKg": 8490, "tareKg": 8000})  # 490 kg (thiếu 2%)
     login(c, "ql")
     assert c.get(f"/api/tasks/{t['id']}").json()["kgRequired"] == 490  # cập nhật theo cân thực
+
+
+def test_prepare_goods_deviation_not_tracked_as_stock(c):
+    o = c.post("/api/orders", json={"customer": "Cty Test Tồn", "items": [
+        {"name": "Cột", "qty": 70, "unit": "Bộ", "kgPerUnit": 100, "price": 20000}]}).json()
+    hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
+    x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 7000}).json()
+    item = c.get(f"/api/orders/{o['id']}").json()["items"][0]["id"]
+    r = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": item, "qty": 70}]}).json()  # giao 7.000
+    w = next(p for p in c.get("/api/weighings").json() if p["receiptId"] == r["id"])
+    c.post(f"/api/weighings/{w['id']}/fill", json={"grossKg": 15500, "tareKg": 8000, "reason": "Dư bản mã"})  # cân 7.500
+    g = c.get(f"/api/contracts/{hd['id']}").json()
+    assert g["stockKg"] == 0 and g["receivedKg"] == 7500  # lệch 500 kg không thành tồn kho / sai lệch
+    assert next(x for x in c.get("/api/receipts").json() if x["id"] == r["id"])["kgStock"] == 7500

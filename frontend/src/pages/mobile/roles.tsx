@@ -307,7 +307,7 @@ export function KhoView({ tab, setTab, onRoleSheet }: RoleViewProps) {
 
 function PcCard({ p }: { p: Weighing }) {
   const m = useMob()
-  const delta = p.kgActual != null ? p.kgActual - p.kgExpected : null
+  const delta = p.kgActual != null && !p.receiptId ? p.kgActual - p.kgExpected : null
   const bad = !!p.mismatchId
   return (
     <Card open={['pc', p.id]}>

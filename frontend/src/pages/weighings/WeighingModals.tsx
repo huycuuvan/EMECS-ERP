@@ -5,7 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { AlertOctagon, Siren } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useCreateTask, useCreateWeighing, useFillWeighing, useLsxList, useMeta, useReceipts, useWeighings } from '@/api/hooks'
-import type { ID, Lsx, Receipt, Weighing } from '@/api/types'
+import { stockKgOf, type ID, type Lsx, type Receipt, type Weighing } from '@/api/types'
 import { PhotoInput } from '@/components/PhotoBlock'
 import { fmtDelta, fmtKg, fmtNum, hoursOver } from '@/lib/format'
 import { ErrBox, InfoBox, WarnBox } from '../lsx/boxes'
@@ -21,7 +21,7 @@ export const isOverdue = (p: Weighing) => isMissing(p) && hoursOver(p.date) >= P
 
 /** Tồn chờ cân theo LSX = kho đã nhận − (đã cân thực + đang chờ cân theo lệnh). */
 export function stockOfLsx(lsxId: ID, receipts: Receipt[], weighings: Weighing[]) {
-  const rec = receipts.filter((r) => r.lsxId === lsxId).reduce((s, r) => s + (Number(r.kg) || 0), 0)
+  const rec = receipts.filter((r) => r.lsxId === lsxId).reduce((s, r) => s + stockKgOf(r), 0)
   const w = weighings.filter((p) => p.lsxId === lsxId).reduce((s, p) => s + (p.kgActual != null ? Number(p.kgActual) : Number(p.kgExpected) || 0), 0)
   return rec - w
 }

@@ -58,7 +58,9 @@ export interface Lsx {
 }
 
 export interface ReceiptLine { itemId: number; name: string; unit: string; qty: number; kgPerUnit: number; kg: number }
-export interface Receipt { id: ID; lsxId: ID; contractId: ID; date: string; qty: number; kg: number; by: string; note: string; items: ReceiptLine[] }
+/** kgStock: KG tính tồn kho — đã cân thì = số cân (chênh với số QL giao do Quản lý tự xử lý, không theo dõi) */
+export interface Receipt { id: ID; lsxId: ID; contractId: ID; date: string; qty: number; kg: number; by: string; note: string; items: ReceiptLine[]; kgStock?: number }
+export const stockKgOf = (r: Receipt) => Number(r.kgStock ?? r.kg) || 0
 
 export type WeighingStatus = 'Chờ cân' | 'Đã cân' | 'Lệch — chờ ký' | 'Chờ QL duyệt' | 'QL từ chối'
 export interface Weighing {
