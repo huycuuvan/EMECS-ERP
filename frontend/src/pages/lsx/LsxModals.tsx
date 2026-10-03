@@ -12,6 +12,7 @@ import { daysLeft, fmtD, fmtKg, fmtNum } from '@/lib/format'
 import { C } from '@/theme'
 import { ErrBox, WarnBox } from './boxes'
 import { effDeadline } from './lsxUtil'
+import RecordLink from '@/peek/RecordLink'
 
 const OTHER = 'Khác (ghi rõ)'
 
@@ -140,6 +141,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
   const { data: contracts = [] } = useContracts()
   const { data: lsxs = [] } = useLsxList()
   const signed = useMemo(() => contracts.filter((c) => c.signDate != null), [contracts])
+  const waiting = useMemo(() => contracts.filter((c) => c.signDate == null), [contracts])
   /* kg đã phát lệnh của 1 HĐ (không tính lệnh bị từ chối — lệnh đó sẽ phát lại) */
   const remainOf = (cid: ID) => {
     const c = contracts.find((z) => z.id === cid)
@@ -160,7 +162,19 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
   return (
     <Modal open title="Phát lệnh sản xuất (Quản lý)" okText="Phát lệnh" cancelText="Hủy" onCancel={onClose}
       confirmLoading={create.isPending} onOk={() => form.submit()} width={600}>
-      {!signed.length ? <p className="caption" style={{ marginTop: 12 }}>Chưa có hợp đồng đã ký để phát lệnh.</p> : (
+      {!signed.length ? (
+        <div style={{ marginTop: 12 }}>
+          <p style={{ margin: '0 0 8px' }}>Chưa có hợp đồng <b>đã ký</b> để phát lệnh — lệnh sản xuất chỉ phát cho hợp đồng khách đã ký.</p>
+          {waiting.length > 0 && (
+            <>
+              <p className="caption" style={{ margin: '0 0 6px' }}>Hợp đồng đang chờ — vào <b>Hợp đồng &amp; Tạm ứng</b> bấm <b>Đã trả HĐ</b> rồi <b>Đã ký</b> (Kế toán / Quản lý):</p>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {waiting.map((c) => <li key={c.id}><RecordLink id={c.id} type="hd" /> — {c.customer} · <b>{c.status}</b></li>)}
+              </ul>
+            </>
+          )}
+        </div>
+      ) : (
         <Form form={form} layout="vertical" style={{ marginTop: 12 }} initialValues={{ leadDays: 7 }}
           onFinish={async (v) => {
             const x = await create.mutateAsync({ contractId: v.contractId, name: v.name.trim(), qty: v.qty, kg: v.kg, leadDays: v.leadDays || 7 })

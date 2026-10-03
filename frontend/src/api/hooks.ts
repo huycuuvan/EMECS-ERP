@@ -80,7 +80,7 @@ function useAction<TVars, TRes>(fn: (v: TVars) => Promise<TRes>, success?: strin
   })
 }
 
-export type OrderInput = { customer: string; code?: string; items: Omit<OrderItem, 'id'>[]; file?: string; note?: string }
+export type OrderInput = { customer: string; customerId?: number; code?: string; items: Omit<OrderItem, 'id' | 'amount'>[]; file?: string; note?: string; vatPct?: number }
 export const useCreateOrder = () => useAction((v: OrderInput) => post<Order>('/orders', v), (o) => `Đã tạo đơn ${o.id}`)
 export const useUpdateOrder = () => useAction(({ id, ...v }: Partial<OrderInput> & { id: ID }) => api.patch<Order>(`/orders/${id}`, v).then((r) => r.data), (o) => `Đã lưu đơn ${o.id}`)
 export const useSendOrderToKT = () => useAction((id: ID) => post<Contract>(`/orders/${id}/send-to-kt`), (c) => `Đã chuyển kế toán — tạo hợp đồng ${c.id}`)

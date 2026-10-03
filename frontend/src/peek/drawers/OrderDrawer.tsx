@@ -1,19 +1,21 @@
 /* Drawer Đơn hàng khách (port ERPPeek.register('dh') của steel-data.js): thông tin đơn, hàng hóa, tổng giá trị,
    liên kết hợp đồng. Thao tác: Sửa (useUpdateOrder) · Chuyển kế toán (đơn đang "Chốt đơn"). */
 import { App, Button } from 'antd'
-import { Info, Package, Paperclip, Pencil, Send } from 'lucide-react'
+import { Download, Info, Package, Paperclip, Pencil, Send } from 'lucide-react'
 import { useState } from 'react'
 import { useOrder } from '@/api/hooks'
+import { blobError, downloadFile } from '@/api/hooksEdit'
 import HistoryBlock from '@/components/HistoryBlock'
 import { Cell, CellGrid, Sec } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtD, fmtKg, fmtNum, fmtT, money } from '@/lib/format'
+import { fmtD, fmtNum, fmtT } from '@/lib/format'
 import OrderFormModal from '@/pages/orders/OrderFormModal'
 import CustomerTags from '@/pages/orders/CustomerTags'
 import { useAskSendKT } from '@/pages/orders/useAskSendKT'
 import PeekShell from '../PeekShell'
 import RelatedLinks from './contract/RelatedLinks'
 import './contract/contract.css'
+import '@/pages/orders/orderForm.css'
 
 export default function OrderDrawer({ id }: { id: string }) {
   const { data: o, isLoading, isError } = useOrder(id)
@@ -53,28 +55,41 @@ export default function OrderDrawer({ id }: { id: string }) {
             {o.note && <Cell label="Ghi chú" wide>{o.note}</Cell>}
           </CellGrid>
 
-          <Sec icon={<Package />}>Hàng hóa</Sec>
-          <table className="pk-items">
-            <thead><tr><th>Hạng mục</th><th className="r">SL</th><th className="r">Khối lượng</th><th className="r">Đơn giá/kg</th><th className="r">Thành tiền</th></tr></thead>
-            <tbody>
-              {o.items.map((i, k) => (
-                <tr key={i.id ?? k}>
-                  <td>{i.name}</td>
-                  <td className="r">{fmtNum(i.qty)} {i.unit}</td>
-                  <td className="r">{fmtKg(i.kg)}</td>
-                  <td className="r">{fmtNum(i.price)}₫</td>
-                  <td className="r">{money(Math.round(i.kg * i.price))}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ marginTop: 10 }}>
-            <CellGrid>
-              <Cell label="Tổng giá trị" big wide>
-                <span style={{ color: 'var(--rust)' }}>{money(o.value)}</span>
-                <span className="caption" style={{ fontWeight: 500, marginLeft: 10 }}>{fmtKg(o.totalKg)}</span>
-              </Cell>
-            </CellGrid>
+          <Sec icon={<Package />} extra={
+            <Button size="small" type="link" icon={<Download size={12} />} onClick={() => downloadFile(`/orders/${o.id}/excel`, `Don-hang_${o.id}.xlsx`)
+              .catch(async (e) => message.error(await blobError(e)))}>Tải Excel</Button>
+          }>Hàng hóa</Sec>
+          <div className="of-wrap">
+            <table className="of-table view">
+              <colgroup>
+                <col style={{ width: 40 }} /><col /><col style={{ width: 56 }} /><col style={{ width: 76 }} /><col style={{ width: 70 }} />
+                <col style={{ width: 92 }} /><col style={{ width: 80 }} /><col style={{ width: 110 }} /><col style={{ width: 110 }} />
+              </colgroup>
+              <thead>
+                <tr><th>STT</th><th>Tên hàng hóa</th><th>ĐVT</th><th className="r">Số lượng</th><th className="r">KL/1 bộ</th>
+                  <th className="r">Tổng KL (kg)</th><th className="r">Đơn giá</th><th className="r">Thành tiền</th><th>Ghi chú</th></tr>
+              </thead>
+              <tbody>
+                {o.items.map((i, k) => (
+                  <tr key={i.id ?? k}>
+                    <td className="c">{k + 1}</td>
+                    <td>{i.name}</td>
+                    <td>{i.unit}</td>
+                    <td className="r">{fmtNum(i.qty)}</td>
+                    <td className="r">{i.kgPerUnit ? fmtNum(i.kgPerUnit) : '—'}</td>
+                    <td className="r">{fmtNum(i.kg)}</td>
+                    <td className="r">{fmtNum(i.price)}</td>
+                    <td className="r">{fmtNum(i.amount ?? Math.round(i.kg * i.price))}</td>
+                    <td className="sub-soft" style={{ marginTop: 0 }}>{i.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr><td colSpan={5} className="c">TỔNG CỘNG TRƯỚC THUẾ</td><td className="r">{fmtNum(o.totalKg)}</td><td /><td className="r">{fmtNum(o.value)}</td><td /></tr>
+                <tr><td colSpan={5} className="c">THUẾ VAT {fmtNum(o.vatPct)}%</td><td /><td /><td className="r">{fmtNum(o.vatAmount)}</td><td /></tr>
+                <tr className="grand"><td colSpan={5} className="c">TỔNG CỘNG SAU THUẾ</td><td /><td /><td className="r">{fmtNum(o.valueAfterVat)}</td><td /></tr>
+              </tfoot>
+            </table>
           </div>
           {!o.contractId && (
             <p className="caption" style={{ marginTop: 10 }}>

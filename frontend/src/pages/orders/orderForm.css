@@ -1,0 +1,24 @@
+/* Bảng hàng hóa theo mẫu file đặt hàng của khách — form Đơn hàng + drawer Đơn hàng. */
+.of-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.of-title { font-weight: 700; letter-spacing: .02em; font-size: 14px; }
+.of-actions { display: flex; align-items: center; gap: 4px; }
+.of-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--canvas); }
+.of-table { width: 100%; min-width: 980px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.of-table th { font-family: var(--ff-mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ash); font-weight: 700;
+  text-align: left; padding: 8px 6px; background: var(--paper-2); border-bottom: 1px solid var(--rule); white-space: nowrap; }
+.of-table td { padding: 5px 6px; border-bottom: 1px solid var(--rule-hair); vertical-align: top; }
+.of-table .r { text-align: right; font-variant-numeric: tabular-nums; }
+.of-table .c { text-align: center; }
+.of-table td.c, .of-table td.calc { padding-top: 10px; }
+.of-table td.calc { font-weight: 600; }
+.of-table .ant-form-item { margin: 0; }
+.of-table .ant-form-item-explain { font-size: 11px; }
+.of-table .ant-input-number-input { text-align: right; }
+.of-table tr.of-add td { border-bottom: 1px solid var(--rule); padding: 8px 6px; }
+.of-table tfoot td { font-weight: 700; background: var(--paper); padding: 8px 6px; font-variant-numeric: tabular-nums; }
+.of-table tfoot tr.grand td { color: var(--rust); font-size: 14px; border-bottom: 0; }
+.of-vat { display: inline-flex; align-items: center; gap: 6px; }
+
+/* bảng chỉ xem (drawer) */
+.of-table.view { min-width: 860px; }
+.of-table.view td { padding: 7px 6px; vertical-align: middle; }

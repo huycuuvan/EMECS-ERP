@@ -26,7 +26,7 @@ const LABEL: Record<string, string> = {
   // đơn hàng / hợp đồng
   customer: 'Khách hàng', code: 'Mã nội bộ', file: 'File ký chốt', items: 'Hàng hóa', totalKg: 'Tổng khối lượng',
   value: 'Giá trị', owner: 'Phụ trách', dueAt: 'Hạn trả HĐ', unitPrice: 'Đơn giá/kg', advancePct: '% tạm ứng',
-  advanceRequired: 'Tạm ứng yêu cầu',
+  advanceRequired: 'Tạm ứng yêu cầu', vatPct: 'Thuế VAT (%)',
 }
 const LABEL_BY_TYPE: Partial<Record<HistoryEntity, Record<string, string>>> = {
   lsx: { assignedAt: 'Phát lệnh lúc', acceptedAt: 'Nhận lệnh lúc', rejectReason: 'Lý do xưởng từ chối' },

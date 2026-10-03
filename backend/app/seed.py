@@ -53,8 +53,8 @@ def _orders():
     out = []
     for oid, cust, code, date, file, (name, qty, unit, kg, price), status, cid, note in rows:
         o = Order(id=oid, customer=cust, code=code, date=date, file=file, total_kg=kg, value=kg * price,
-                  status=status, contract_id=cid, note=note)
-        o.items = [OrderItem(name=name, qty=qty, unit=unit, kg=kg, price=price)]
+                  status=status, contract_id=cid, note=note, vat_pct=8)
+        o.items = [OrderItem(name=name, qty=qty, unit=unit, kg_per_unit=kg / qty if qty else None, kg=kg, price=price)]
         out.append(o)
     return out
 

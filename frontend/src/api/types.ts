@@ -2,11 +2,19 @@
 
 export type ID = string
 
-export interface OrderItem { id?: number; name: string; qty: number; unit: string; kg: number; price: number }
+/** Dòng hàng theo file đặt hàng của khách: Tổng KL = SL × KL/1 bộ; Thành tiền = Tổng KL × Đơn giá (đ/kg). */
+export interface OrderItem { id?: number; name: string; qty: number; unit: string; kgPerUnit?: number | null; kg: number; price: number; amount?: number; note?: string }
 export type OrderStatus = 'Chốt đơn' | 'Đã chuyển kế toán' | 'Đã có hợp đồng'
 export interface Order {
   id: ID; customer: string; code: string; date: string; file: string | null; items: OrderItem[]
   totalKg: number; value: number; status: OrderStatus; contractId: ID | null; note: string
+  vatPct: number; vatAmount: number; valueAfterVat: number; customerId?: number | null
+}
+
+/** Kết quả đọc file Excel đặt hàng (POST /orders/import-excel) — chưa lưu. */
+export interface OrderExcelImport {
+  sheet: string; fileName: string; customer: string; customerId: number | null; items: OrderItem[]
+  vatPct: number; totalKg: number; value: number; vatAmount: number; valueAfterVat: number; warnings: string[]
 }
 
 export interface Payment { id: number; date: string; amount: number; type: string; note: string }

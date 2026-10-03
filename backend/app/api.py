@@ -3,7 +3,9 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -20,6 +22,7 @@ from .seed import reset_db
 from .files import sign_photo
 from .ticket import ticket_img
 from .utils import fmt_kg
+from .order_excel import order_excel, parse_order_excel
 
 # Mọi route dưới đây bắt buộc đăng nhập.
 # ĐỌC (GET): mọi người đã đăng nhập đều đọc được — giống bản demo, menu ẩn theo vai trò; một màn hình
@@ -108,6 +111,38 @@ def list_orders(tag: int | None = None, segment: str | None = None, db: Session 
     return rows
 
 
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _xlsx(data: bytes, filename: str) -> Response:
+    cd = f"attachment; filename=\"{filename}\"; filename*=UTF-8''{quote(filename)}"
+    return Response(content=data, media_type=XLSX, headers={"Content-Disposition": cd})
+
+
+@router.post("/orders/import-excel", dependencies=[Depends(require("don-hang", "full"))])
+async def import_order_excel(file: UploadFile = File(...), db: Session = DB):
+    """Đọc file Excel đặt hàng (mẫu của khách) → dòng hàng để điền form. Chưa lưu gì."""
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(400, "File Excel tối đa 5MB")
+    out = parse_order_excel(data, file.filename or "")
+    cu = svc.find_customer(db, out["customer"]) if out["customer"] else None
+    out["customerId"] = cu.id if cu else None
+    out["fileName"] = file.filename or ""
+    return out
+
+
+@router.get("/orders/excel-template")
+def order_excel_template():
+    return _xlsx(order_excel(), "Mau-don-hang.xlsx")
+
+
+@router.get("/orders/{oid}/excel")
+def order_excel_file(oid: str, db: Session = DB):
+    o = svc.get_or_404(db, Order, oid)
+    return _xlsx(order_excel(o), f"Don-hang_{o.id}.xlsx")
+
+
 @router.get("/orders/{oid}")
 def get_order(oid: str, db: Session = DB):
     return S.order(svc.get_or_404(db, Order, oid))
@@ -116,7 +151,7 @@ def get_order(oid: str, db: Session = DB):
 @router.post("/orders", dependencies=[Depends(require("don-hang", "full"))])
 def create_order(body: SC.OrderCreate, db: Session = DB):
     o = svc.create_order(db, body.customer, [i.model_dump() for i in body.items], body.file, body.note, body.code,
-                         body.customer_id)
+                         body.customer_id, body.vat_pct)
     return S.order(o)
 
 

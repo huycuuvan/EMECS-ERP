@@ -89,8 +89,8 @@ export function Cell({ label, children, wide, alert, big, extra }: { label: Reac
 export const CellGrid = ({ children }: { children: ReactNode }) => <div className="pk-grid">{children}</div>
 
 /** Tiêu đề mục có gạch ngang (sec của demo). */
-export function Sec({ icon, children }: { icon?: ReactNode; children: ReactNode }) {
-  return <div className="sec-title">{icon}{children}</div>
+export function Sec({ icon, children, extra }: { icon?: ReactNode; children: ReactNode; extra?: ReactNode }) {
+  return <div className="sec-title">{icon}{children}{extra && <span style={{ order: 1, textTransform: 'none', letterSpacing: 0 }}>{extra}</span>}</div>
 }
 
 export function Bar({ percent, color = C.moss }: { percent: number; color?: string }) {

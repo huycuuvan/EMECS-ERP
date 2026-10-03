@@ -95,9 +95,10 @@ def list_history(db: Session, entity_type: str, entity_id: str) -> list[dict]:
 
 # ---------------------------------------------------------------- ảnh chụp để so trước–sau
 def order_snapshot(o) -> dict:
-    items = "; ".join(f"{i.name}: {i.qty:g} {i.unit} · {i.kg:g} kg · {i.price:g} đ/kg" for i in o.items)
+    items = "; ".join(f"{i.name}: {i.qty:g} {i.unit}" + (f" × {i.kg_per_unit:g} kg/{i.unit}" if i.kg_per_unit else "")
+                      + f" · {i.kg:g} kg · {i.price:g} đ/kg" + (f" ({i.note})" if i.note else "") for i in o.items)
     return {"customer": o.customer, "code": o.code, "file": o.file, "note": o.note, "items": items,
-            "totalKg": o.total_kg, "value": o.value}
+            "totalKg": o.total_kg, "value": o.value, "vatPct": o.vat_pct}
 
 
 def contract_snapshot(c) -> dict:

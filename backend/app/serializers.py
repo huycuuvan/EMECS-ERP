@@ -4,13 +4,20 @@ from .files import sign_photo
 from .utils import iso
 
 
+def vat_amount(o: Order) -> int:
+    return round((o.value or 0) * (o.vat_pct if o.vat_pct is not None else 10) / 100)
+
+
 def order(o: Order) -> dict:
     return {
         "id": o.id, "customer": o.customer, "code": o.code, "date": iso(o.date), "file": o.file,
-        "items": [{"id": i.id, "name": i.name, "qty": i.qty, "unit": i.unit, "kg": i.kg, "price": i.price}
+        "items": [{"id": i.id, "name": i.name, "qty": i.qty, "unit": i.unit,
+                   "kgPerUnit": i.kg_per_unit if i.kg_per_unit is not None else (i.kg / i.qty if i.qty else 0),
+                   "kg": i.kg, "price": i.price, "amount": round(i.kg * i.price), "note": i.note or ""}
                   for i in o.items],
-        "totalKg": o.total_kg, "value": o.value, "status": o.status, "contractId": o.contract_id, "note": o.note,
-        "customerId": o.customer_id,
+        "totalKg": o.total_kg, "value": o.value, "vatPct": o.vat_pct, "vatAmount": vat_amount(o),
+        "valueAfterVat": o.value + vat_amount(o),
+        "status": o.status, "contractId": o.contract_id, "note": o.note, "customerId": o.customer_id,
     }
 
 

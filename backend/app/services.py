@@ -299,17 +299,34 @@ def dashboard(db: Session, tag: int | None = None, segment: str | None = None) -
 
 
 # ---------------------------------------------------------------- đơn hàng & hợp đồng
+def _order_items(items: list[dict]) -> list[OrderItem]:
+    """Dòng hàng theo file đặt hàng của khách: tổng KL = SL × KL/1 bộ (khi có KL/1 bộ), thành tiền = tổng KL × đơn giá."""
+    out = []
+    for i in items:
+        per = i.get("kg_per_unit")
+        kg = float(i["qty"]) * float(per) if per else float(i.get("kg") or 0)
+        if kg <= 0:
+            raise HTTPException(400, f"Hạng mục \"{i['name']}\" chưa có khối lượng (KL/1 bộ hoặc tổng KL)")
+        out.append(OrderItem(name=i["name"].strip(), qty=i["qty"], unit=i.get("unit") or "cấu kiện",
+                             kg_per_unit=float(per) if per else None, kg=round(kg, 3), price=i["price"],
+                             note=(i.get("note") or "").strip()))
+    return out
+
+
+def _set_items(o: Order, items: list[dict]) -> None:
+    o.items = _order_items(items)
+    o.total_kg = round(sum(i.kg for i in o.items), 3)
+    o.value = round(sum(i.kg * i.price for i in o.items))
+
+
 def create_order(db: Session, customer: str, items: list[dict], file: str | None, note: str, code: str | None,
-                 customer_id: int | None = None) -> Order:
-    total_kg = sum(float(i["kg"]) for i in items)
-    value = round(sum(float(i["kg"]) * float(i["price"]) for i in items))
+                 customer_id: int | None = None, vat_pct: float = 10) -> Order:
     cu = ensure_customer(db, customer, customer_id)
     customer = cu.name
     o = Order(id=next_id(db, "DH", "dh", month_code=True), customer=customer, code=code or "MOI", date=utcnow(),
-              file=file or "don-hang-ky-chot.pdf", total_kg=total_kg, value=value, status="Chốt đơn",
+              file=file or "don-hang-ky-chot.pdf", status="Chốt đơn", vat_pct=vat_pct,
               contract_id=None, note=note or "", customer_id=cu.id)
-    o.items = [OrderItem(name=i["name"], qty=i["qty"], unit=i.get("unit") or "cấu kiện", kg=i["kg"], price=i["price"])
-               for i in items]
+    _set_items(o, items)
     db.add(o)
     notify(db, f"Đơn hàng mới {o.id}", f"{customer} — chờ chuyển kế toán làm hợp đồng", "info")
     db.commit()
@@ -321,14 +338,11 @@ def update_order(db: Session, oid: str, data: dict) -> Order:
     if data.get("customer") is not None or data.get("customer_id") is not None:
         cu = ensure_customer(db, data.get("customer") or o.customer, data.get("customer_id"))
         data["customer"], o.customer_id = cu.name, cu.id
-    for k in ("customer", "file", "note", "code"):
+    for k in ("customer", "file", "note", "code", "vat_pct"):
         if data.get(k) is not None:
             setattr(o, k, data[k])
     if data.get("items"):
-        o.items = [OrderItem(name=i["name"], qty=i["qty"], unit=i.get("unit") or "cấu kiện", kg=i["kg"],
-                             price=i["price"]) for i in data["items"]]
-        o.total_kg = sum(float(i["kg"]) for i in data["items"])
-        o.value = round(sum(float(i["kg"]) * float(i["price"]) for i in data["items"]))
+        _set_items(o, data["items"])
     db.commit()
     return o
 
@@ -343,7 +357,7 @@ def send_order_to_kt(db: Session, oid: str) -> Contract:
                  sent_to_kt_at=now, due_at=add_days(now, CONTRACT_DAYS), status="Soạn thảo", owner=KT,
                  total_qty=sum(i.qty for i in o.items), unit=first.unit if first else "cấu kiện",
                  total_kg=o.total_kg, unit_price=round(o.value / o.total_kg) if o.total_kg else 0, value=o.value,
-                 vat_pct=8, advance_pct=30, advance_required=round(o.value * 0.3), advance_received=0,
+                 vat_pct=o.vat_pct if o.vat_pct is not None else 10, advance_pct=30, advance_required=round(o.value * 0.3), advance_received=0,
                  note=f"Tạo từ đơn {o.id} — giá theo giá thị trường ngày chốt.")
     db.add(c)
     o.contract_id, o.status = c.id, "Đã chuyển kế toán"
@@ -645,6 +659,16 @@ def resolve_vloss(db: Session, vid: str, resolution: str, note: str | None) -> V
 
 
 # ---------------------------------------------------------------- khách hàng & thẻ (danh mục)
+def find_customer(db: Session, name: str) -> Customer | None:
+    """Khách theo tên (không phân biệt hoa thường) hoặc mã viết tắt."""
+    key = (name or "").strip().lower()
+    if not key:
+        return None
+    cus = list(db.scalars(select(Customer)))
+    return next((c for c in cus if c.name.strip().lower() == key), None) \
+        or next((c for c in cus if c.short_code and c.short_code.strip().lower() == key), None)
+
+
 def ensure_customer(db: Session, name: str, customer_id: int | None = None) -> Customer:
     """Khách theo id; không có id thì tìm theo tên (không phân biệt hoa thường), chưa có thì tạo mới."""
     if customer_id is not None:
@@ -655,7 +679,7 @@ def ensure_customer(db: Session, name: str, customer_id: int | None = None) -> C
     name = (name or "").strip()
     if not name:
         raise HTTPException(400, "Chưa nhập tên khách hàng")
-    cu = next((c for c in db.scalars(select(Customer)) if c.name.strip().lower() == name.lower()), None)
+    cu = find_customer(db, name)
     if cu is None:
         cu = Customer(name=name, active=True, created_at=utcnow())
         db.add(cu)

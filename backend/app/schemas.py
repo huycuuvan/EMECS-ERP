@@ -20,8 +20,10 @@ class OrderItemIn(In):
     name: str
     qty: float = Field(ge=0)
     unit: str = "cấu kiện"
-    kg: float = Field(ge=0)
+    kg_per_unit: float | None = Field(default=None, ge=0)  # KL/1 bộ; có thì tổng KL = SL × KL/1 bộ
+    kg: float = Field(default=0, ge=0)  # tổng KL — dùng khi không nhập KL/1 bộ
     price: float = Field(ge=0)
+    note: str = ""
 
 
 class OrderCreate(In):
@@ -31,6 +33,7 @@ class OrderCreate(In):
     file: str | None = None
     note: str = ""
     customer_id: int | None = None  # chọn khách có sẵn; không có thì tìm/tạo theo tên `customer`
+    vat_pct: float = Field(default=10, ge=0, le=100)
 
 
 class OrderUpdate(In):
@@ -40,6 +43,7 @@ class OrderUpdate(In):
     items: list[OrderItemIn] | None = None
     file: str | None = None
     note: str | None = None
+    vat_pct: float | None = Field(default=None, ge=0, le=100)
 
 
 class ContractUpdate(In):

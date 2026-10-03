@@ -54,7 +54,7 @@ function fileNameOf(cd: string | undefined, fallback: string) {
 }
 
 /** Lỗi khi responseType=blob: body là Blob → đọc JSON để lấy detail tiếng Việt. */
-async function blobError(e: unknown): Promise<string> {
+export async function blobError(e: unknown): Promise<string> {
   const data = (e as { response?: { data?: unknown } })?.response?.data
   if (data instanceof Blob) {
     try {
@@ -68,10 +68,15 @@ async function blobError(e: unknown): Promise<string> {
 /** Tải file .xlsx (kèm token đăng nhập qua axios) rồi lưu về máy. */
 export async function downloadXlsx(kind: ExportKind, params: ExportParams = {}) {
   const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== ''))
-  const res = await api.get<Blob>(`/export/${kind}.xlsx`, { params: clean, responseType: 'blob' })
   const d = new Date()
-  const name = fileNameOf(res.headers['content-disposition'] as string | undefined,
-    `${kind}_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.xlsx`)
+  return downloadFile(`/export/${kind}.xlsx`,
+    `${kind}_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.xlsx`, clean)
+}
+
+/** Tải 1 file từ API (kèm token) rồi lưu về máy; tên file lấy từ Content-Disposition. */
+export async function downloadFile(path: string, fallbackName: string, params?: object) {
+  const res = await api.get<Blob>(path, { params, responseType: 'blob' })
+  const name = fileNameOf(res.headers['content-disposition'] as string | undefined, fallbackName)
   const url = URL.createObjectURL(res.data)
   const a = document.createElement('a')
   a.href = url

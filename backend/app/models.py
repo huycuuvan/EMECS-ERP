@@ -58,6 +58,7 @@ class Order(Base):
     contract_id: Mapped[str | None] = mapped_column(String(32))
     note: Mapped[str] = mapped_column(Text, default="")
     customer_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # → customers.id
+    vat_pct: Mapped[float] = mapped_column(Float, default=10, server_default="10")  # thuế VAT % (file đặt hàng khách)
     items: Mapped[list["OrderItem"]] = relationship(
         back_populates="order", cascade="all, delete-orphan", order_by="OrderItem.id")
 
@@ -69,8 +70,10 @@ class OrderItem(Base):
     name: Mapped[str] = mapped_column(String(255))
     qty: Mapped[float] = mapped_column(Float, default=0)
     unit: Mapped[str] = mapped_column(String(32), default="cấu kiện")
-    kg: Mapped[float] = mapped_column(Float, default=0)
+    kg_per_unit: Mapped[float | None] = mapped_column(Float, nullable=True)  # KL/1 bộ (kg) — tổng KL = SL × KL/1 bộ
+    kg: Mapped[float] = mapped_column(Float, default=0)  # tổng KL (kg)
     price: Mapped[float] = mapped_column(Float, default=0)  # đơn giá đ/kg
+    note: Mapped[str] = mapped_column(String(255), default="", server_default="")
     order: Mapped[Order] = relationship(back_populates="items")
 
 
