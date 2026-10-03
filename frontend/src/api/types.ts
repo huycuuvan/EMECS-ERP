@@ -105,8 +105,11 @@ export interface Mismatch {
 
 export interface VLoss {
   id: ID; date: string; refType: 'pc' | 'vc'; refId: ID; contractId: ID; source: string; kg: number
-  approvedBy: string; note: string; status: 'Đang treo' | 'Đã xử lý'; resolution: string | null
+  approvedBy: string; note: string; status: 'Đang treo' | 'Đã xử lý' | 'Đã ghi nhận'; resolution: string | null
   resolvedAt: string | null; resolvedNote: string | null
+  /** lý do chênh lệch (lái xe / kho ghi) + công thức: số gốc (a) − số cân sau (b) = chênh */
+  reason?: string
+  formula?: { aLabel: string; a: number; bLabel: string; b: number; delta: number; text: string } | null
 }
 export interface PendingDelta {
   refType: 'pc' | 'vc'; id: ID; contractId: ID; source: string; date: string | null

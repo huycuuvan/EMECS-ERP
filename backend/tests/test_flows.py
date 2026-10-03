@@ -111,6 +111,9 @@ def test_delivery_deviation_manager_approves_directly(c):
     assert t["status"] == "Hoàn thành" and t["approvedBy"] == "Quản lý A"
     vk = [e for e in c.get("/api/vloss").json() if e["refId"] == "VC-0105"]  # chấp nhận → ghi luôn vào kho ảo (thống kê)
     assert len(vk) == 1 and vk[0]["kg"] == 40 and vk[0]["status"] == "Đã ghi nhận" and vk[0]["note"] == "Rơi rớt khi bốc"
+    f = vk[0]["formula"]  # công thức: lấy từ mạ 10.000 − khách ký 9.960 = 40 kg hụt
+    assert (f["a"], f["b"], f["delta"]) == (10000, 9960, 40) and "= 40 kg hụt" in f["text"]
+    assert vk[0]["reason"] == "Rơi rớt khi bốc"
     assert all(x["id"] != "VC-0105" for x in c.get("/api/vloss/pending-deltas").json())
 
 

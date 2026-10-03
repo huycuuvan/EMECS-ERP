@@ -1002,6 +1002,43 @@ def accept_loss(db: Session, ref_type: str, ref_id: str, note: str | None) -> VL
     return e
 
 
+def vloss_detail(db: Session, e: VLoss) -> dict:
+    """Khoản kho ảo + LÝ DO chênh lệch + CÔNG THỨC ra số chênh (số gốc − số cân sau = chênh)."""
+    out = S.vloss(e)
+    reason, a, b = None, None, None
+    if e.ref_type == "vc":
+        t = db.get(Task, e.ref_id)
+        if t:
+            if t.type == "di_ma":
+                a = (f"Cân xuất công ty ({t.ref_id})" if t.ref_id else "KG giao chở đi mạ", t.kg_required)
+                b = ("Xưởng mạ cân nhận", t.kg_at_galv)
+            elif t.kg_delivered is not None and t.kg_picked is not None and abs(t.kg_delivered - t.kg_picked) > 0.5:
+                a, b = ("Lấy từ xưởng mạ (ký với mạ)", t.kg_picked), ("Khách ký nhận", t.kg_delivered)
+            else:
+                a, b = ("KG theo chứng từ (mạ cân nhận)", t.kg_required), ("Lấy từ xưởng mạ (ký với mạ)", t.kg_picked)
+            if t.reason:
+                reason = t.reason + (f" — {t.reason_note}" if t.reason_note else "")
+            elif t.mismatch_id and (m := db.get(Mismatch, t.mismatch_id)):
+                reason = m.reason + (f" — {m.reason_note}" if m.reason_note else "")
+    else:
+        p = db.get(Weighing, e.ref_id)
+        if p:
+            a, b = ("KG theo lệnh xuất / Quản lý giao", p.kg_expected), ("Cân thực tại trạm", p.kg_actual)
+            if p.reason:
+                reason = p.reason + (f" — {p.reason_note}" if p.reason_note else "")
+            elif p.mismatch_id and (m := db.get(Mismatch, p.mismatch_id)):
+                reason = m.reason + (f" — {m.reason_note}" if m.reason_note else "")
+    out["reason"] = reason or e.note or ""
+    if a and b and a[1] is not None and b[1] is not None:
+        d = a[1] - b[1]
+        out["formula"] = {"aLabel": a[0], "a": a[1], "bLabel": b[0], "b": b[1], "delta": d,
+                          "text": f"{a[0]} {fmt_kg(a[1])} − {b[0]} {fmt_kg(b[1])} = {fmt_kg(abs(d))} "
+                                  + ("hụt" if d > 0 else "dư" if d < 0 else "")}
+    else:
+        out["formula"] = None
+    return out
+
+
 def resolve_vloss(db: Session, vid: str, resolution: str, note: str | None) -> VLoss:
     e = get_or_404(db, VLoss, vid)
     if e.status == "Đã xử lý":

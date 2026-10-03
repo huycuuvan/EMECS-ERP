@@ -20,6 +20,12 @@ export default function VlossDrawer({ id }: { id: string }) {
         <Cell label="Nguồn chênh lệch">{e.source}</Cell>
         <Cell label="Phiếu gốc"><RecordLink id={e.refId} /></Cell>
         <Cell label="Khối lượng lệch" big><span className="num">{fmtKg(kg)}</span></Cell>
+        <Cell label="Lý do chênh lệch" wide>{e.reason || e.note || '—'}</Cell>
+        {e.formula && <Cell label="Công thức tính chênh" wide>
+          <div className="num">{e.formula.aLabel}: <b>{fmtKg(e.formula.a)}</b></div>
+          <div className="num">− {e.formula.bLabel}: <b>{fmtKg(e.formula.b)}</b></div>
+          <div className="num">= <b>{fmtKg(Math.abs(e.formula.delta))}</b> {e.formula.delta > 0 ? 'hụt' : e.formula.delta < 0 ? 'dư' : ''}</div>
+        </Cell>}
         <Cell label="Ngày Quản lý chấp nhận"><span className="num">{fmtDT(e.date)}</span></Cell>
         <Cell label="Người duyệt">{e.approvedBy}</Cell>
         <Cell label="Trạng thái" alert={e.status === 'Đang treo'}>{e.status}</Cell>

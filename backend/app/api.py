@@ -471,7 +471,7 @@ def sign_mismatch(mid: str, db: Session = DB):
 # ---------------------------------------------------------------- kho ảo
 @router.get("/vloss")
 def list_vloss(db: Session = DB):
-    return _list(db, VLoss, VLoss.date, S.vloss)
+    return [svc.vloss_detail(db, e) for e in db.scalars(select(VLoss).order_by(VLoss.date.desc()))]
 
 
 @router.get("/vloss/pending-deltas")
@@ -481,7 +481,7 @@ def vloss_pending(db: Session = DB):
 
 @router.get("/vloss/{vid}")
 def get_vloss(vid: str, db: Session = DB):
-    return S.vloss(svc.get_or_404(db, VLoss, vid))
+    return svc.vloss_detail(db, svc.get_or_404(db, VLoss, vid))
 
 
 @router.post("/vloss/accept-loss", dependencies=[Depends(require_roles("admin"))])

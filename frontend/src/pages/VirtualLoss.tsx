@@ -47,8 +47,15 @@ export default function VirtualLoss() {
     { title: 'Nguồn chênh', dataIndex: 'source', render: (v: string) => <SrcChip src={v} /> },
     { title: 'Phiếu gốc', dataIndex: 'refId', render: (v: string) => <RecordLink id={v} style={{ color: 'var(--rust)' }} /> },
     { title: 'Hợp đồng', dataIndex: 'contractId', render: (v: string) => <RecordLink id={v} style={{ color: 'var(--rust)' }} /> },
-    { title: 'KL rơi rớt', dataIndex: 'kg', align: 'right', render: (v: number) => <span className="num mono" style={{ fontWeight: 700, color: 'var(--steel)' }}>{fmtKg(Math.abs(v))}</span> },
-    { title: 'Quản lý chấp nhận · lý do', dataIndex: 'approvedBy', width: 300, render: (_, e) => <div><b style={{ fontSize: 12 }}>{e.approvedBy}</b><div className="caption" style={{ fontSize: 11 }}>{e.note}</div></div> },
+    { title: 'KL chênh', dataIndex: 'kg', align: 'right', render: (v: number) => <span className="num mono" style={{ fontWeight: 700, color: 'var(--steel)' }}>{fmtKg(Math.abs(v))}<div className="caption" style={{ fontSize: 11 }}>{v > 0 ? 'hụt' : v < 0 ? 'dư' : ''}</div></span> },
+    { title: 'Công thức tính chênh', key: 'formula', width: 300, render: (_, e) => e.formula
+      ? <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+          <div>{e.formula.aLabel}: <b className="num">{fmtKg(e.formula.a)}</b></div>
+          <div>− {e.formula.bLabel}: <b className="num">{fmtKg(e.formula.b)}</b></div>
+          <div style={{ borderTop: '1px solid var(--rule)', marginTop: 2, paddingTop: 2 }}>= <b className="num">{fmtKg(Math.abs(e.formula.delta))}</b> {e.formula.delta > 0 ? 'hụt' : e.formula.delta < 0 ? 'dư' : ''}</div>
+        </div>
+      : <span className="text-ash">—</span> },
+    { title: 'Lý do chênh lệch', key: 'reason', width: 260, render: (_, e) => <div><div style={{ fontSize: 12.5 }}>{e.reason || e.note || '—'}</div><div className="caption" style={{ fontSize: 11 }}>Chấp nhận: {e.approvedBy}</div></div> },
     { title: 'Trạng thái', dataIndex: 'status', render: (v: string) => <StatusTag status={v} /> },
   ]
 
@@ -75,7 +82,7 @@ export default function VirtualLoss() {
           <Select allowClear placeholder="Mọi trạng thái" value={st} onChange={setSt} style={{ minWidth: 150 }}
             options={[...new Set(all.map((e) => e.status))].map((x) => ({ value: x, label: x }))} />
         </div>
-        <Table<VLoss> rowKey="id" size="middle" loading={isLoading} dataSource={rows} columns={columns} scroll={{ x: 1000 }}
+        <Table<VLoss> rowKey="id" size="middle" loading={isLoading} dataSource={rows} columns={columns} scroll={{ x: 1300 }}
           pagination={{ pageSize: 20, hideOnSinglePage: true }}
           locale={{ emptyText: 'Chưa có khoản lệch nào được Quản lý chấp nhận.' }}
           rowClassName="clickable-row" onRow={(e) => ({ onClick: () => open('vk', e.id) })} />
