@@ -64,7 +64,7 @@ export default function WeighingDrawer({ id }: { id: string }) {
             {canEdit ? <a className="text-signal" onClick={() => act.fill(p)}>CHƯA NHẬP</a> : 'CHƯA NHẬP'}
           </Cell>}
         {delta != null && delta !== 0 && (
-          <Cell label="Chênh lệch" alert={bad} extra={bad ? <span className="caption">Lệch {devPct > 0 ? '+' : ''}{devPct.toFixed(1)}% — vượt ±{pct}%{p.lossAccepted ? ' · đã chuyển kho ảo' : ''}</span> : <span className="caption">{devPct > 0 ? '+' : ''}{devPct.toFixed(1)}% · trong ±{pct}%</span>}>
+          <Cell label="Chênh lệch" alert={bad} extra={bad ? <span className="caption">{devPct > 0 ? 'Dư' : 'Thiếu'} {devPct > 0 ? '+' : ''}{devPct.toFixed(1)}% — cần Quản lý duyệt{p.lossAccepted ? ' · đã chuyển kho ảo' : ''}</span> : <span className="caption">{devPct > 0 ? '+' : ''}{devPct.toFixed(1)}% · thiếu trong {pct}% — đạt</span>}>
             {bad && p.mismatchId ? <RecordLink id={p.mismatchId} danger>{deltaTxt} — {p.mismatchId}</RecordLink> : deltaTxt}
           </Cell>
         )}

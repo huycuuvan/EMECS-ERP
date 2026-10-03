@@ -676,8 +676,9 @@ def create_mismatch(db: Session, source, ref_type, ref_id, cid, expected, actual
 def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | None, reason: str | None,
                   reason_note: str | None, signer_lai_xe: str | None = None, gross: float | None = None,
                   tare: float | None = None, weigh_in=None, weigh_out=None, plate: str | None = None) -> Weighing:
-    """Kho cân xe: hàng = (xe + hàng) − xe. Lệch quá ±PC_TOLERANCE_PCT% so với số Quản lý giao (kg_expected) →
-    bắt buộc lý do + biên bản chờ Quản lý duyệt; chỉ phiếu đạt / đã duyệt mới tính vào công nợ."""
+    """Kho cân xe: hàng = (xe + hàng) − xe. So với số Quản lý giao (kg_expected): thiếu trong PC_TOLERANCE_PCT% → đạt;
+    thiếu quá PC_TOLERANCE_PCT% hoặc LỚN HƠN số giao → bắt buộc lý do + biên bản chờ Quản lý duyệt.
+    Chỉ phiếu đạt / đã duyệt mới tính vào công nợ."""
     p = get_or_404(db, Weighing, pid)
     if gross is not None or tare is not None:
         if gross is None or tare is None:
@@ -702,10 +703,12 @@ def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | N
     if signer_lai_xe:
         p.signer_lai_xe = signer_lai_xe
     exp = p.kg_expected or 0
-    off = abs(p.kg_actual - exp) > exp * PC_TOLERANCE_PCT / 100 if exp else False
-    if off:
+    over = exp and p.kg_actual > exp + 0.001  # cân LỚN HƠN số giao (bất kỳ) → lý do + duyệt
+    short = exp and exp - p.kg_actual > exp * PC_TOLERANCE_PCT / 100  # cân NHỎ HƠN quá 5% → lý do + duyệt
+    if over or short:
         if not (reason or "").strip():
-            raise HTTPException(400, f"Lệch quá ±{PC_TOLERANCE_PCT:g}% so với số Quản lý giao — bắt buộc nhập lý do")
+            raise HTTPException(400, ("Cân lớn hơn số Quản lý giao" if over else f"Cân thiếu quá {PC_TOLERANCE_PCT:g}% so với số Quản lý giao")
+                                + " — bắt buộc nhập lý do")
         m = create_mismatch(db, "Trạm cân công ty", "pc", p.id, p.contract_id, exp, p.kg_actual,
                             reason, reason_note, actor(KHO), "Kho")
         p.mismatch_id, p.status = m.id, "Lệch — chờ ký"

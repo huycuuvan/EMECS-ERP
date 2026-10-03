@@ -71,8 +71,15 @@ def test_weighing_over_tolerance_creates_mismatch_and_sign_clears(c):
 
 def test_weighing_within_tolerance_no_mismatch(c):
     p = c.post("/api/weighings", json={"sourceId": "LSX-SD06", "kgExpected": 5000}).json()
-    p = c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 4980}).json()
+    p = c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 4800}).json()  # thiếu 4% → đạt
     assert p["status"] == "Đã cân" and p["mismatchId"] is None
+
+
+def test_weighing_over_expected_needs_reason_and_approval(c):
+    p = c.post("/api/weighings", json={"sourceId": "LSX-SD06", "kgExpected": 5000}).json()
+    assert c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 5010}).status_code == 400  # dư → bắt lý do
+    p = c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 5010, "reason": "Khác (ghi rõ)", "reasonNote": "thêm bản mã"}).json()
+    assert p["status"] == "Lệch — chờ ký" and p["mismatchId"] and not p["approved"]
 
 
 def test_task_galv_flow(c):

@@ -129,13 +129,13 @@ export function PcFillForm({ p }: { p: Weighing }) {
   const [laiXe, setLaiXe] = useState(p.signers.laiXe || '')
   const v = gross !== '' && tare !== '' ? Math.round((num(gross) - num(tare)) * 1000) / 1000 : 0
   const dev = v > 0 && p.kgExpected ? ((v - p.kgExpected) / p.kgExpected) * 100 : 0
-  const lech = v > 0 && Math.abs(dev) > pct
+  const lech = v > 0 && p.kgExpected > 0 && (v > p.kgExpected || -dev > pct)  // thiếu quá pct% hoặc dư → lý do + duyệt
   const submit = async () => {
     if (!(num(gross) > 0) || tare === '') { message.error('Nhập trọng lượng xe + hàng và trọng lượng xe.'); return }
     if (num(tare) > num(gross)) { message.error('Trọng lượng xe lớn hơn tổng xe + hàng — kiểm tra lại.'); return }
     if (!inAt || !outAt || outAt < inAt) { message.error('Giờ cân ra phải sau giờ cân vào.'); return }
     if (!photo) { message.error('Bắt buộc chụp ảnh phiếu cân.'); return }
-    if (lech && !reason) { message.error(`Lệch quá ±${pct}% — bắt buộc chọn lý do.`); return }
+    if (lech && !reason) { message.error(v > p.kgExpected ? 'Cân lớn hơn số giao — bắt buộc chọn lý do.' : `Cân thiếu quá ${pct}% — bắt buộc chọn lý do.`); return }
     try {
       await fill.mutateAsync({
         id: p.id, grossKg: num(gross), tareKg: num(tare), weighInAt: new Date(inAt).toISOString(), weighOutAt: new Date(outAt).toISOString(),
@@ -146,7 +146,7 @@ export function PcFillForm({ p }: { p: Weighing }) {
   }
   return (
     <div className="m-form flat">
-      <div className="f-hint" style={{ marginTop: 0, marginBottom: 8 }}>HĐ {p.contractId} · {p.lsxId} — Quản lý giao <b>{fmtKg(p.kgExpected)}</b> (lệch quá ±{pct}% phải nhập lý do, chờ duyệt).</div>
+      <div className="f-hint" style={{ marginTop: 0, marginBottom: 8 }}>HĐ {p.contractId} · {p.lsxId} — Quản lý giao <b>{fmtKg(p.kgExpected)}</b> (thiếu quá {pct}% hoặc dư → nhập lý do, chờ duyệt).</div>
       <AssignedGoods receiptId={p.receiptId} compact />
       <label className="f-lbl">Trọng lượng xe + hàng (kg)</label>
       <NumInput big value={gross} onChange={setGross} />
@@ -166,7 +166,7 @@ export function PcFillForm({ p }: { p: Weighing }) {
         {(m.meta?.drivers ?? []).map((n) => <option key={n} value={n}>{n}</option>)}
       </select>
       <PhotoPicker label="Ảnh phiếu cân (bắt buộc)" value={photo} onChange={setPhoto} demo={{ label: `${p.id} · phiếu cân`, kg: v || p.kgExpected }} />
-      <ReasonBox show={lech} msg={`Lệch ${dev > 0 ? '+' : ''}${dev.toFixed(1)}% (${signed(v - p.kgExpected)} kg) so với Quản lý giao — chọn lý do, chờ Quản lý duyệt`} reasons={m.meta?.reasonsCan ?? []}
+      <ReasonBox show={lech} msg={`${dev > 0 ? 'Dư' : 'Thiếu'} ${dev > 0 ? '+' : ''}${dev.toFixed(1)}% (${signed(v - p.kgExpected)} kg) so với Quản lý giao — chọn lý do, chờ Quản lý duyệt`} reasons={m.meta?.reasonsCan ?? []}
         reason={reason} setReason={setReason} note={note} setNote={setNote} />
       <div className="btn-row"><Btn variant="primary" icon={SendHorizontal} loading={fill.isPending} onClick={submit}>Lưu kết quả cân</Btn></div>
     </div>

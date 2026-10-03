@@ -95,12 +95,13 @@ export function FillWeighingModal({ p, onClose }: { p: Weighing; onClose: () => 
   const tare = Form.useWatch('tare', form) as number | undefined
   const kg = gross != null && tare != null ? Math.round((gross - tare) * 1000) / 1000 : undefined
   const dev = kg != null && p.kgExpected ? ((kg - p.kgExpected) / p.kgExpected) * 100 : 0
-  const bad = kg != null && Math.abs(dev) > pct
+  // thiếu trong pct% → đạt; thiếu quá pct% hoặc DƯ so với số giao → lý do + Quản lý duyệt
+  const bad = kg != null && p.kgExpected > 0 && (kg > p.kgExpected || -dev > pct)
   return (
     <Modal open title={`Cân xuất — ${p.id}`} okText="Ghi nhận kết quả cân" cancelText="Hủy" onCancel={onClose} width={720}
       confirmLoading={fill.isPending} onOk={() => form.submit()}>
       <div style={{ marginTop: 12 }}>
-        <InfoBox>HĐ <b>{p.contractId}</b> · {p.lsxId} · Quản lý giao <b>{fmtKg(p.kgExpected)}</b> · lệch quá ±{pct}% phải nhập lý do và chờ Quản lý duyệt</InfoBox>
+        <InfoBox>HĐ <b>{p.contractId}</b> · {p.lsxId} · Quản lý giao <b>{fmtKg(p.kgExpected)}</b> · thiếu trong {pct}% là đạt; <b>thiếu quá {pct}% hoặc dư</b> phải nhập lý do, chờ Quản lý duyệt</InfoBox>
         <AssignedGoods receiptId={p.receiptId} />
       </div>
       <Form form={form} layout="vertical"
@@ -145,7 +146,7 @@ export function FillWeighingModal({ p, onClose }: { p: Weighing; onClose: () => 
           <Select allowClear placeholder="Chọn lái xe" options={(meta?.drivers ?? []).map((d) => ({ value: d, label: d }))} />
         </Form.Item>
         {bad && (
-          <WarnBox title={<><Siren size={14} /> LỆCH {dev > 0 ? '+' : ''}{dev.toFixed(1)}% ({fmtDelta((kg ?? 0) - p.kgExpected)}) so với Quản lý giao — nhập lý do, chờ Quản lý duyệt mới tính công nợ</>}>
+          <WarnBox title={<><Siren size={14} /> {dev > 0 ? 'DƯ' : 'THIẾU'} {dev > 0 ? '+' : ''}{dev.toFixed(1)}% ({fmtDelta((kg ?? 0) - p.kgExpected)}) so với Quản lý giao — nhập lý do, chờ Quản lý duyệt mới tính công nợ</>}>
             <Form.Item name="reason" label="Lý do sai lệch (bắt buộc)" rules={[{ required: true, message: 'Bắt buộc chọn lý do' }]} style={{ marginBottom: 8 }}>
               <Select placeholder="— Chọn lý do —" options={(meta?.reasonsCan ?? []).map((r) => ({ value: r, label: r }))} />
             </Form.Item>
