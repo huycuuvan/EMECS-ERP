@@ -1,19 +1,16 @@
-/* Danh mục → Khách hàng & nhãn (M01/M06): danh sách khách, nhãn màu do người dùng tạo và gắn (Khách thân thiết /
-   Khách lẻ…), thêm / sửa khách, quản lý nhãn. Nhãn dùng để lọc Đơn hàng, Hợp đồng, Dashboard. */
+/* Khách hàng (M01/M06): hồ sơ công ty (địa chỉ, MST, tài khoản, người đại diện), phân loại Thân thiết / Đơn lẻ,
+   nhãn thêm do người dùng tạo. Phân loại & nhãn dùng để lọc Đơn hàng, Hợp đồng, Dashboard. */
 import { App, Button, Input, Popconfirm, Select, Table, type TableColumnsType } from 'antd'
 import { Info, Pencil, Plus, Search, Tags, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useCustomers, useDeleteCustomer, useDetachTag, useTags } from '@/api/hooksMaster'
-import type { Customer } from '@/api/typesMaster'
+import { SEGMENTS, type Customer } from '@/api/typesMaster'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtD, moneyShort } from '@/lib/format'
 import CustomerFormModal from './customers/CustomerFormModal'
 import TagManagerModal from './customers/TagManagerModal'
-import { TagChip, TagFilter } from './customers/tags'
-
-const LOYAL = 'Khách thân thiết'
-const RETAIL = 'Khách lẻ'
+import { SegmentChip, TagChip, TagFilter } from './customers/tags'
 
 export default function Customers() {
   const { data: customers = [], isLoading } = useCustomers()
@@ -24,7 +21,7 @@ export default function Customers() {
   const remove = useDeleteCustomer()
   const canEdit = can('khach-hang', 'full') && can('don-hang', 'full')
   const [q, setQ] = useState('')
-  const [tag, setTag] = useState<number>()
+  const [filter, setFilter] = useState<string>()
   const [st, setSt] = useState<'' | 'on' | 'off'>('')
   const [editing, setEditing] = useState<Customer | 'new' | null>(null)
   const [managing, setManaging] = useState(false)
@@ -32,18 +29,19 @@ export default function Customers() {
   const rows = useMemo(() => {
     const s = q.trim().toLowerCase()
     return customers.filter((c) => {
-      if (s && !(c.name + ' ' + c.shortCode + ' ' + c.contactName + ' ' + c.phone + ' ' + c.taxCode).toLowerCase().includes(s)) return false
-      if (tag && !c.tags.some((t) => t.id === tag)) return false
+      const hay = [c.name, c.shortCode, c.contactName, c.phone, c.taxCode, c.address, c.representative, c.bankAccount, c.bankName].join(' ')
+      if (s && !hay.toLowerCase().includes(s)) return false
+      if (filter?.startsWith('seg:') && c.segment !== filter.slice(4)) return false
+      if (filter === 'seg:' && c.segment) return false
+      if (filter?.startsWith('tag:') && !c.tags.some((t) => t.id === Number(filter.slice(4)))) return false
       if (st === 'on' && !c.active) return false
       if (st === 'off' && c.active) return false
       return true
     })
-  }, [customers, q, tag, st])
+  }, [customers, q, filter, st])
 
-  const tagByName = (n: string) => tags.find((t) => t.name === n)
-  const count = (n: string) => customers.filter((c) => c.tags.some((t) => t.name === n)).length
-  const untagged = customers.filter((c) => !c.tags.length).length
-  const kpiTag = (n: string) => { const t = tagByName(n); return t ? () => setTag(tag === t.id ? undefined : t.id) : undefined }
+  const count = (seg: string) => customers.filter((c) => c.segment === seg).length
+  const toggle = (f: string) => () => setFilter(filter === f ? undefined : f)
 
   const askDetach = (c: Customer, tagId: number, tagName: string) => modal.confirm({
     title: `Gỡ nhãn "${tagName}"?`, content: c.name, okText: 'Gỡ nhãn', cancelText: 'Hủy',
@@ -52,11 +50,11 @@ export default function Customers() {
 
   const columns: TableColumnsType<Customer> = [
     {
-      title: 'Khách hàng', key: 'name', sorter: (a, b) => a.name.localeCompare(b.name),
+      title: 'Tên công ty', key: 'name', sorter: (a, b) => a.name.localeCompare(b.name),
       render: (_, c) => (
         <>
           <div style={{ fontWeight: 600 }}>{c.name}</div>
-          {c.shortCode && <div className="sub-soft mono">{c.shortCode}</div>}
+          {(c.shortCode || c.address) && <div className="sub-soft">{c.shortCode && <span className="mono">{c.shortCode}</span>}{c.shortCode && c.address && ' · '}{c.address}</div>}
           {c.tags.length > 0 && (
             <div className="cust-tags">
               {c.tags.map((t) => <TagChip key={t.id} tag={t} onClose={canEdit ? () => askDetach(c, t.id, t.name) : undefined} />)}
@@ -66,15 +64,24 @@ export default function Customers() {
       ),
     },
     {
-      title: 'Liên hệ', key: 'contact',
-      render: (_, c) => c.contactName || c.phone
-        ? <>{c.contactName || '—'}<div className="sub-soft num">{c.phone}</div></>
+      title: 'Phân loại', key: 'segment', width: 130,
+      sorter: (a, b) => (a.segment || '~').localeCompare(b.segment || '~'),
+      render: (_, c) => <SegmentChip segment={c.segment} />,
+    },
+    {
+      title: 'Đại diện · Điện thoại', key: 'rep',
+      render: (_, c) => c.representative || c.phone || c.contactName
+        ? <>
+            {c.representative || '—'}{c.representativeTitle && <span className="sub-soft"> · {c.representativeTitle}</span>}
+            <div className="sub-soft num">{c.phone}{c.contactName && <>{c.phone && ' · '}LH: {c.contactName}</>}</div>
+          </>
         : <span className="text-ash">—</span>,
     },
     {
-      title: 'MST · Địa chỉ', key: 'addr',
-      render: (_, c) => c.taxCode || c.address
-        ? <><span className="mono">{c.taxCode || '—'}</span><div className="sub-soft">{c.address}</div></>
+      title: 'MST · Tài khoản', key: 'tax',
+      render: (_, c) => c.taxCode || c.bankAccount
+        ? <><span className="mono">{c.taxCode || '—'}</span>
+            {c.bankAccount && <div className="sub-soft"><span className="mono">{c.bankAccount}</span>{c.bankName && ` — ${c.bankName}`}</div>}</>
         : <span className="text-ash">—</span>,
     },
     {
@@ -100,30 +107,30 @@ export default function Customers() {
 
   return (
     <>
-      <PageHeader title="Khách hàng & nhãn"
-        desc="Danh mục khách hàng — gắn nhãn Khách thân thiết / Khách lẻ (nhãn do người dùng tự tạo) để lọc đơn hàng, hợp đồng, dashboard"
+      <PageHeader title="Khách hàng"
+        desc="Hồ sơ khách hàng (công ty, MST, tài khoản, người đại diện) — phân loại Thân thiết / Đơn lẻ để lọc đơn hàng, hợp đồng, dashboard"
         extra={canEdit && <>
           <Button icon={<Tags size={14} />} onClick={() => setManaging(true)}>Quản lý nhãn</Button>
           <Button type="primary" icon={<Plus size={14} />} onClick={() => setEditing('new')}>Thêm khách hàng</Button>
         </>} />
 
       <KpiGrid>
-        <Kpi tone="steel" label="Khách hàng" value={customers.length} sub={`${customers.filter((c) => c.active).length} đang giao dịch`} onClick={() => { setTag(undefined); setSt('') }} />
-        <Kpi tone="moss" label={LOYAL} value={count(LOYAL)} sub={tagByName(LOYAL) ? 'bấm để lọc' : 'chưa tạo nhãn này'} onClick={kpiTag(LOYAL)} />
-        <Kpi tone="amber" label={RETAIL} value={count(RETAIL)} sub={tagByName(RETAIL) ? 'bấm để lọc' : 'chưa tạo nhãn này'} onClick={kpiTag(RETAIL)} />
-        <Kpi tone="rust" label="Chưa gắn nhãn" value={untagged} sub={`${tags.length} nhãn đang dùng`} onClick={canEdit ? () => setManaging(true) : undefined} />
+        <Kpi tone="steel" label="Khách hàng" value={customers.length} sub={`${customers.filter((c) => c.active).length} đang giao dịch`} onClick={() => { setFilter(undefined); setSt('') }} />
+        <Kpi tone="moss" label={`Khách ${SEGMENTS[0].toLowerCase()}`} value={count(SEGMENTS[0])} sub="bấm để lọc" onClick={toggle(`seg:${SEGMENTS[0]}`)} />
+        <Kpi tone="amber" label={`Khách ${SEGMENTS[1].toLowerCase()}`} value={count(SEGMENTS[1])} sub="bấm để lọc" onClick={toggle(`seg:${SEGMENTS[1]}`)} />
+        <Kpi tone="rust" label="Chưa phân loại" value={count('')} sub={`${tags.length} nhãn thêm đang dùng`} onClick={toggle('seg:')} />
       </KpiGrid>
 
       <div className="list-card">
         <div className="filter-bar">
-          <Input allowClear prefix={<Search size={14} color="var(--ash)" />} placeholder="Tìm tên khách, mã, người liên hệ, SĐT, MST..."
+          <Input allowClear prefix={<Search size={14} color="var(--ash)" />} placeholder="Tìm tên công ty, mã, đại diện, SĐT, MST, số tài khoản..."
             value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 220 }} />
-          <TagFilter value={tag} onChange={setTag} />
+          <TagFilter value={filter === 'seg:' ? undefined : filter} onChange={setFilter} />
           <Select value={st} onChange={setSt} style={{ minWidth: 170 }}
             options={[{ value: '', label: 'Tất cả trạng thái' }, { value: 'on', label: 'Đang giao dịch' }, { value: 'off', label: 'Ngừng giao dịch' }]} />
           <span className="caption" style={{ marginLeft: 'auto' }}>{rows.length} khách</span>
         </div>
-        <Table<Customer> rowKey="id" size="middle" loading={isLoading} columns={columns} dataSource={rows} scroll={{ x: 960 }}
+        <Table<Customer> rowKey="id" size="middle" loading={isLoading} columns={columns} dataSource={rows} scroll={{ x: 1080 }}
           pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false}
           rowClassName={canEdit ? 'clickable-row' : undefined} onRow={(r) => ({ onClick: canEdit ? () => setEditing(r) : undefined })}
           locale={{ emptyText: 'Không có khách hàng phù hợp bộ lọc.' }} />

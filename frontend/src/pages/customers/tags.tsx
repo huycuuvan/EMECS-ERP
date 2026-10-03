@@ -3,7 +3,7 @@ import { Select } from 'antd'
 import { Tag as TagIcon, X } from 'lucide-react'
 import { useCallback, useMemo, type CSSProperties } from 'react'
 import { useCustomers, useTags } from '@/api/hooksMaster'
-import type { TagItem } from '@/api/typesMaster'
+import { SEGMENTS, type TagItem } from '@/api/typesMaster'
 import { useAuth } from '@/lib/auth'
 import '@/peek/drawers/contract/contract.css'
 
@@ -26,20 +26,31 @@ export function TagChips({ tags, style }: { tags: Pick<TagItem, 'name' | 'color'
   return <div className="cust-tags" style={style}>{tags.map((t) => <TagChip key={t.name} tag={t} />)}</div>
 }
 
-/** Ô lọc theo thẻ khách hàng (dùng ở Đơn hàng, Hợp đồng, Dashboard). value = id thẻ. */
-export function TagFilter({ value, onChange, size, style }: { value?: number; onChange: (v?: number) => void; size?: 'small' | 'middle'; style?: CSSProperties }) {
+export const SEGMENT_COLORS: Record<string, string> = { 'Thân thiết': '#2f5d3a', 'Đơn lẻ': '#9c7714' }
+
+/** Chip phân loại khách hàng (Thân thiết / Đơn lẻ). */
+export function SegmentChip({ segment }: { segment: string }) {
+  if (!segment) return <span className="text-ash">Chưa phân loại</span>
+  return <TagChip tag={{ name: segment, color: SEGMENT_COLORS[segment] ?? '#4a5560' }} />
+}
+
+const dot = (color: string, text: string, extra?: number) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+    <span style={{ width: 9, height: 9, borderRadius: 3, background: color, flex: 'none' }} />{text}
+    {extra != null && <span className="caption num">({extra})</span>}
+  </span>
+)
+
+/** Ô lọc khách hàng (Đơn hàng, Hợp đồng, Dashboard, Khách hàng): theo phân loại ("seg:Thân thiết") hoặc nhãn ("tag:3"). */
+export function TagFilter({ value, onChange, size, style }: { value?: string; onChange: (v?: string) => void; size?: 'small' | 'middle'; style?: CSSProperties }) {
   const { data: tags = [] } = useTags()
-  if (!tags.length) return null
+  const options = [
+    { label: 'Phân loại khách', title: 'seg', options: SEGMENTS.map((s) => ({ value: `seg:${s}`, label: dot(SEGMENT_COLORS[s], s) })) },
+    ...(tags.length ? [{ label: 'Nhãn', title: 'tag', options: tags.map((t) => ({ value: `tag:${t.id}`, label: dot(t.color, t.name, t.customerCount ?? undefined) })) }] : []),
+  ]
   return (
     <Select allowClear size={size} value={value} onChange={(v) => onChange(v ?? undefined)} placeholder="Tất cả khách hàng"
-      style={{ minWidth: 190, ...style }} popupMatchSelectWidth={false} suffixIcon={<TagIcon size={13} />}
-      options={tags.map((t) => ({
-        value: t.id,
-        label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 9, height: 9, borderRadius: 3, background: t.color, flex: 'none' }} />{t.name}
-          {t.customerCount != null && <span className="caption num">({t.customerCount})</span>}
-        </span>,
-      }))} />
+      style={{ minWidth: 190, ...style }} popupMatchSelectWidth={false} suffixIcon={<TagIcon size={13} />} options={options} />
   )
 }
 

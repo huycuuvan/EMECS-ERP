@@ -72,8 +72,8 @@ def admin_reset(db: Session = DB):
 
 
 @router.get("/dashboard")
-def dashboard(tag: int | None = None, db: Session = DB):
-    return svc.dashboard(db, tag)
+def dashboard(tag: int | None = None, segment: str | None = None, db: Session = DB):
+    return svc.dashboard(db, tag, segment)
 
 
 @router.get("/demo-ticket")
@@ -97,10 +97,13 @@ async def upload(file: UploadFile = File(...)):
 
 # ---------------------------------------------------------------- đơn hàng
 @router.get("/orders")
-def list_orders(tag: int | None = None, db: Session = DB):
+def list_orders(tag: int | None = None, segment: str | None = None, db: Session = DB):
     rows = _list(db, Order, Order.date, S.order)
     if tag:  # lọc theo thẻ khách hàng
         cus = svc.customer_ids_for_tag(db, tag)
+        rows = [o for o in rows if o["customerId"] in cus]
+    if segment:  # lọc theo phân loại khách: Thân thiết / Đơn lẻ
+        cus = svc.customer_ids_for_segment(db, segment)
         rows = [o for o in rows if o["customerId"] in cus]
     return rows
 
@@ -132,10 +135,13 @@ def send_to_kt(oid: str, db: Session = DB):
 
 # ---------------------------------------------------------------- hợp đồng
 @router.get("/contracts")
-def list_contracts(tag: int | None = None, db: Session = DB):
+def list_contracts(tag: int | None = None, segment: str | None = None, db: Session = DB):
     out = []
     cust_of = {o.id: o.customer_id for o in db.scalars(select(Order))}
     keep = svc.contract_ids_for_tag(db, tag) if tag else None
+    if segment:
+        seg = svc.contract_ids_for_customers(db, svc.customer_ids_for_segment(db, segment))
+        keep = seg if keep is None else keep & seg
     for c in db.scalars(select(Contract).order_by(Contract.sent_to_kt_at.desc())):
         if keep is not None and c.id not in keep:
             continue

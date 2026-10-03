@@ -33,13 +33,21 @@ export const useMaterials = (p?: Period) => useQuery({ queryKey: qkm.materials(p
 export const useMaterialStats = (p?: Period) => useQuery({ queryKey: qkm.materialStats(p), queryFn: () => get<MaterialStats>('/reports/material-stats', p) })
 export const useVehicleTonnage = (p?: Period, enabled = true) => useQuery({ queryKey: qkm.tonnage(p), queryFn: () => get<VehicleTonnageRow[]>('/reports/vehicle-tonnage', p), enabled })
 
-/** Danh sách lọc theo thẻ khách hàng (không có thẻ → dùng chung cache với hook gốc). */
-export const useOrdersByTag = (tag?: number) =>
-  useQuery({ queryKey: tag ? [...qk.orders, { tag }] : qk.orders, queryFn: () => get<Order[]>('/orders', tag ? { tag } : undefined) })
-export const useContractsByTag = (tag?: number) =>
-  useQuery({ queryKey: tag ? [...qk.contracts, { tag }] : qk.contracts, queryFn: () => get<ContractRow[]>('/contracts', tag ? { tag } : undefined) })
-export const useDashboardByTag = (tag?: number) =>
-  useQuery({ queryKey: tag ? [...qk.dashboard, { tag }] : qk.dashboard, queryFn: () => get<Dashboard>('/dashboard', tag ? { tag } : undefined) })
+/** Bộ lọc khách hàng dạng chuỗi: "seg:Thân thiết" | "seg:Đơn lẻ" (phân loại) hoặc "tag:<id>" (nhãn). */
+export type CustomerFilter = string | undefined
+export const filterParams = (f: CustomerFilter): Record<string, string | number> | undefined => {
+  if (!f) return undefined
+  if (f.startsWith('seg:')) return { segment: f.slice(4) }
+  if (f.startsWith('tag:')) return { tag: Number(f.slice(4)) }
+  return undefined
+}
+/** Danh sách lọc theo phân loại / nhãn khách hàng (không lọc → dùng chung cache với hook gốc). */
+export const useOrdersByTag = (f?: CustomerFilter) =>
+  useQuery({ queryKey: f ? [...qk.orders, { f }] : qk.orders, queryFn: () => get<Order[]>('/orders', filterParams(f)) })
+export const useContractsByTag = (f?: CustomerFilter) =>
+  useQuery({ queryKey: f ? [...qk.contracts, { f }] : qk.contracts, queryFn: () => get<ContractRow[]>('/contracts', filterParams(f)) })
+export const useDashboardByTag = (f?: CustomerFilter) =>
+  useQuery({ queryKey: f ? [...qk.dashboard, { f }] : qk.dashboard, queryFn: () => get<Dashboard>('/dashboard', filterParams(f)) })
 
 /* ---------------------------------------------------------------- mutations */
 function useAction<TVars, TRes>(fn: (v: TVars) => Promise<TRes>, success?: string | ((r: TRes) => string)) {

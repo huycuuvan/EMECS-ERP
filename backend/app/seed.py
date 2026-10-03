@@ -360,8 +360,9 @@ def _seed_master(db: Session) -> None:
     for o in orders:
         if o.customer not in custs:
             code, tg = CUSTOMERS.get(o.customer, ("", []))
+            seg = "Thân thiết" if "Khách thân thiết" in tg else ("Đơn lẻ" if "Khách lẻ" in tg else "")
             custs[o.customer] = Customer(name=o.customer, short_code=code, active=True, created_at=o.date,
-                                         tags=[tags[t] for t in tg])
+                                         segment=seg, tags=[tags[t] for t in tg])
     db.add_all(custs.values())
     db.add_all(Vehicle(plate=p, capacity_kg=cap, kind=k, default_driver=d, note=n, active=True)
                for p, cap, k, d, n in VEHICLES)

@@ -3,8 +3,14 @@
 
 export interface TagItem { id: number; name: string; color: string; customerCount?: number }
 
+/** Phân loại khách (báo giá M01/M06); "" = chưa phân loại */
+export type Segment = 'Thân thiết' | 'Đơn lẻ' | ''
+export const SEGMENTS: Exclude<Segment, ''>[] = ['Thân thiết', 'Đơn lẻ']
+
 export interface Customer {
   id: number; name: string; shortCode: string; taxCode: string; address: string; contactName: string; phone: string
+  /** người đại diện pháp luật + chức vụ, tài khoản ngân hàng — dùng khi lập hợp đồng */
+  representative: string; representativeTitle: string; bankAccount: string; bankName: string; segment: Segment
   note: string; active: boolean; createdAt: string | null; tags: TagItem[]
   orderCount?: number; orderValue?: number; orderKg?: number; lastOrderAt?: string | null
 }

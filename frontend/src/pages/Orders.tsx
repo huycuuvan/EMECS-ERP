@@ -20,7 +20,7 @@ import '@/peek/drawers/contract/contract.css'
 const STATUSES: OrderStatus[] = ['Chốt đơn', 'Đã chuyển kế toán', 'Đã có hợp đồng']
 
 export default function Orders() {
-  const [tag, setTag] = useState<number>()
+  const [tag, setTag] = useState<string>()
   const { data: orders = [], isLoading } = useOrdersByTag(tag)
   const { open } = usePeek()
   const { can } = useAuth()

@@ -272,9 +272,12 @@ def pending_deltas(db: Session) -> list[dict]:
     return out
 
 
-def dashboard(db: Session, tag: int | None = None) -> dict:
-    # tag: chỉ lấy các khối gắn với hợp đồng của khách mang thẻ này (vd Khách thân thiết)
+def dashboard(db: Session, tag: int | None = None, segment: str | None = None) -> dict:
+    # tag / segment: chỉ lấy các khối gắn với hợp đồng của khách mang thẻ / thuộc phân loại này (vd Thân thiết)
     cids = contract_ids_for_tag(db, tag) if tag else None
+    if segment:
+        seg = contract_ids_for_customers(db, customer_ids_for_segment(db, segment))
+        cids = seg if cids is None else cids & seg
     keep = (lambda cid: cid in cids) if cids is not None else (lambda cid: True)
     contracts = [c for c in db.scalars(select(Contract)).all() if keep(c.id)]
     active = [c for c in contracts if c.status in ("Đang triển khai", "Đã ký")]
@@ -662,6 +665,15 @@ def ensure_customer(db: Session, name: str, customer_id: int | None = None) -> C
 
 def customer_ids_for_tag(db: Session, tag: int) -> set[int]:
     return set(db.scalars(select(customer_tags.c.customer_id).where(customer_tags.c.tag_id == tag)))
+
+
+def customer_ids_for_segment(db: Session, segment: str) -> set[int]:
+    from .models import Customer
+    return set(db.scalars(select(Customer.id).where(Customer.segment == segment)))
+
+
+def contract_ids_for_customers(db: Session, cus: set[int]) -> set[str]:
+    return set(db.scalars(select(Order.contract_id).where(Order.customer_id.in_(cus), Order.contract_id.is_not(None))))
 
 
 def contract_ids_for_tag(db: Session, tag: int) -> set[str]:

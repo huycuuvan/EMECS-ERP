@@ -11,6 +11,7 @@ export const NAV: { section: string; items: NavItem[] }[] = [
     { id: 'dashboard', label: 'Dashboard điều hành', icon: LayoutDashboard, path: '/dashboard' },
     { id: 'don-hang', label: 'Đơn hàng khách', icon: ShoppingCart, path: '/don-hang' },
     { id: 'hop-dong', label: 'Hợp đồng & Tạm ứng', icon: FileSignature, path: '/hop-dong' },
+    { id: 'khach-hang', label: 'Khách hàng', icon: Contact, path: '/danh-muc/khach-hang' },
   ] },
   { section: 'Sản xuất', items: [
     { id: 'lsx', label: 'Lệnh sản xuất', icon: Factory, path: '/lsx' },
@@ -30,7 +31,6 @@ export const NAV: { section: string; items: NavItem[] }[] = [
     { id: 'sai-lech', label: 'Sai lệch chờ ký', icon: FileWarning, path: '/sai-lech' },
   ] },
   { section: 'Danh mục', items: [
-    { id: 'khach-hang', label: 'Khách hàng & nhãn', icon: Contact, path: '/danh-muc/khach-hang' },
     { id: 'xe', label: 'Xe', icon: TruckElectric, path: '/danh-muc/xe' },
     { id: 'xuong-ma', label: 'Xưởng mạ', icon: Warehouse, path: '/danh-muc/xuong-ma' },
   ] },

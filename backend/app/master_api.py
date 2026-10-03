@@ -114,6 +114,9 @@ def _404(what: str):
 
 
 # ================================================================ khách hàng
+SEGMENTS = ("Thân thiết", "Đơn lẻ")
+
+
 class CustomerIn(In):
     name: str = Field(min_length=1, max_length=200)
     short_code: str = ""
@@ -121,6 +124,11 @@ class CustomerIn(In):
     address: str = ""
     contact_name: str = ""
     phone: str = ""
+    representative: str = ""
+    representative_title: str = ""
+    bank_account: str = ""
+    bank_name: str = ""
+    segment: str = ""
     note: str = ""
     active: bool = True
     tag_ids: list[int] = []
@@ -133,14 +141,28 @@ class CustomerPatch(In):
     address: str | None = None
     contact_name: str | None = None
     phone: str | None = None
+    representative: str | None = None
+    representative_title: str | None = None
+    bank_account: str | None = None
+    bank_name: str | None = None
+    segment: str | None = None
     note: str | None = None
     active: bool | None = None
     tag_ids: list[int] | None = None
 
 
+def _segment(v: str) -> str:
+    v = _clean(v)
+    if v and v not in SEGMENTS:
+        raise HTTPException(400, "Phân loại khách hàng phải là Thân thiết hoặc Đơn lẻ")
+    return v
+
+
 def customer_out(c: Customer, orders: list[Order] | None = None) -> dict:
     d = {"id": c.id, "name": c.name, "shortCode": c.short_code, "taxCode": c.tax_code, "address": c.address,
-         "contactName": c.contact_name, "phone": c.phone, "note": c.note, "active": c.active,
+         "contactName": c.contact_name, "phone": c.phone, "representative": c.representative,
+         "representativeTitle": c.representative_title, "bankAccount": c.bank_account, "bankName": c.bank_name,
+         "segment": c.segment, "note": c.note, "active": c.active,
          "createdAt": iso(c.created_at), "tags": [tag_out(t) for t in c.tags]}
     if orders is not None:
         d.update(orderCount=len(orders), orderValue=sum(o.value or 0 for o in orders),
@@ -171,14 +193,17 @@ def _tags(db: Session, ids: list[int]) -> list[Tag]:
 
 
 @router.get("/customers")
-def list_customers(tag: int | None = None, q: str | None = None, db: Session = DB):
+def list_customers(tag: int | None = None, q: str | None = None, segment: str | None = None, db: Session = DB):
     by_cust = _orders_by_customer(db)
     s = _clean(q).lower()
     out = []
     for c in db.scalars(select(Customer).order_by(Customer.name)):
         if tag and tag not in {t.id for t in c.tags}:
             continue
-        if s and s not in " ".join([c.name, c.short_code, c.tax_code, c.contact_name, c.phone]).lower():
+        if segment is not None and c.segment != segment:  # segment="" → chưa phân loại
+            continue
+        if s and s not in " ".join([c.name, c.short_code, c.tax_code, c.contact_name, c.phone, c.representative,
+                                    c.bank_account]).lower():
             continue
         out.append(customer_out(c, by_cust.get(c.id, [])))
     return out
@@ -194,7 +219,10 @@ def get_customer(cid: int, db: Session = DB):
 def create_customer(body: CustomerIn, db: Session = DB):
     c = Customer(name=_cust_name_free(db, body.name), short_code=_clean(body.short_code),
                  tax_code=_clean(body.tax_code), address=_clean(body.address), contact_name=_clean(body.contact_name),
-                 phone=_clean(body.phone), note=body.note or "", active=body.active, created_at=utcnow())
+                 phone=_clean(body.phone), representative=_clean(body.representative),
+                 representative_title=_clean(body.representative_title), bank_account=_clean(body.bank_account),
+                 bank_name=_clean(body.bank_name), segment=_segment(body.segment), note=body.note or "",
+                 active=body.active, created_at=utcnow())
     c.tags = _tags(db, body.tag_ids)
     db.add(c)
     db.commit()
@@ -211,9 +239,12 @@ def update_customer(cid: int, body: CustomerPatch, db: Session = DB):
         if oids:
             db.execute(update(Order).where(Order.id.in_(oids)).values(customer=c.name))
             db.execute(update(Contract).where(Contract.order_id.in_(oids)).values(customer=c.name))
-    for f in ("short_code", "tax_code", "address", "contact_name", "phone"):
+    for f in ("short_code", "tax_code", "address", "contact_name", "phone", "representative", "representative_title",
+              "bank_account", "bank_name"):
         if getattr(body, f) is not None:
             setattr(c, f, _clean(getattr(body, f)))
+    if body.segment is not None:
+        c.segment = _segment(body.segment)
     if body.note is not None:
         c.note = body.note
     if body.active is not None:

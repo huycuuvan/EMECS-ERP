@@ -224,3 +224,22 @@ def test_end_of_day_time_gate():
     assert alerts.run_if_due(late)["ran"] is False  # đã chạy hôm nay
     with SessionLocal() as db:
         assert db.query(Notification).filter(Notification.roles.is_not(None)).count() >= 1
+
+
+def test_customer_profile_fields_and_segment_filter(c):
+    body = {"name": "CÔNG TY CỔ PHẦN THÀNH HƯNG", "address": "Số 142 Hàn Thuyên, phường Nam Định, tỉnh Ninh Bình",
+            "phone": "0228.3632559", "bankAccount": "2682686868", "bankName": "Ngân hàng TMCP Đông Nam Á - CN Nam Định",
+            "taxCode": "0600321679", "representative": "Bà Vũ Thị Lan Anh", "representativeTitle": "Giám đốc",
+            "segment": "Thân thiết"}
+    cu = c.post("/api/customers", json=body).json()
+    assert cu["representative"] == "Bà Vũ Thị Lan Anh" and cu["bankName"].startswith("Ngân hàng TMCP Đông Nam Á")
+    assert cu["segment"] == "Thân thiết"
+    assert c.post("/api/customers", json={**body, "name": "X", "segment": "VIP"}).status_code == 400
+    names = [x["name"] for x in c.get("/api/customers", params={"segment": "Thân thiết"}).json()]
+    assert "CÔNG TY CỔ PHẦN THÀNH HƯNG" in names and "Cty TNHH Cơ điện Delta" not in names  # seed: Delta = Đơn lẻ
+    assert c.get("/api/customers", params={"q": "lan anh"}).json()[0]["id"] == cu["id"]
+    # lọc đơn hàng / hợp đồng / dashboard theo phân loại
+    seg_orders = c.get("/api/orders", params={"segment": "Đơn lẻ"}).json()
+    assert seg_orders and {o["customer"] for o in seg_orders} <= {"Cty TNHH Cơ điện Delta", "Ban QLDA Cầu đường 5"}
+    assert all(x["customer"] != "Cty TNHH Cơ điện Delta" for x in c.get("/api/contracts", params={"segment": "Thân thiết"}).json())
+    assert c.get("/api/dashboard", params={"segment": "Thân thiết"}).status_code == 200

@@ -28,7 +28,7 @@ const DONUT_COLORS = ['#2f5d3a', '#4a5560', '#e85a2a', '#9c7714', '#d8d2c2']
 const tons1 = (kg: number) => Math.round(kg / 100) / 10
 
 export default function Dashboard() {
-  const [tag, setTag] = useState<number>()
+  const [tag, setTag] = useState<string>()
   const { data: d, isLoading, isError } = useDashboardByTag(tag)
   const { can } = useAuth()
   const { open } = usePeek()
@@ -172,7 +172,7 @@ export default function Dashboard() {
   )
 }
 
-function Header({ tag, setTag }: { tag?: number; setTag: (v?: number) => void }) {
+function Header({ tag, setTag }: { tag?: string; setTag: (v?: string) => void }) {
   const { can, hasRole } = useAuth()
   const navigate = useNavigate()
   const { message, modal } = App.useApp()

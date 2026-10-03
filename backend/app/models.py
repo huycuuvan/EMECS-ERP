@@ -300,6 +300,13 @@ class Customer(Base):
     note: Mapped[str] = mapped_column(Text, default="")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at = mapped_column(UTCDateTime, nullable=True)
+    # hồ sơ pháp nhân (in hợp đồng): người đại diện, chức vụ, tài khoản ngân hàng
+    representative: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    representative_title: Mapped[str] = mapped_column(String(80), default="", server_default="")
+    bank_account: Mapped[str] = mapped_column(String(40), default="", server_default="")
+    bank_name: Mapped[str] = mapped_column(String(200), default="", server_default="")  # ngân hàng — chi nhánh
+    # phân loại (báo giá M01/M06): "Thân thiết" | "Đơn lẻ" | "" (chưa phân loại)
+    segment: Mapped[str] = mapped_column(String(20), default="", server_default="", index=True)
     tags: Mapped[list[Tag]] = relationship(secondary=customer_tags, order_by="Tag.name", lazy="selectin")
 
 

@@ -29,7 +29,7 @@ const QUICK_LABEL: Record<Exclude<Quick, ''>, string> = {
 }
 
 export default function Contracts() {
-  const [tag, setTag] = useState<number>()
+  const [tag, setTag] = useState<string>()
   const { data: contracts = [], isLoading } = useContractsByTag(tag)
   const { data: giao = [] } = useTasks({ type: 'giao_khach' })
   const { open } = usePeek()
