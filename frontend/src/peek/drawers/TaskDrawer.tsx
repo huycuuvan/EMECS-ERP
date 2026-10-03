@@ -27,7 +27,6 @@ export default function TaskDrawer({ id }: { id: string }) {
 
   const isMa = t.type === 'di_ma'
   const tol = meta?.toleranceKg ?? 30
-  const fillH = meta?.fillHours ?? 24
   const over = isOverdue(t, now)
   const canEdit = can('van-chuyen', 'edit')
 
@@ -60,7 +59,7 @@ export default function TaskDrawer({ id }: { id: string }) {
         {t.rejectReason && <Cell label="Lý do từ chối" wide alert>{t.rejectReason}</Cell>}
         {t.departedAt && <Cell label="Xuất phát"><span className="num">{fmtDT(t.departedAt)}</span></Cell>}
         {t.fillDeadline && (
-          <Cell label={`Hạn điền phiếu (${fillH}h)`} alert={over}>
+          <Cell label="Hạn trả phiếu" alert={over}>
             <span className="num">{fmtDT(t.fillDeadline)}</span>
             {over ? ` — QUÁ HẠN ${hoursOverAt(t.fillDeadline, now)}h`
               : t.filledAt ? <span className="caption" style={{ fontWeight: 500 }}> · đã điền {fmtDT(t.filledAt)}</span>

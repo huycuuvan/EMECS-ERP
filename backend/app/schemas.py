@@ -117,6 +117,7 @@ class TaskCreate(In):
     vehicle_plate: str | None = None
     galvanizer_id: int | None = None
     arrive_at: datetime | None = None  # ngày giờ lái xe phải có mặt
+    fill_deadline: datetime | None = None  # hạn trả phiếu (điền số cân + ảnh phiếu); bỏ trống = có mặt + 24h
     deliver_customer_id: int | None = None
     deliver_name: str = ""
     deliver_address: str = ""

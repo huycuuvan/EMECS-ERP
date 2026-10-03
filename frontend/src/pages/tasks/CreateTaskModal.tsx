@@ -11,7 +11,7 @@ import { MODAL_Z } from './TaskActions'
 
 interface V {
   type: TaskType; driver: string; contractId: string; refId?: string | null; note?: string
-  vehiclePlate?: string | null; galvanizerId?: number | null; arriveAt?: Dayjs
+  vehiclePlate?: string | null; galvanizerId?: number | null; arriveAt?: Dayjs; fillDeadline?: Dayjs
   deliverCustomerId?: number | null; deliverName?: string; deliverAddress?: string
   receiverName?: string; receiverPhone?: string; contactName?: string; contactPhone?: string
 }
@@ -40,7 +40,8 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
       form.resetFields()
       const driver = initial?.driver ?? meta?.drivers[0]
       form.setFieldsValue({ type: 'di_ma', driver, contractId: cs[0]?.id, vehiclePlate: plateOf(driver),
-        galvanizerId: galvs.find((g) => g.active)?.id, arriveAt: dayjs().add(1, 'hour').minute(0).second(0), ...initial })
+        galvanizerId: galvs.find((g) => g.active)?.id, arriveAt: dayjs().add(1, 'hour').minute(0).second(0),
+        fillDeadline: dayjs().add(25, 'hour').minute(0).second(0), ...initial })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -88,7 +89,7 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
     const v = await form.validateFields()
     await create.mutateAsync({
       ...v, refId: v.refId || null, galvanizerId: v.type === 'di_ma' ? v.galvanizerId ?? null : null,
-      arriveAt: v.arriveAt!.format(),
+      arriveAt: v.arriveAt!.format(), fillDeadline: v.fillDeadline?.format(),
     })
     onClose()
   }
@@ -121,6 +122,16 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
         </div>
         <Form.Item name="arriveAt" label={type === 'di_ma' ? 'Ngày giờ lái xe phải có mặt (lấy hàng tại công ty)' : 'Ngày giờ lái xe phải có mặt (lấy hàng tại xưởng mạ)'}
           rules={[{ required: true, message: 'Chọn ngày giờ lái xe phải có mặt' }]}>
+          <DatePicker showTime={{ format: 'HH:mm', minuteStep: 15 }} format="HH:mm — DD/MM/YYYY" style={{ width: '100%' }}
+            onChange={(d) => { if (d && !form.isFieldTouched('fillDeadline')) form.setFieldValue('fillDeadline', d.add(24, 'hour')) }} />
+        </Form.Item>
+        <Form.Item name="fillDeadline" label="Hạn trả phiếu (lái xe điền số cân + ảnh phiếu trước)"
+          extra="Mặc định 24 giờ sau giờ có mặt. Quá hạn mà chưa trả phiếu → báo đỏ trên dashboard và thẻ lái xe."
+          dependencies={['arriveAt']}
+          rules={[{ required: true, message: 'Chọn hạn trả phiếu' }, ({ getFieldValue }) => ({
+            validator: (_, v?: Dayjs) => (v && getFieldValue('arriveAt') && !v.isAfter(getFieldValue('arriveAt'))
+              ? Promise.reject(new Error('Hạn trả phiếu phải sau giờ có mặt')) : Promise.resolve()),
+          })]}>
           <DatePicker showTime={{ format: 'HH:mm', minuteStep: 15 }} format="HH:mm — DD/MM/YYYY" style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item name="contractId" label="Hợp đồng" rules={[{ required: true, message: 'Chưa chọn hợp đồng' }]}>

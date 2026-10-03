@@ -161,7 +161,7 @@ function DetailVc({ id }: { id: string }) {
         <DItem k="Tài xế" small>{t.driver}</DItem>
         <DItem k="Giao việc">{fmtDT(t.assignedAt)}</DItem>
         <DItem k="Xuất phát">{t.departedAt ? fmtDT(t.departedAt) : '—'}</DItem>
-        <DItem k="Hạn điền phiếu">
+        <DItem k="Hạn trả phiếu">
           {t.fillDeadline ? <span className={overdue ? 'red-txt' : ''}>{fmtDT(t.fillDeadline)}{overdue ? ` · QUÁ ${hoursOver(t.fillDeadline)}h` : ''}</span> : '—'}
         </DItem>
         <DItem k={isMa ? 'Kg cân xuất công ty' : 'Kg yêu cầu lấy từ mạ'}>{fmtN(t.kgRequired)} kg</DItem>

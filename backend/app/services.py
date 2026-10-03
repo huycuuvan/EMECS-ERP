@@ -670,7 +670,7 @@ def _kg_from_ref(db: Session, type_: str, ref_id: str | None) -> float:
 
 def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | None, kg_required: float | None,
                 note: str, vehicle_plate: str | None = None, galvanizer_id: int | None = None, arrive_at=None,
-                **deliver) -> Task:
+                fill_deadline=None, **deliver) -> Task:
     if type_ not in ("di_ma", "giao_khach"):
         raise HTTPException(400, "Loại thẻ phải là di_ma hoặc giao_khach")
     get_or_404(db, Contract, cid)
@@ -678,11 +678,16 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
         raise HTTPException(400, "Chưa nhập ngày giờ lái xe phải có mặt")
     if arrive_at.tzinfo is None:
         arrive_at = arrive_at.replace(tzinfo=VN_TZ)
+    if fill_deadline is not None and fill_deadline.tzinfo is None:
+        fill_deadline = fill_deadline.replace(tzinfo=VN_TZ)
+    fill_deadline = fill_deadline or add_hours(arrive_at, FILL_HOURS)  # hạn trả phiếu do Quản lý đặt khi giao việc
+    if fill_deadline <= arrive_at:
+        raise HTTPException(400, "Hạn trả phiếu phải sau giờ lái xe có mặt")
     kg = kg_required if kg_required else _kg_from_ref(db, type_, ref_id)
     t = Task(id=next_id(db, "VC", "vc"), type=type_, driver=driver, contract_id=cid, ref_id=ref_id,
              assigned_at=utcnow(), status="Chờ xác nhận", kg_required=kg or 0, note=note or "",
              vehicle_plate=(vehicle_plate or "").strip().upper() or None,
-             galvanizer_id=galvanizer_id if type_ == "di_ma" else None, arrive_at=arrive_at)
+             galvanizer_id=galvanizer_id if type_ == "di_ma" else None, arrive_at=arrive_at, fill_deadline=fill_deadline)
     if type_ == "giao_khach":
         t.deliver_customer_id = deliver.get("deliver_customer_id")
         for k in ("deliver_name", "deliver_address", "receiver_name", "receiver_phone", "contact_name", "contact_phone"):
@@ -691,7 +696,8 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
     where = (t.deliver_address or t.deliver_name) if type_ == "giao_khach" else "xưởng mạ"
     notify(db, f"Thẻ công việc mới {t.id}",
            f"{'Chở hàng đi mạ' if type_ == 'di_ma' else 'Lấy hàng mạ giao khách'} — gán {driver} · có mặt "
-           f"{arrive_at.astimezone(VN_TZ):%H:%M %d/%m}" + (f" · {where}" if where else ""), "info")
+           f"{arrive_at.astimezone(VN_TZ):%H:%M %d/%m} · trả phiếu trước {fill_deadline.astimezone(VN_TZ):%H:%M %d/%m}"
+           + (f" · {where}" if where else ""), "info")
     db.commit()
     return t
 
@@ -720,7 +726,8 @@ def task_depart(db: Session, tid: str) -> Task:
     if t.status != "Đã nhận":
         raise HTTPException(400, "Chỉ xuất phát được khi thẻ ở trạng thái Đã nhận")
     now = utcnow()
-    t.status, t.departed_at, t.fill_deadline = "Đang chạy", now, add_hours(now, FILL_HOURS)
+    t.status, t.departed_at = "Đang chạy", now
+    t.fill_deadline = t.fill_deadline or add_hours(now, FILL_HOURS)  # giữ hạn trả phiếu Quản lý đã đặt khi giao việc
     db.commit()
     return t
 

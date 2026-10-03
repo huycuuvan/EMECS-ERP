@@ -139,6 +139,7 @@ export function DispatchModal({ p, onClose }: { p: Weighing; onClose: () => void
   const drivers = meta?.drivers ?? []
   const [driver, setDriver] = useState<string | undefined>(p.signers.laiXe || drivers[0])
   const [arrive, setArrive] = useState<Dayjs | null>(dayjs().add(1, 'hour').minute(0).second(0))
+  const [due, setDue] = useState<Dayjs | null>(dayjs().add(25, 'hour').minute(0).second(0))
   const [err, setErr] = useState<ReactNode>(null)
   if (p.kgActual == null) return null
   return (
@@ -148,18 +149,22 @@ export function DispatchModal({ p, onClose }: { p: Weighing; onClose: () => void
         const d = driver ?? drivers[0]
         if (!d) return setErr('Chọn tài xế')
         if (!arrive) return setErr('Chọn ngày giờ lái xe phải có mặt')
-        await create.mutateAsync({ type: 'di_ma', driver: d, contractId: p.contractId, refId: p.id, arriveAt: arrive.format() })
+        if (!due || !due.isAfter(arrive)) return setErr('Hạn trả phiếu phải sau giờ có mặt')
+        await create.mutateAsync({ type: 'di_ma', driver: d, contractId: p.contractId, refId: p.id, arriveAt: arrive.format(), fillDeadline: due.format() })
         onClose()
       }}>
       <div style={{ marginTop: 12 }}>
         <InfoBox>
           Chuyến hàng <b>{fmtKg(p.kgActual)}</b> (theo số cân thực) · HĐ <b>{p.contractId}</b> → Xưởng Mạ kẽm Việt Đức.<br />
-          Tài xế phải xác nhận thẻ, điền số cân bên mạ + ảnh phiếu trong <b>{meta?.fillHours ?? 24}h</b> sau khi xuất phát.
+          Tài xế phải xác nhận thẻ, điền số cân bên mạ + ảnh phiếu trước <b>hạn trả phiếu</b> bên dưới.
         </InfoBox>
         <div className="caption" style={{ marginBottom: 6 }}>Chọn tài xế</div>
         <Select value={driver ?? drivers[0]} onChange={setDriver} style={{ width: '100%' }} options={drivers.map((d) => ({ value: d, label: d }))} />
         <div className="caption" style={{ margin: '10px 0 6px' }}>Ngày giờ lái xe phải có mặt</div>
-        <DatePicker showTime={{ format: 'HH:mm', minuteStep: 15 }} format="HH:mm DD/MM/YYYY" value={arrive} onChange={setArrive} style={{ width: '100%' }} />
+        <DatePicker showTime={{ format: 'HH:mm', minuteStep: 15 }} format="HH:mm DD/MM/YYYY" value={arrive} style={{ width: '100%' }}
+          onChange={(d) => { setArrive(d); if (d) setDue(d.add(24, 'hour')) }} />
+        <div className="caption" style={{ margin: '10px 0 6px' }}>Hạn trả phiếu (điền số cân + ảnh phiếu)</div>
+        <DatePicker showTime={{ format: 'HH:mm', minuteStep: 15 }} format="HH:mm DD/MM/YYYY" value={due} onChange={setDue} style={{ width: '100%' }} />
         <div style={{ marginTop: 10 }}><ErrBox>{err}</ErrBox></div>
       </div>
     </Modal>

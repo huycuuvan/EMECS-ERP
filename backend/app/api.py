@@ -381,7 +381,7 @@ def get_task(tid: str, db: Session = DB):
 
 @router.post("/tasks", dependencies=[Depends(require_roles("admin"))])
 def create_task(body: SC.TaskCreate, db: Session = DB):
-    extra = body.model_dump(include={"arrive_at", "deliver_customer_id", "deliver_name", "deliver_address", "receiver_name",
+    extra = body.model_dump(include={"arrive_at", "fill_deadline", "deliver_customer_id", "deliver_name", "deliver_address", "receiver_name",
                                      "receiver_phone", "contact_name", "contact_phone"})
     return S.task(svc.create_task(db, body.type, body.driver, body.contract_id, body.ref_id, body.kg_required,
                                   body.note, body.vehicle_plate, body.galvanizer_id, **extra))

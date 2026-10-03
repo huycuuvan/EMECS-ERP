@@ -80,7 +80,7 @@ export default function Tasks() {
     { title: 'KG theo chứng từ', dataIndex: 'kgRequired', align: 'right', render: (v: number) => v ? <span className="num mono">{fmtKg(v)}</span> : <span className="text-ash">—</span> },
     { title: 'Số cân điền', key: 'kg', render: (_, t) => <KgCell t={t} tol={tol} /> },
     { title: 'Ảnh phiếu', key: 'photo', render: (_, t) => <PhotoCell t={t} /> },
-    { title: 'Hạn điền (24h)', dataIndex: 'fillDeadline', render: (_, t) => <DueCell t={t} now={now} onOpen={() => open('vc', t.id)} /> },
+    { title: 'Hạn trả phiếu', dataIndex: 'fillDeadline', render: (_, t) => <DueCell t={t} now={now} onOpen={() => open('vc', t.id)} /> },
     { title: 'Trạng thái', dataIndex: 'status', render: (_, t) => <TaskStatusTag t={t} now={now} withReason /> },
     ...(can('van-chuyen', 'edit') ? [{ title: 'Thao tác', key: 'act', render: (_: unknown, t: Task) => (
       <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}><TaskActions task={t} /><TaskAdminActions task={t} withEdit={false} /></span>) }] : []),

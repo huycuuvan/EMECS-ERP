@@ -67,7 +67,12 @@ def test_receipt_kg_only_and_task_auto_kg_arrival_delivery(c):
     login(c, "ql")
     base = {"type": "di_ma", "driver": "Lê Đức Vận", "contractId": "HD-2609-06", "refId": "PC-0201"}
     assert c.post("/api/tasks", json=base).status_code == 400  # thiếu giờ có mặt
-    t = c.post("/api/tasks", json={**base, "arriveAt": "2099-01-01T07:30:00+07:00"}).json()
+    assert c.post("/api/tasks", json={**base, "arriveAt": "2099-01-01T07:30:00+07:00",
+                                      "fillDeadline": "2099-01-01T07:00:00+07:00"}).status_code == 400  # hạn trước giờ có mặt
+    t = c.post("/api/tasks", json={**base, "arriveAt": "2099-01-01T07:30:00+07:00", "fillDeadline": "2099-01-01T18:00:00+07:00"}).json()
+    assert t["fillDeadline"].startswith("2099-01-01T18:00")
+    d = c.post("/api/tasks", json={**base, "refId": None, "arriveAt": "2099-01-01T07:30:00+07:00"}).json()
+    assert d["fillDeadline"].startswith("2099-01-02T07:30")  # mặc định có mặt + 24h
     assert t["kgRequired"] > 0 and t["arriveAt"].startswith("2099-01-01") and t["deliver"] is None  # KG lấy từ phiếu cân
     g = c.post("/api/tasks", json={"type": "giao_khach", "driver": "Lê Đức Vận", "contractId": "HD-2609-06",
                                    "arriveAt": "2099-01-02T08:00:00+07:00", "deliverCustomerId": 1,
