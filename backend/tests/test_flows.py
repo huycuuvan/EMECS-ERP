@@ -108,7 +108,7 @@ def test_lsx_reject_requires_reason(c):
     assert c.post("/api/lsx/LSX-HB04A/reject", json={"reason": ""}).status_code == 422
     x = c.post("/api/lsx/LSX-HB04A/accept").json()
     assert x["status"] == "Đang SX"
-    x = c.post("/api/lsx/LSX-HB04A/progress", json={"qtyDone": 30, "kgDone": 17000}).json()
+    x = c.post("/api/lsx/LSX-HB04A/daily", json={"kg": x["kgPlan"]}).json()
     assert x["status"] == "Hoàn thành"
 
 

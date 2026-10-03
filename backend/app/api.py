@@ -307,9 +307,10 @@ def lsx_reject(lid: str, body: SC.ReasonIn, db: Session = DB):
     return S.lsx(svc.lsx_reject(db, lid, body.reason))
 
 
-@router.post("/lsx/{lid}/progress", dependencies=[Depends(require_roles("sx"))])
-def lsx_progress(lid: str, body: SC.LsxProgressIn, db: Session = DB):
-    return S.lsx(svc.lsx_progress(db, lid, body.qty_done, body.kg_done))
+@router.post("/lsx/{lid}/daily", dependencies=[Depends(require_roles("sx"))])
+def lsx_daily(lid: str, body: SC.LsxDailyIn, db: Session = DB):
+    """Xưởng báo sản lượng theo ngày (kg)."""
+    return S.lsx(svc.lsx_daily(db, lid, body.day, body.kg, body.note))
 
 
 @router.post("/lsx/{lid}/extend", dependencies=[Depends(require_roles("admin"))])

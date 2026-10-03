@@ -54,18 +54,33 @@ function MiniBar({ pct, color }: { pct: number; color: string }) {
   )
 }
 
-/** Tiến độ SP & kg (2 thanh nhỏ) — xanh khi hoàn thành, đỏ khi trễ, vàng khi đang chạy. */
+/** Giờ cảnh báo xưởng chưa nhập sản lượng ngày (khớp END_OF_DAY_HOUR ở backend). */
+export const DAILY_DEADLINE_HOUR = 20
+const hhmm = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '')
+
+/** Sản lượng hôm nay của lệnh đang SX: số kg + GIỜ nhập/sửa (để Quản lý biết số mới tới đâu), hoặc cảnh báo chưa nhập. */
+export function TodayOutput({ x }: { x: Lsx }) {
+  if (x.status !== 'Đang SX') return null
+  const st: CSSProperties = { fontSize: 11, marginTop: 4, fontVariantNumeric: 'tabular-nums' }
+  if (x.today) return (
+    <div style={{ ...st, color: C.ink3 }}>
+      Hôm nay <b>{fmtNum(x.today.kg)} kg</b> · {x.today.edited ? 'sửa' : 'nhập'} lúc <b>{hhmm(x.today.at)}</b>
+    </div>
+  )
+  const late = new Date().getHours() >= DAILY_DEADLINE_HOUR
+  return <div style={{ ...st, color: late ? C.signal : C.amber, fontWeight: 700 }}>Chưa nhập sản lượng hôm nay{late ? ' — quá 20h' : ''}</div>
+}
+
+/** Tiến độ theo khối lượng (kg) — xanh khi hoàn thành, đỏ khi trễ, vàng khi đang chạy — kèm sản lượng hôm nay. */
 export function LsxMiniProgress({ x }: { x: Lsx }) {
-  const pq = pctOf(x.qtyDone, x.qtyPlan)
   const pk = pctOf(x.kgDone, x.kgPlan)
   const color = x.status === 'Hoàn thành' ? C.moss : isLate(x) ? C.signal : C.amber
   const lbl: CSSProperties = { display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: C.ash, marginBottom: 3, fontVariantNumeric: 'tabular-nums' }
   return (
-    <div style={{ minWidth: 160 }}>
-      <div style={lbl}><span>{fmtNum(x.qtyDone)}/{fmtNum(x.qtyPlan)} SP</span><span>{pq}%</span></div>
-      <MiniBar pct={pq} color={color} />
-      <div style={{ ...lbl, marginTop: 5 }}><span>{fmtNum(x.kgDone)}/{fmtNum(x.kgPlan)} kg</span><span>{pk}%</span></div>
+    <div style={{ minWidth: 170 }}>
+      <div style={lbl}><span>{fmtNum(x.kgDone)}/{fmtNum(x.kgPlan)} kg</span><span>{pk}%</span></div>
       <MiniBar pct={pk} color={color} />
+      <TodayOutput x={x} />
     </div>
   )
 }

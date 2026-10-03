@@ -1,7 +1,7 @@
 """Cảnh báo cuối ngày (M03): sau END_OF_DAY_HOUR giờ Việt Nam, hệ thống tự tạo thông báo tổng hợp 1 lần/ngày,
 nhắm đúng vai trò cần xử lý (Notification.roles):
 
-- LSX "Đang SX" hôm nay chưa cập nhật tiến độ · LSX quá hạn tiến độ (tính cả gia hạn)  → xưởng + Quản lý
+- LSX "Đang SX" hôm nay chưa nhập sản lượng ngày (20h) · LSX quá hạn tiến độ (cả gia hạn) → xưởng + Quản lý
 - Hợp đồng đến hạn / quá hạn trả khách                                                 → kế toán + Quản lý
 - Thẻ lái xe quá hạn điền số cân + ảnh phiếu                                           → lái xe + Quản lý
 - Phiếu cân trạm quá hạn nhập số / ảnh                                                  → thủ kho + Quản lý
@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from . import services as svc
 from .config import END_OF_DAY_HOUR
 from .db import SessionLocal, utcnow
-from .models import Contract, Lsx, LsxLog, Notification, Sequence, User
+from .models import Contract, Lsx, LsxDaily, Notification, Sequence, User
 from .utils import VN_TZ, fmt_d
 
 log = logging.getLogger("steel.alerts")
@@ -47,11 +47,11 @@ def collect(db: Session, now: datetime | None = None) -> list[dict]:
     out: list[dict] = []
 
     running = db.scalars(select(Lsx).where(Lsx.status == "Đang SX").order_by(Lsx.id)).all()
-    logged_today = set(db.scalars(select(LsxLog.lsx_id).where(LsxLog.at >= day_start)))
-    stale = [x.id for x in running if x.id not in logged_today]
+    reported = set(db.scalars(select(LsxDaily.lsx_id).where(LsxDaily.day == day_start.date())))
+    stale = [x.id for x in running if x.id not in reported]
     if stale:
-        out.append({"title": f"Cuối ngày: {len(stale)} lệnh SX chưa cập nhật tiến độ hôm nay",
-                    "sub": f"{_ids(stale)} — xưởng cập nhật % hoàn thành trước khi tan ca", "type": "warning",
+        out.append({"title": f"Cuối ngày ({END_OF_DAY_HOUR}h): {len(stale)} lệnh SX chưa nhập sản lượng hôm nay",
+                    "sub": f"{_ids(stale)} — xưởng nhập số kg làm được hôm nay (không làm thì nhập 0)", "type": "warning",
                     "roles": "sx,admin"})
 
     late = []

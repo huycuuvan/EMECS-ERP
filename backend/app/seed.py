@@ -9,15 +9,17 @@
 Danh mục (_seed_master): khách hàng + thẻ (Khách thân thiết / Khách lẻ…), 3 xe (gán theo tài xế), xưởng mạ Việt Đức,
 6 phiếu nguyên liệu mua vào trong 30 ngày.
 """
+from datetime import datetime, timedelta
+
 from sqlalchemy.orm import Session
 
 from .config import CONTRACT_DAYS, CT_DONE, CT_RECEIVED, CT_SENT, CT_WAIT, DEMO_PASSWORD, PEOPLE
 from .db import Base, engine, utcnow
 from .security import hash_password
-from .models import (Contract, LsxLog, Lsx, Mismatch, Notification, Order, OrderItem, Payment,
+from .models import (Contract, LsxDaily, LsxLog, Lsx, Mismatch, Notification, Order, OrderItem, Payment,
                      Receipt, Sequence, Task, User, VLoss, Weighing)
 from .ticket import ticket_img
-from .utils import add_days, add_hours, ago, ahead, fmt_d, fmt_kg
+from .utils import VN_TZ, add_days, add_hours, ago, ahead, fmt_d, fmt_kg
 
 QL, KT, SX, KHO = (PEOPLE[k]["name"] for k in ("ql", "kt", "sx", "kho"))
 LX1, LX2 = PEOPLE["lx1"]["name"], PEOPLE["lx2"]["name"]
@@ -124,7 +126,26 @@ def _lsx(lid, cid, name, assigned, lead, status, accepted, qty_plan, kg_plan, qt
     if ext:
         x.ext_to, x.ext_reason, x.ext_approved_by, x.ext_at = ext
     x.logs = [LsxLog(at=a, text=t) for a, t in logs]
+    x.daily = _daily(accepted, kg_done, status)
     return x
+
+
+def _daily(accepted, kg_done, status):
+    """Sản lượng theo ngày cho dữ liệu mẫu: chia lũy kế ra tối đa 5 ngày gần nhất (hôm nay để trống → demo cảnh báo 20h)."""
+    if not accepted or not kg_done:
+        return []
+    start = accepted.astimezone(VN_TZ).date()
+    end = utcnow().astimezone(VN_TZ).date() - timedelta(days=1)
+    if end < start:
+        end = start
+    days = [end - timedelta(days=i) for i in range(min(5, (end - start).days + 1))][::-1]
+    each = round(kg_done / len(days), 0)
+    out = []
+    for i, d in enumerate(days):
+        kg = kg_done - each * (len(days) - 1) if i == len(days) - 1 else each
+        at = datetime(d.year, d.month, d.day, 17, 30, tzinfo=VN_TZ)
+        out.append(LsxDaily(day=d, kg=kg, note="", created_at=at, created_by=SX))
+    return out
 
 
 def _lsxs():

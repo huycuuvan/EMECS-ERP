@@ -38,7 +38,7 @@ PAY_PENDING, PAY_OK, PAY_REJECTED = "Chờ duyệt", "Đã duyệt", "Từ chố
 PC_FILL_HOURS = 4   # phiếu cân trạm quá 4 giờ chưa có số/ảnh → quá hạn
 
 # Cảnh báo cuối ngày (giờ Việt Nam): sau END_OF_DAY_HOUR hệ thống tự tạo thông báo tổng hợp 1 lần/ngày.
-END_OF_DAY_HOUR = int(os.getenv("END_OF_DAY_HOUR", "17"))
+END_OF_DAY_HOUR = int(os.getenv("END_OF_DAY_HOUR", "20"))  # 20h: cảnh báo xưởng chưa nhập sản lượng ngày
 ALERTS_ENABLED = os.getenv("ALERTS_ENABLED", "1") == "1"
 
 # Tài khoản demo (seed). phone = tên đăng nhập. Một người có thể giữ nhiều vai trò.

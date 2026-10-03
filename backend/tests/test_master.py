@@ -195,7 +195,7 @@ def test_end_of_day_alerts_role_targeted_once_per_day(c):
     assert "Đơn hàng mới DH-2609-05" in titles  # thông báo chung (roles rỗng) vẫn thấy
     login(c, "sx")
     titles = [n["title"] for n in c.get("/api/notifications").json()]
-    assert any("lệnh SX chưa cập nhật" in t for t in titles) and not any("hợp đồng đến hạn" in t for t in titles)
+    assert any("lệnh SX chưa nhập sản lượng" in t for t in titles) and not any("hợp đồng đến hạn" in t for t in titles)
     login(c, "lx1")
     assert any("thẻ lái xe" in n["title"] for n in c.get("/api/notifications").json())
     # đánh dấu đã đọc chỉ tác động thông báo người đó thấy

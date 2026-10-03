@@ -52,7 +52,26 @@ def lsx(x: Lsx) -> dict:
         "extension": ({"to": iso(x.ext_to), "reason": x.ext_reason, "approvedBy": x.ext_approved_by,
                        "at": iso(x.ext_at)} if x.ext_to else None),
         "log": [{"at": iso(lg.at), "text": lg.text} for lg in x.logs],
+        **daily_info(x),
     }
+
+
+def daily_info(x: Lsx) -> dict:
+    """Sản lượng theo ngày + giờ cập nhật gần nhất (để Quản lý biết số liệu mới tới đâu)."""
+    from .db import utcnow
+    from .utils import VN_TZ
+    today = utcnow().astimezone(VN_TZ).date()
+    rows = sorted(x.daily, key=lambda d: d.day)
+    out, run = [], 0.0
+    for d in rows:
+        run += d.kg or 0
+        out.append({"id": d.id, "day": d.day.isoformat(), "kg": d.kg, "cumKg": round(run, 3), "note": d.note or "",
+                    "createdAt": iso(d.created_at), "createdBy": d.created_by, "updatedAt": iso(d.updated_at),
+                    "updatedBy": d.updated_by, "prevKg": d.prev_kg})
+    last = max((d.updated_at or d.created_at for d in rows if d.created_at), default=None)
+    t = next((d for d in rows if d.day == today), None)
+    return {"daily": out[::-1], "lastUpdateAt": iso(last),
+            "today": ({"kg": t.kg, "at": iso(t.updated_at or t.created_at), "edited": bool(t.updated_at)} if t else None)}
 
 
 def receipt(r: Receipt) -> dict:

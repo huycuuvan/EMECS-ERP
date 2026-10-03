@@ -267,9 +267,9 @@ def _lsx_val(field: str, v: Any) -> str:
 
 def _lsx_status(db: Session, x: Lsx, reason: str) -> list[str]:
     st = x.status
-    if st == "Hoàn thành" and x.qty_done < x.qty_plan:
+    if st == "Hoàn thành" and x.kg_done < x.kg_plan - 0.5:
         st = "Đang SX"
-    elif st == "Đang SX" and x.qty_plan and x.qty_done >= x.qty_plan:
+    elif st == "Đang SX" and x.kg_plan and x.kg_done >= x.kg_plan - 0.5:
         st = "Hoàn thành"
     return apply_changes(db, x, "lsx", x.id, {"status": ("status", st)}, reason)
 

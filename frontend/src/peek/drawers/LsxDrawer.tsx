@@ -1,14 +1,14 @@
 /* Drawer Lệnh sản xuất — port ERPPeek.register('lsx') trong steel-data.js:
    thông tin lệnh · tiến độ SP & kg · chuỗi giao nhận 5 bước · bảng phiếu liên quan có đối ứng · nhật ký · thao tác theo vai trò. */
 import { Button, Tag } from 'antd'
-import { Factory, GitCompareArrows, Gauge, History, Info, Link2, TableProperties } from 'lucide-react'
+import { CalendarDays, Factory, GitCompareArrows, Gauge, History, Info, Link2, TableProperties } from 'lucide-react'
 import { useContracts, useLsx, useReceipts, useTasks, useWeighings } from '@/api/hooks'
 import HistoryBlock from '@/components/HistoryBlock'
 import { Bar, Cell, CellGrid, Sec } from '@/components/ui'
-import { daysLeft, fmtD, fmtDT, fmtKg, fmtNum, fmtT, relTime } from '@/lib/format'
+import { daysLeft, fmtD, fmtDT, fmtKg, fmtT, relTime } from '@/lib/format'
 import { LsxAdminActions } from '@/pages/lsx/LsxEditModals'
 import { useLsxActions } from '@/pages/lsx/LsxModals'
-import { effDeadline, isLate, LsxTimeline, pctOf, useLsxPerms } from '@/pages/lsx/lsxUtil'
+import { effDeadline, isLate, LsxTimeline, pctOf, TodayOutput, useLsxPerms } from '@/pages/lsx/lsxUtil'
 import { C } from '@/theme'
 import PeekShell from '../PeekShell'
 import RecordLink from '../RecordLink'
@@ -26,7 +26,6 @@ export default function LsxDrawer({ id }: { id: string }) {
   if (!x) return <PeekShell type="lsx" id={id} loading={isLoading} notFound={!isLoading && (isError || !x)} />
 
   const c = contracts.find((z) => z.id === x.contractId)
-  const pq = pctOf(x.qtyDone, x.qtyPlan)
   const pk = pctOf(x.kgDone, x.kgPlan)
   const eff = effDeadline(x)
   const late = isLate(x)
@@ -41,7 +40,7 @@ export default function LsxDrawer({ id }: { id: string }) {
         <Button size="small" type="primary" onClick={() => act.accept(x)}>Nhận lệnh</Button>
         <Button size="small" ghost onClick={() => act.reject(x)}>Từ chối</Button>
       </>}
-      {x.status === 'Đang SX' && canSx && <Button size="small" type="primary" onClick={() => act.progress(x)}>Cập nhật tiến độ</Button>}
+      {(x.status === 'Đang SX' || x.status === 'Hoàn thành') && canSx && <Button size="small" type="primary" onClick={() => act.progress(x)}>Nhập sản lượng ngày</Button>}
       {open && canQl && <Button size="small" ghost danger={late} onClick={() => act.extend(x)}>Gia hạn (QL)</Button>}
       <LsxAdminActions x={x} ghost />
     </>
@@ -50,7 +49,7 @@ export default function LsxDrawer({ id }: { id: string }) {
   return (
     <PeekShell type="lsx" id={x.id} status={x.status} actions={actions}
       sub={<span>
-        HĐ {x.contractId} · {fmtNum(x.qtyPlan)} SP · {fmtT(x.kgPlan)}
+        HĐ {x.contractId} · {fmtT(x.kgPlan)}
         {lateInfo && <Tag variant="filled" className={late ? 'chip-overdue' : undefined}
           style={{ marginLeft: 8, borderRadius: 999, fontWeight: 700, background: late ? C.signalSoft : C.paper2, color: late ? C.signal : C.ink3 }}>{lateInfo}</Tag>}
       </span>}>
@@ -79,13 +78,37 @@ export default function LsxDrawer({ id }: { id: string }) {
 
       <Sec icon={<Gauge />}>Tiến độ sản xuất</Sec>
       <CellGrid>
-        <Cell label="Số lượng" extra={<Bar percent={pq} color={x.status === 'Hoàn thành' ? C.moss : late ? C.signal : C.amber} />}>
-          {fmtNum(x.qtyDone)} / {fmtNum(x.qtyPlan)} SP ({pq}%)
-        </Cell>
-        <Cell label="Khối lượng" extra={<Bar percent={pk} color={C.moss} />}>
+        <Cell label="Khối lượng lũy kế" extra={<Bar percent={pk} color={x.status === 'Hoàn thành' ? C.moss : late ? C.signal : C.amber} />}>
           {fmtKg(x.kgDone)} / {fmtKg(x.kgPlan)} ({pk}%)
         </Cell>
+        <Cell label="Cập nhật gần nhất" alert={x.status === 'Đang SX' && !x.today}>
+          {x.lastUpdateAt ? fmtDT(x.lastUpdateAt) : 'Chưa nhập ngày nào'}
+          <TodayOutput x={x} />
+        </Cell>
       </CellGrid>
+
+      <Sec icon={<CalendarDays />}>Sản lượng theo ngày (xưởng nhập · giờ nhập / sửa)</Sec>
+      {x.daily.length ? (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="pk-items" style={{ minWidth: 560 }}>
+            <thead><tr><th>Ngày</th><th className="r">Sản lượng</th><th className="r">Lũy kế</th><th>Nhập lúc</th><th>Sửa gần nhất</th><th>Ghi chú</th></tr></thead>
+            <tbody>
+              {x.daily.map((d) => (
+                <tr key={d.id}>
+                  <td className="num">{fmtD(d.day)}</td>
+                  <td className="r"><b>{fmtKg(d.kg)}</b></td>
+                  <td className="r">{fmtKg(d.cumKg)}</td>
+                  <td>{fmtDT(d.createdAt)}<div className="sub-soft">{d.createdBy}</div></td>
+                  <td>{d.updatedAt
+                    ? <><span style={{ color: C.amber, fontWeight: 600 }}>{fmtDT(d.updatedAt)}</span><div className="sub-soft">{fmtKg(d.prevKg)} → {fmtKg(d.kg)} · {d.updatedBy}</div></>
+                    : <span className="text-ash">—</span>}</td>
+                  <td className="sub-soft" style={{ marginTop: 0 }}>{d.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="caption">Xưởng chưa nhập sản lượng ngày nào.</p>}
 
       <Sec icon={<GitCompareArrows />}>Giao nhận giữa các bên từ lệnh — lũy kế 5 bước</Sec>
       <FlowChain x={x} f={f} />

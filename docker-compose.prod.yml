@@ -29,7 +29,7 @@ services:
       ALLOW_DEMO_RESET: ${ALLOW_DEMO_RESET:-0}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-steel123}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
-      END_OF_DAY_HOUR: ${END_OF_DAY_HOUR:-17}
+      END_OF_DAY_HOUR: ${END_OF_DAY_HOUR:-20}
       ALERTS_ENABLED: ${ALERTS_ENABLED:-1}
       TZ: Asia/Ho_Chi_Minh
     volumes:

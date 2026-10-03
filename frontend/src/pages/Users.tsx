@@ -121,7 +121,7 @@ const ACTION_LABEL: [RegExp, string][] = [
   [/\/contracts\/[^/]+\/payments$/, 'Ghi nhận tiền về'], [/\/contracts\/[^/]+\/signed$/, 'Ký hợp đồng'],
   [/\/contracts\/[^/]+\/returned$/, 'Trả hợp đồng'], [/\/contracts\/[^/]+$/, 'Sửa hợp đồng'],
   [/\/lsx$/, 'Phát lệnh SX'], [/\/lsx\/[^/]+\/accept$/, 'Nhận lệnh SX'], [/\/lsx\/[^/]+\/reject$/, 'Từ chối lệnh SX'],
-  [/\/lsx\/[^/]+\/progress$/, 'Cập nhật tiến độ'], [/\/lsx\/[^/]+\/extend$/, 'Duyệt gia hạn'],
+  [/\/lsx\/[^/]+\/daily$/, 'Nhập sản lượng ngày'], [/\/lsx\/[^/]+\/extend$/, 'Duyệt gia hạn'],
   [/\/receipts$/, 'Lập phiếu tiếp nhận'], [/\/weighings$/, 'Tạo phiếu cân'], [/\/weighings\/[^/]+\/fill$/, 'Nhập kết quả cân'],
   [/\/weighings\/[^/]+\/photo$/, 'Cập nhật ảnh phiếu cân'], [/\/tasks$/, 'Giao thẻ lái xe'], [/\/tasks\/[^/]+\/accept$/, 'Lái xe nhận thẻ'],
   [/\/tasks\/[^/]+\/reject$/, 'Lái xe từ chối'], [/\/tasks\/[^/]+\/depart$/, 'Xe xuất phát'], [/\/tasks\/[^/]+\/fill-galv$/, 'Điền phiếu mạ'],

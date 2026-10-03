@@ -8,7 +8,7 @@ import { useContracts, useLsxList } from '@/api/hooks'
 import type { Lsx } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
-import { fmtDT, fmtKg, fmtNum, fmtT } from '@/lib/format'
+import { fmtDT, fmtKg, fmtT } from '@/lib/format'
 import { usePeek } from '@/peek/context'
 import RecordLink from '@/peek/RecordLink'
 import { C } from '@/theme'
@@ -71,12 +71,12 @@ export default function LsxPage() {
       title: 'Kế hoạch', key: 'plan',
       render: (_, x) => (
         <div className="num">
-          <b>{fmtNum(x.qtyPlan)}</b> {cmap[x.contractId]?.unit ?? 'SP'}
-          <div style={sub}>{fmtKg(x.kgPlan)} · tiến độ {x.leadDays} ngày</div>
+          <b>{fmtKg(x.kgPlan)}</b>
+          <div style={sub}>tiến độ {x.leadDays} ngày</div>
         </div>
       ),
     },
-    { title: 'Tiến độ (SP & kg)', key: 'prog', render: (_, x) => <LsxMiniProgress x={x} /> },
+    { title: 'Tiến độ (kg) · hôm nay', key: 'prog', render: (_, x) => <LsxMiniProgress x={x} /> },
     { title: 'Hạn', key: 'due', render: (_, x) => <LsxDueCell x={x} /> },
     {
       title: 'Trạng thái nhận lệnh', key: 'acc',
@@ -103,7 +103,7 @@ export default function LsxPage() {
             <Button size="small" type="primary" onClick={stop(() => act.accept(x))}>Nhận lệnh</Button>
             <Button size="small" onClick={stop(() => act.reject(x))}>Từ chối</Button>
           </>}
-          {x.status === 'Đang SX' && canSx && <Button size="small" onClick={stop(() => act.progress(x))}>Cập nhật tiến độ</Button>}
+          {x.status === 'Đang SX' && canSx && <Button size="small" onClick={stop(() => act.progress(x))}>Nhập sản lượng ngày</Button>}
           {isLate(x) && canQl && <Button size="small" danger onClick={stop(() => act.extend(x))}>Gia hạn (QL)</Button>}
           {x.status === 'Từ chối' && <LsxAdminActions x={x} withEdit={false} />}
         </div>

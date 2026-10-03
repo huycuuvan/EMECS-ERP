@@ -43,12 +43,18 @@ export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label:
 export interface ContractRow extends Contract { due: DueInfo; adv: AdvanceInfo; complete: CompleteInfo }
 
 export type LsxStatus = 'Chờ nhận' | 'Đang SX' | 'Từ chối' | 'Hoàn thành'
+/** Sản lượng 1 ngày xưởng báo (kg; không làm = 0) + giờ nhập / sửa. */
+export interface LsxDay {
+  id: number; day: string; kg: number; cumKg: number; note: string
+  createdAt: string | null; createdBy: string; updatedAt: string | null; updatedBy: string | null; prevKg: number | null
+}
 export interface Lsx {
   id: ID; contractId: ID; name: string; assignedAt: string; assignedBy: string; leadDays: number
   deadline: string; status: LsxStatus; acceptedAt: string | null; acceptedBy: string | null
   rejectReason: string | null; qtyPlan: number; kgPlan: number; qtyDone: number; kgDone: number
   extension: { to: string; reason: string; approvedBy: string; at: string } | null
   log: { at: string; text: string }[]
+  daily: LsxDay[]; lastUpdateAt: string | null; today: { kg: number; at: string | null; edited: boolean } | null
 }
 
 export interface Receipt { id: ID; lsxId: ID; contractId: ID; date: string; qty: number; kg: number; by: string; note: string }

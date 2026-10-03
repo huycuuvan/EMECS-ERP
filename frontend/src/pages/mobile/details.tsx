@@ -50,12 +50,11 @@ function DetailLsx({ id }: { id: string }) {
         <DItem k="Hạn hoàn thành"><span className={late ? 'red-txt' : ''}>{fmtD(eff)}{x.extension && <small> (gia hạn)</small>}</span></DItem>
         <DItem k="Phát lệnh" sub={x.assignedBy}>{fmtDT(x.assignedAt)}</DItem>
         <DItem k="Xưởng nhận" sub={x.acceptedBy ?? undefined}>{x.acceptedAt ? fmtDT(x.acceptedAt) : '—'}</DItem>
-        <DItem k="Kế hoạch">{fmtN(x.qtyPlan)} SP · {fmtN(x.kgPlan)} kg</DItem>
-        <DItem k="Đã đạt">{fmtN(x.qtyDone)} SP · {fmtN(x.kgDone)} kg</DItem>
+        <DItem k="Kế hoạch">{fmtN(x.kgPlan)} kg</DItem>
+        <DItem k="Đã đạt">{fmtN(x.kgDone)} kg{x.lastUpdateAt && <small> · cập nhật {fmtDT(x.lastUpdateAt)}</small>}</DItem>
         {x.rejectReason && <DItem k="Lý do từ chối" full small><span className="red-txt">{x.rejectReason}</span></DItem>}
         {x.extension && <DItem k="Lý do gia hạn" full small>{x.extension.reason} — duyệt bởi {x.extension.approvedBy}</DItem>}
       </DGrid>
-      <PgRow label="Số lượng" done={x.qtyDone} plan={x.qtyPlan} unit="SP" />
       <PgRow label="Khối lượng" done={x.kgDone} plan={x.kgPlan} unit="kg" tone="success" />
       <div className="btn-row">
         {x.status === 'Đang SX' && (

@@ -100,10 +100,10 @@ export const useSaveContractDocument = () => useAction(({ id, ...v }: ContractDr
 export const useSeller = () => useQuery({ queryKey: ['settings', 'seller'], queryFn: () => get<Party>('/settings/seller') })
 export const useSaveSeller = () => useAction((v: Party) => api.put<Party>('/settings/seller', v).then((r) => r.data), 'Đã lưu thông tin công ty (Bên B)')
 
-export const useCreateLsx = () => useAction((v: { contractId: ID; name?: string; qty: number; kg: number; leadDays: number }) => post<Lsx>('/lsx', v), (x) => `Đã phát lệnh ${x.id}`)
+export const useCreateLsx = () => useAction((v: { contractId: ID; name?: string; qty?: number; kg: number; leadDays: number }) => post<Lsx>('/lsx', v), (x) => `Đã phát lệnh ${x.id}`)
 export const useLsxAccept = () => useAction((id: ID) => post<Lsx>(`/lsx/${id}/accept`), (x) => `Xưởng đã nhận lệnh ${x.id}`)
 export const useLsxReject = () => useAction(({ id, reason }: { id: ID; reason: string }) => post<Lsx>(`/lsx/${id}/reject`, { reason }), (x) => `Đã từ chối ${x.id}`)
-export const useLsxProgress = () => useAction(({ id, ...v }: { id: ID; qtyDone: number; kgDone: number }) => post<Lsx>(`/lsx/${id}/progress`, v), (x) => `Đã cập nhật tiến độ ${x.id}`)
+export const useLsxDaily = () => useAction(({ id, ...v }: { id: ID; day?: string; kg: number; note?: string }) => post<Lsx>(`/lsx/${id}/daily`, v), (x) => `Đã ghi sản lượng ${x.id} — lũy kế ${x.kgDone.toLocaleString('vi-VN')} kg`)
 export const useLsxExtend = () => useAction(({ id, ...v }: { id: ID; to: string; reason: string }) => post<Lsx>(`/lsx/${id}/extend`, v), (x) => `Đã duyệt gia hạn ${x.id}`)
 
 export const useCreateReceipt = () => useAction((v: { lsxId: ID; qty: number; kg: number; note?: string }) => post<Receipt>('/receipts', v), (r) => `Đã lập phiếu tiếp nhận ${r.id}`)

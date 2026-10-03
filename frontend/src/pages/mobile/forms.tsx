@@ -3,11 +3,11 @@ import { App } from 'antd'
 import { CalendarClock, PackageCheck, Save, SendHorizontal, XOctagon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
-  useContract, useCreateReceipt, useFillWeighing, useLsxExtend, useLsxList, useLsxProgress, useLsxReject, useReceipts,
+  useContract, useCreateReceipt, useFillWeighing, useLsxExtend, useLsxList, useLsxDaily, useLsxReject, useReceipts,
   useTaskFillDelivery, useTaskFillGalv, useTaskReject, useUpdateContract,
 } from '@/api/hooks'
 import type { Contract, Lsx, Task, Weighing } from '@/api/types'
-import { fmtD, fmtKg } from '@/lib/format'
+import { fmtD, fmtDT, fmtKg } from '@/lib/format'
 import { fmtN, num, signed, useMob } from './core'
 import { Btn, NumInput, PhotoPicker, ReasonBox, ReasonSelect } from './kit'
 
@@ -51,29 +51,36 @@ export function RejectForm({ kind, id }: { kind: 'task' | 'lsx'; id: string }) {
   )
 }
 
-/* ---------------------------------------------------------------- tiến độ lệnh SX */
+/* ---------------------------------------------------------------- sản lượng theo ngày (xưởng) */
+const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
 export function LsxProgressForm({ x }: { x: Lsx }) {
   const m = useMob()
   const { message } = App.useApp()
-  const progress = useLsxProgress()
-  const [qty, setQty] = useState(String(x.qtyDone))
-  const [kg, setKg] = useState(String(x.kgDone))
+  const daily = useLsxDaily()
+  const [day, setDay] = useState(localDay())
+  const cur = x.daily.find((d) => d.day === day)
+  const [kg, setKg] = useState(cur ? String(cur.kg) : '')
+  const [note, setNote] = useState(cur?.note ?? '')
+  const pick = (d: string) => { setDay(d); const e = x.daily.find((z) => z.day === d); setKg(e ? String(e.kg) : ''); setNote(e?.note ?? '') }
+  const after = x.kgDone - (cur?.kg ?? 0) + num(kg)
   const submit = async () => {
-    const q = num(qty), k = num(kg)
-    if (qty.trim() === '' || kg.trim() === '' || q < 0 || k < 0) { message.error('Nhập số hợp lệ.'); return }
-    if (q > x.qtyPlan || k > x.kgPlan) { message.error(`Tiến độ vượt kế hoạch (${fmtN(x.qtyPlan)} SP · ${fmtN(x.kgPlan)} kg) — kiểm tra lại.`); return }
-    if (q < x.qtyDone || k < x.kgDone) { message.error(`Tiến độ mới thấp hơn số đã báo (${fmtN(x.qtyDone)} SP · ${fmtN(x.kgDone)} kg) — kiểm tra lại.`); return }
-    try { await progress.mutateAsync({ id: x.id, qtyDone: q, kgDone: k }); m.pop() } catch { /* đã báo */ }
+    if (kg.trim() === '' || num(kg) < 0) { message.error('Nhập số kg làm được trong ngày (không làm thì nhập 0).'); return }
+    try { await daily.mutateAsync({ id: x.id, day, kg: num(kg), note: note.trim() }); m.pop() } catch { /* đã báo */ }
   }
   return (
     <div className="m-form flat">
-      <div className="f-hint" style={{ marginTop: 0, marginBottom: 8 }}>{x.name} — kế hoạch <b>{fmtN(x.qtyPlan)} SP · {fmtN(x.kgPlan)} kg</b>.</div>
-      <label className="f-lbl">Số lượng đã hoàn thành (SP)</label>
-      <NumInput big inputMode="numeric" value={qty} onChange={setQty} bad={num(qty) > x.qtyPlan} />
-      <label className="f-lbl">Khối lượng đã hoàn thành (kg)</label>
-      <NumInput big value={kg} onChange={setKg} bad={num(kg) > x.kgPlan} />
-      <div className="f-hint">Đạt đủ số lượng kế hoạch → lệnh tự chuyển <b>Hoàn thành</b>.</div>
-      <div className="btn-row"><Btn variant="primary" icon={Save} loading={progress.isPending} onClick={submit}>Lưu tiến độ</Btn></div>
+      <div className="f-hint" style={{ marginTop: 0, marginBottom: 8 }}>{x.name} — kế hoạch <b>{fmtN(x.kgPlan)} kg</b> · đã làm <b>{fmtN(x.kgDone)} kg</b>.</div>
+      <label className="f-lbl">Ngày</label>
+      <input type="date" className="inp" value={day} max={localDay()} onChange={(e) => pick(e.target.value)} />
+      <label className="f-lbl">Khối lượng làm được trong ngày (kg)</label>
+      <NumInput big value={kg} onChange={setKg} />
+      <div className="f-hint">Hôm nào không làm thì nhập <b>0</b>. Hạn nhập trước <b>20h</b> mỗi ngày.</div>
+      {cur && <div className="f-hint" style={{ color: 'var(--amber)' }}>Ngày này đã nhập <b>{fmtN(cur.kg)} kg</b> lúc {fmtDT(cur.updatedAt ?? cur.createdAt)} — lưu lại sẽ sửa số (Quản lý được báo).</div>}
+      <label className="f-lbl">Ghi chú (tùy chọn)</label>
+      <input className="inp" value={note} onChange={(e) => setNote(e.target.value)} placeholder="VD: nghỉ chờ vật tư" />
+      <div className="f-hint">Sau khi lưu: lũy kế <b>{fmtN(after)} / {fmtN(x.kgPlan)} kg</b>{after >= x.kgPlan && x.kgPlan > 0 ? ' — lệnh chuyển Hoàn thành' : ''}.</div>
+      <div className="btn-row"><Btn variant="primary" icon={Save} loading={daily.isPending} onClick={submit}>Lưu sản lượng</Btn></div>
     </div>
   )
 }
@@ -173,7 +180,7 @@ export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
       </select>
       {x && (
         <div className="f-hint">
-          SX báo xong <b>{fmtN(x.qtyDone)} SP · {fmtN(x.kgDone)} kg</b> · kho đã nhận {fmtN(recv.qty)} SP · {fmtN(recv.kg)} kg
+          SX báo xong <b>{fmtN(x.kgDone)} kg</b> · kho đã nhận {fmtN(recv.kg)} kg
           → còn <b className={remainKg > 0.5 ? '' : 'moss-txt'}>{fmtN(Math.max(0, remainKg))} kg</b> chưa bàn giao.
         </div>
       )}

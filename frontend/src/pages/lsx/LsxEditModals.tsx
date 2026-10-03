@@ -5,27 +5,26 @@ import { Pencil, RotateCcw } from 'lucide-react'
 import { useState, type MouseEvent } from 'react'
 import { useEditLsx, useReissueLsx } from '@/api/hooksEdit'
 import type { Lsx } from '@/api/types'
-import { fmtD, fmtKg, fmtNum } from '@/lib/format'
+import { fmtD, fmtKg } from '@/lib/format'
 import { MODAL_Z } from '../mismatches/sign'
 import { EditReasonField } from '../weighings/EditWeighingModal'
 import { InfoBox } from './boxes'
 import { useLsxPerms } from './lsxUtil'
 
-type EV = { name: string; qtyPlan: number; kgPlan: number; leadDays: number; deadline: Dayjs; reason?: string }
+type EV = { name: string; kgPlan: number; leadDays: number; deadline: Dayjs; reason?: string }
 
 export function EditLsxModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
   const edit = useEditLsx()
   const [form] = Form.useForm<EV>()
-  const q = Form.useWatch('qtyPlan', form)
   const k = Form.useWatch('kgPlan', form)
-  const numChanged = (typeof q === 'number' && q !== x.qtyPlan) || (typeof k === 'number' && k !== x.kgPlan)
+  const numChanged = typeof k === 'number' && k !== x.kgPlan
   const origDeadline = dayjs(x.deadline)
 
   const submit = async () => {
     const v = await form.validateFields()
     const dlTouched = form.isFieldTouched('deadline') && !v.deadline.isSame(origDeadline, 'day')
     await edit.mutateAsync({
-      id: x.id, name: v.name.trim(), qtyPlan: v.qtyPlan, kgPlan: v.kgPlan, leadDays: v.leadDays,
+      id: x.id, name: v.name.trim(), kgPlan: v.kgPlan, leadDays: v.leadDays,
       deadline: dlTouched ? v.deadline.hour(17).minute(0).second(0).millisecond(0).toISOString() : undefined,
       reason: (v.reason || '').trim() || undefined,
     })
@@ -36,15 +35,12 @@ export function EditLsxModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
     <Modal open zIndex={MODAL_Z} title={`Sửa lệnh sản xuất ${x.id}`} okText="Lưu thay đổi" cancelText="Hủy" width={620}
       confirmLoading={edit.isPending} onCancel={onClose} onOk={submit} destroyOnHidden>
       <div style={{ marginTop: 12 }}>
-        <InfoBox>HĐ <b>{x.contractId}</b> · đã xong <b>{fmtNum(x.qtyDone)} SP · {fmtKg(x.kgDone)}</b> (kế hoạch không được nhỏ hơn số đã xong).
+        <InfoBox>HĐ <b>{x.contractId}</b> · đã xong <b>{fmtKg(x.kgDone)}</b> (kế hoạch không được nhỏ hơn số đã xong).
           Đổi tiến độ (ngày) mà không chọn hạn mới → hạn = ngày phát lệnh + số ngày. Mọi thay đổi ghi vào nhật ký lệnh và lịch sử chỉnh sửa.</InfoBox>
       </div>
-      <Form form={form} layout="vertical" initialValues={{ name: x.name, qtyPlan: x.qtyPlan, kgPlan: x.kgPlan, leadDays: x.leadDays, deadline: origDeadline }}>
+      <Form form={form} layout="vertical" initialValues={{ name: x.name, kgPlan: x.kgPlan, leadDays: x.leadDays, deadline: origDeadline }}>
         <Form.Item name="name" label="Tên lệnh" rules={[{ required: true, whitespace: true, message: 'Nhập tên lệnh' }]}><Input /></Form.Item>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <Form.Item name="qtyPlan" label="SL kế hoạch (SP)" rules={[{ required: true, type: 'number', min: Math.max(x.qtyDone, 0.0001), message: `Tối thiểu ${fmtNum(x.qtyDone)} SP (đã xong)` }]}>
-            <InputNumber min={0} style={{ width: '100%' }} />
-          </Form.Item>
           <Form.Item name="kgPlan" label="KL kế hoạch (kg)" rules={[{ required: true, type: 'number', min: Math.max(x.kgDone, 0.0001), message: `Tối thiểu ${fmtKg(x.kgDone)} (đã xong)` }]}>
             <InputNumber min={0} style={{ width: '100%' }} suffix="kg" />
           </Form.Item>
@@ -63,11 +59,11 @@ export function EditLsxModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
 
 export function ReissueLsxModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
   const m = useReissueLsx()
-  const [form] = Form.useForm<{ leadDays: number; qtyPlan: number; kgPlan: number; note?: string }>()
+  const [form] = Form.useForm<{ leadDays: number; kgPlan: number; note?: string }>()
   const lead = Form.useWatch('leadDays', form)
   const submit = async () => {
     const v = await form.validateFields()
-    await m.mutateAsync({ id: x.id, leadDays: v.leadDays, qtyPlan: v.qtyPlan, kgPlan: v.kgPlan, note: (v.note || '').trim() || undefined })
+    await m.mutateAsync({ id: x.id, leadDays: v.leadDays, kgPlan: v.kgPlan, note: (v.note || '').trim() || undefined })
     onClose()
   }
   return (
@@ -80,13 +76,10 @@ export function ReissueLsxModal({ x, onClose }: { x: Lsx; onClose: () => void })
           {typeof lead === 'number' && lead > 0 && <> (hạn dự kiến <b>{fmtD(dayjs().add(lead, 'day').toISOString())}</b>)</>}; xưởng phải nhận lệnh lại.
         </InfoBox>
       </div>
-      <Form form={form} layout="vertical" initialValues={{ leadDays: x.leadDays, qtyPlan: x.qtyPlan, kgPlan: x.kgPlan }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+      <Form form={form} layout="vertical" initialValues={{ leadDays: x.leadDays, kgPlan: x.kgPlan }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Form.Item name="leadDays" label="Tiến độ (ngày)" rules={[{ required: true, type: 'number', min: 1, message: 'Tối thiểu 1 ngày' }]}>
             <InputNumber min={1} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="qtyPlan" label="SL kế hoạch" rules={[{ required: true, type: 'number', min: 0.0001, message: '> 0' }]}>
-            <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="kgPlan" label="KL kế hoạch (kg)" rules={[{ required: true, type: 'number', min: 0.0001, message: '> 0' }]}>
             <InputNumber min={0} style={{ width: '100%' }} />

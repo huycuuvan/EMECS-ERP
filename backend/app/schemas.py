@@ -1,5 +1,5 @@
 """Request body (camelCase từ FE)."""
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
@@ -67,7 +67,7 @@ class PaymentIn(In):
 class LsxCreate(In):
     contract_id: str
     name: str | None = None
-    qty: float = Field(gt=0)
+    qty: float | None = Field(default=None, ge=0)  # bỏ số lượng SP — chỉ còn khối lượng (giữ để tương thích)
     kg: float = Field(gt=0)
     lead_days: int = Field(default=7, ge=1)
 
@@ -76,9 +76,10 @@ class ReasonIn(In):
     reason: str = Field(min_length=1)
 
 
-class LsxProgressIn(In):
-    qty_done: float = Field(ge=0)
-    kg_done: float = Field(ge=0)
+class LsxDailyIn(In):
+    day: date | None = None  # mặc định hôm nay (giờ VN)
+    kg: float = Field(ge=0)  # sản lượng trong ngày; không làm thì 0
+    note: str = ""
 
 
 class LsxExtendIn(In):

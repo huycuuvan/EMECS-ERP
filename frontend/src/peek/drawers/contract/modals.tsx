@@ -90,7 +90,7 @@ export function ContractEditModal({ contract: c, onClose }: { contract: Contract
 
 /* ---------- Phát lệnh SX từ hợp đồng ---------- */
 export function LsxFromContractModal({ contract: c, lsxs, onClose }: { contract: Contract; lsxs: Lsx[]; onClose: () => void }) {
-  const [form] = Form.useForm<{ name: string; qty: number; kg: number; lead: number }>()
+  const [form] = Form.useForm<{ name: string; kg: number; lead: number }>()
   const create = useCreateLsx()
   const { open } = usePeek()
   const rem = Math.max(0, c.totalKg - committedKg(lsxs))
@@ -99,7 +99,7 @@ export function LsxFromContractModal({ contract: c, lsxs, onClose }: { contract:
   const submit = async () => {
     const v = await form.validateFields()
     if (v.kg > rem) return
-    const x = await create.mutateAsync({ contractId: c.id, name: v.name, qty: v.qty, kg: v.kg, leadDays: v.lead || 7 })
+    const x = await create.mutateAsync({ contractId: c.id, name: v.name, kg: v.kg, leadDays: v.lead || 7 })
     onClose()
     open('lsx', x.id)
   }
@@ -115,10 +115,7 @@ export function LsxFromContractModal({ contract: c, lsxs, onClose }: { contract:
       <Form form={form} layout="vertical" requiredMark={false}
         initialValues={{ name: `Lệnh SX ${c.code} — đợt ${lsxs.length + 1}`, kg: rem > 0 ? rem : undefined, lead: 7 }}>
         <Form.Item name="name" label="Tên lệnh" rules={[{ required: true, whitespace: true, message: 'Nhập tên lệnh sản xuất.' }]}><Input /></Form.Item>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
-          <Form.Item name="qty" label="Số lượng SP" rules={[positive('Số lượng SP phải lớn hơn 0.')]}>
-            <InputNumber<number> style={{ width: '100%' }} min={0} />
-          </Form.Item>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0 12px' }}>
           <Form.Item name="kg" label="Khối lượng (kg)" rules={[positive('Khối lượng (kg) phải lớn hơn 0.')]}>
             <InputNumber<number> style={{ width: '100%' }} min={0} formatter={numFormatter} parser={numParser} />
           </Form.Item>

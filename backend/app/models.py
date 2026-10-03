@@ -3,7 +3,7 @@
 Chuỗi nghiệp vụ: Đơn hàng (DH) → Hợp đồng (HD) → Lệnh SX (LSX) → Phiếu tiếp nhận TP (PTN)
 → Phiếu cân trạm (PC) → Thẻ lái xe (VC: đi mạ / giao khách) → Sai lệch (SL) → Kho ảo (VK).
 """
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import Boolean, Column, Date, Float, ForeignKey, Integer, String, Table, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base, UTCDateTime
@@ -150,6 +150,26 @@ class Lsx(Base):
     ext_at = mapped_column(UTCDateTime, nullable=True)
     logs: Mapped[list["LsxLog"]] = relationship(
         back_populates="lsx", cascade="all, delete-orphan", order_by="LsxLog.at")
+    daily: Mapped[list["LsxDaily"]] = relationship(
+        back_populates="lsx", cascade="all, delete-orphan", order_by="LsxDaily.day")
+
+
+class LsxDaily(Base):
+    """Sản lượng xưởng báo THEO TỪNG NGÀY (kg; không làm thì nhập 0). Lũy kế lệnh = tổng các ngày.
+    Lưu giờ nhập + giờ sửa gần nhất để Quản lý biết số liệu được cập nhật lúc nào."""
+    __tablename__ = "lsx_daily"
+    __table_args__ = (UniqueConstraint("lsx_id", "day", name="uq_lsx_daily_day"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    lsx_id: Mapped[str] = mapped_column(ForeignKey("lsx.id"), index=True)
+    day = mapped_column(Date)  # ngày sản xuất (giờ VN)
+    kg: Mapped[float] = mapped_column(Float, default=0)
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at = mapped_column(UTCDateTime)
+    created_by: Mapped[str] = mapped_column(String(120), default="")
+    updated_at = mapped_column(UTCDateTime, nullable=True)  # lần sửa gần nhất (nếu nhập lại cùng ngày)
+    updated_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    prev_kg: Mapped[float | None] = mapped_column(Float, nullable=True)  # số trước lần sửa gần nhất
+    lsx: Mapped["Lsx"] = relationship(back_populates="daily")
 
 
 class LsxLog(Base):

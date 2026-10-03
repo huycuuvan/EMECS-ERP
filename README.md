@@ -113,7 +113,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 - Ảnh phiếu lưu trong volume `uploads`; link ảnh trả ra API có chữ ký + hết hạn 12 giờ (người ngoài không xem được).
 - Nên đặt sau reverse proxy có HTTPS (Caddy / Nginx + Let's Encrypt) và trỏ tên miền; đặt `CORS_ORIGINS` theo tên miền đó.
 - Bản demo cho khách xem: đặt `ALLOW_DEMO_RESET=1` và `VITE_DEMO_LOGIN=1` trong `.env`.
-- Cảnh báo cuối ngày: chạy lúc `END_OF_DAY_HOUR` (mặc định 17h, giờ Việt Nam); tắt bằng `ALERTS_ENABLED=0`.
+- Cảnh báo cuối ngày: chạy lúc `END_OF_DAY_HOUR` (mặc định 20h, giờ Việt Nam); tắt bằng `ALERTS_ENABLED=0`.
 
 ## Triển khai tách: frontend Vercel + backend Railway/Render
 

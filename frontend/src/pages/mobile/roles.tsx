@@ -227,8 +227,10 @@ function LsxCard({ x }: { x: Lsx }) {
       <Line k={`HĐ ${x.contractId} · phát ${relTime(x.assignedAt)}`} vClass={'sm ' + (late ? 'red-txt' : '')}>
         Hạn {fmtD(eff)}{x.extension ? ' (gia hạn)' : ''}{x.status === 'Đang SX' ? (late ? ` · TRỄ ${Math.abs(dl)}d` : ` · còn ${dl}d`) : ''}
       </Line>
-      <PgRow label="Số lượng" done={x.qtyDone} plan={x.qtyPlan} unit="SP" />
       <PgRow label="Khối lượng" done={x.kgDone} plan={x.kgPlan} unit="kg" tone="success" />
+      {x.status === 'Đang SX' && (x.today
+        ? <Line k="Hôm nay" vClass="sm">{fmtN(x.today.kg)} kg · {x.today.edited ? 'sửa' : 'nhập'} lúc {x.today.at ? new Date(x.today.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}</Line>
+        : <Line k="Hôm nay" vClass={'sm ' + (new Date().getHours() >= 20 ? 'red-txt' : '')}>Chưa nhập sản lượng</Line>)}
       {x.status === 'Chờ nhận' && (
         <div className="btn-row">
           <Btn variant="accept" icon={CheckCheck} loading={accept.isPending} onClick={() => accept.mutate(x.id)}>NHẬN LỆNH</Btn>
@@ -237,7 +239,7 @@ function LsxCard({ x }: { x: Lsx }) {
       )}
       {x.status === 'Đang SX' && (
         <div className="btn-row">
-          <Btn variant="primary" icon={Gauge} onClick={() => m.sheet({ icon: Gauge, title: `Cập nhật tiến độ ${x.id}`, body: <LsxProgressForm x={x} /> })}>Cập nhật tiến độ</Btn>
+          <Btn variant="primary" icon={Gauge} onClick={() => m.sheet({ icon: Gauge, title: `Sản lượng ngày ${x.id}`, body: <LsxProgressForm x={x} /> })}>Nhập sản lượng hôm nay</Btn>
         </div>
       )}
       {x.status === 'Từ chối' && <Line k="Lý do" kFix vClass="red-txt sm" style={{ marginTop: 6 }}>{x.rejectReason}</Line>}

@@ -53,7 +53,7 @@ export default function ReceiptDrawer({ id }: { id: string }) {
       {x && <>
         <Sec icon={<Factory />}>Đối chiếu với lệnh sản xuất</Sec>
         <CellGrid>
-          <Cell label="SX đã báo xong">{fmtKg(x.kgDone)}<div className="caption" style={{ fontWeight: 400 }}>{fmtNum(x.qtyDone)}/{fmtNum(x.qtyPlan)} SP</div></Cell>
+          <Cell label="SX đã báo xong">{fmtKg(x.kgDone)}<div className="caption" style={{ fontWeight: 400 }}>/ {fmtKg(x.kgPlan)} kế hoạch</div></Cell>
           <Cell label="Kho đã nhận lũy kế" alert={overSx > 0.5}>
             {overSx > 0.5
               ? <RecordLink id={x.id} danger>{fmtKg(recKg)} — VƯỢT {fmtKg(overSx)}</RecordLink>

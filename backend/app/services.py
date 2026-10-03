@@ -14,9 +14,9 @@ from .config import (COMPLETE_WARN_DAYS, CONTRACT_DAYS, CT_DONE, CT_RECEIVED, CT
                      PAY_PENDING, PAY_REJECTED, PC_FILL_HOURS, PEOPLE, TOLERANCE_KG)
 from .db import utcnow
 from .security import actor
-from .models import (Contract, Customer, Lsx, LsxLog, Mismatch, Notification, Order, OrderItem, Payment, Receipt,
+from .models import (Contract, Customer, Lsx, LsxDaily, LsxLog, Mismatch, Notification, Order, OrderItem, Payment, Receipt,
                      Sequence, Task, VLoss, Weighing, customer_tags)
-from .utils import add_days, add_hours, fmt_d, fmt_kg, money, money_short
+from .utils import VN_TZ, add_days, add_hours, fmt_d, fmt_kg, money, money_short
 
 QL, KT, SX, KHO = (PEOPLE[k]["name"] for k in ("ql", "kt", "sx", "kho"))
 
@@ -521,12 +521,12 @@ def _log(x: Lsx, text: str) -> None:
     x.logs.append(LsxLog(at=utcnow(), text=text))
 
 
-def create_lsx(db: Session, cid: str, name: str | None, qty: float, kg: float, lead_days: int) -> Lsx:
+def create_lsx(db: Session, cid: str, name: str | None, qty: float | None, kg: float, lead_days: int) -> Lsx:
     c = get_or_404(db, Contract, cid)
     lead = lead_days or 7
     now = utcnow()
     x = Lsx(id=next_id(db, "LSX", "lsx"), contract_id=cid, name=name or f"Lệnh SX {c.code}", assigned_at=now,
-            assigned_by=actor(QL), lead_days=lead, deadline=add_days(now, lead), status="Chờ nhận", qty_plan=qty,
+            assigned_by=actor(QL), lead_days=lead, deadline=add_days(now, lead), status="Chờ nhận", qty_plan=qty or 0,
             kg_plan=kg, qty_done=0, kg_done=0)
     _log(x, f"{actor(QL)} phát lệnh — tiến độ {lead:02d} ngày")
     db.add(x)
@@ -556,12 +556,45 @@ def lsx_reject(db: Session, lid: str, reason: str) -> Lsx:
     return x
 
 
-def lsx_progress(db: Session, lid: str, qty_done: float, kg_done: float) -> Lsx:
+def vn_today():
+    return utcnow().astimezone(VN_TZ).date()
+
+
+def lsx_daily(db: Session, lid: str, day, kg: float, note: str) -> Lsx:
+    """Xưởng báo sản lượng 1 ngày (kg; không làm thì 0). Nhập lại cùng ngày = sửa (lưu số cũ + giờ sửa).
+    Lũy kế lệnh = tổng các ngày; mỗi lần nhập / sửa đều báo Quản lý kèm giờ để biết số liệu mới nhất."""
     x = get_or_404(db, Lsx, lid)
-    x.qty_done, x.kg_done = qty_done or 0, kg_done or 0
-    if x.qty_done >= x.qty_plan:
+    if x.status not in ("Đang SX", "Hoàn thành"):
+        raise HTTPException(400, f"Lệnh {lid} đang \"{x.status}\" — xưởng nhận lệnh trước khi báo sản lượng")
+    if kg is None or kg < 0:
+        raise HTTPException(400, "Khối lượng phải ≥ 0 (không làm thì nhập 0)")
+    day = day or vn_today()
+    if day > vn_today():
+        raise HTTPException(400, "Không nhập sản lượng cho ngày tương lai")
+    start = (x.accepted_at or x.assigned_at).astimezone(VN_TZ).date()
+    if day < start:
+        raise HTTPException(400, f"Lệnh nhận ngày {start:%d/%m/%Y} — không nhập cho ngày trước đó")
+    now, who = utcnow(), actor(SX)
+    row = next((d for d in x.daily if d.day == day), None)
+    if row is None:
+        x.daily.append(LsxDaily(day=day, kg=kg, note=note or "", created_at=now, created_by=who))
+        verb = "báo"
+    else:
+        if row.kg == kg and (note or "") == (row.note or ""):
+            return x
+        row.prev_kg, row.kg, row.note, row.updated_at, row.updated_by = row.kg, kg, note or "", now, who
+        verb = f"sửa ({fmt_kg(row.prev_kg)} → {fmt_kg(kg)})"
+    db.flush()
+    x.kg_done = round(sum(d.kg for d in x.daily), 3)
+    if x.kg_plan and x.kg_done >= x.kg_plan - 0.5:
         x.status = "Hoàn thành"
-    _log(x, f"Cập nhật tiến độ: {x.qty_done:g}/{x.qty_plan:g} SP · {fmt_kg(x.kg_done)}")
+    elif x.status == "Hoàn thành":
+        x.status = "Đang SX"
+    at = now.astimezone(VN_TZ).strftime("%H:%M %d/%m")
+    _log(x, f"{who} {verb} sản lượng ngày {day:%d/%m}: {fmt_kg(kg)} — lũy kế {fmt_kg(x.kg_done)}/{fmt_kg(x.kg_plan)}")
+    notify(db, f"{lid}: xưởng {verb.split(' ')[0]} sản lượng ngày {day:%d/%m} — {fmt_kg(kg)}",
+           f"Lũy kế {fmt_kg(x.kg_done)} / {fmt_kg(x.kg_plan)} · {who} lúc {at}" + (f" · {note}" if note else ""),
+           "info", roles="admin")
     db.commit()
     return x
 
