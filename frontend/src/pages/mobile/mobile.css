@@ -477,3 +477,27 @@
   .mob-root .btn-m { font-size: 13.5px; padding: 12px 8px; }
   .mob-root .m-header { padding-left: 12px; padding-right: 12px; gap: 8px; }
 }
+
+/* ---------- lộ trình thẻ lái xe ---------- */
+.rt { margin: 6px 0 4px; }
+.rt-route { position: relative; padding-left: 4px; }
+.rt-stop { display: flex; gap: 10px; position: relative; padding-bottom: 10px; }
+.rt-stop.from::after { content: ''; position: absolute; left: 5px; top: 14px; bottom: 0; border-left: 2px dashed var(--rule, #d9d2c3); }
+.rt-dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 3px; flex: none; background: var(--steel, #4a5560); }
+.rt-stop.to .rt-dot { background: var(--rust, #c5400a); }
+.rt-body { min-width: 0; flex: 1; }
+.rt-k { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ash, #8a857a); font-weight: 700; }
+.rt-name { font-weight: 700; font-size: 14px; line-height: 1.35; }
+.rt-miss { color: var(--signal, #b42318); font-weight: 600; }
+.rt-addr { font-size: 12.5px; color: var(--ink3, #4a4740); margin-top: 2px; line-height: 1.45; }
+.rt-addr > svg { vertical-align: -2px; margin-right: 4px; }
+.rt-map { margin-left: 6px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; font-weight: 700; color: var(--rust, #c5400a); }
+.rt-line { font-size: 12.5px; margin-top: 3px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rt-tel { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; color: var(--moss, #2f5d3a); white-space: nowrap; }
+.rt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; background: var(--paper-2, #f3eee3); border-radius: 10px; padding: 8px 10px; margin-top: 2px; }
+.rt-grid > div { display: flex; flex-direction: column; min-width: 0; }
+.rt-grid span { font-size: 10.5px; color: var(--ash, #8a857a); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+.rt-grid b { font-size: 13px; overflow-wrap: anywhere; }
+.rt-grid b small { font-weight: 500; color: var(--ash, #8a857a); }
+.rt-grid .bad b { color: var(--signal, #b42318); }
+.rt-note { font-size: 12.5px; margin-top: 6px; color: var(--ink3, #4a4740); }

@@ -14,6 +14,7 @@ import { ContractEditForm, LsxExtendForm, LsxProgressForm, PcFillForm } from './
 import { fmtN, isOverdueTask, type Kind, lsxDeadline, signed, useMob } from './core'
 import { Btn, DGrid, DItem, DLink, Empty, Loading, PgRow, PhotoManage, SecTitle, StatusChip, TypeChip } from './kit'
 import { useSignFlow } from './sign'
+import { TaskRoute } from './route'
 
 const NotFound = ({ id }: { id: string }) => <Empty icon={Inbox}>Không tìm thấy bản ghi {id}.</Empty>
 
@@ -155,6 +156,7 @@ function DetailVc({ id }: { id: string }) {
   return (
     <>
       <div className="mc-top" style={{ marginBottom: 4 }}><TypeChip type={t.type} /><StatusChip status={t.status} overdue={overdue} /></div>
+      <TaskRoute t={t} />
       <DGrid>
         <DItem k="Hợp đồng"><DLink kind="hd" id={t.contractId} /></DItem>
         <DItem k="Chứng từ gốc">{t.refId ? <DLink id={t.refId} /> : '—'}</DItem>

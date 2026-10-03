@@ -13,6 +13,7 @@ import {
 } from '@/api/hooks'
 import type { Lsx, Mismatch, OverdueDoc, Receipt, Task, Weighing } from '@/api/types'
 import { fmtD, fmtDT, fmtKg, fmtT, hoursOver, moneyShort, relTime } from '@/lib/format'
+import { TaskRoute } from './route'
 import { useSignFlow } from './sign'
 import { DelivForm, GalvForm, LsxProgressForm, PcFillForm, ReceiptForm, RejectForm } from './forms'
 import {
@@ -137,17 +138,8 @@ function TaskCard({ t }: { t: Task }) {
     <Card open={['vc', t.id]} overdue={overdue}>
       {overdue && <div className="overdue-banner"><Siren />QUÁ HẠN {hoursOver(t.fillDeadline!)}h — điền ngay!</div>}
       <div className="mc-top"><TypeChip type={t.type} /><span className="mc-id">{t.id}</span><span className="mc-status"><StatusChip status={t.status} overdue={overdue} /></span></div>
-      <Line k="Hợp đồng">{t.contractId}{t.refId ? ` · ${t.refId}` : ''}</Line>
-      {t.arriveAt && <Line k="Phải có mặt lúc" vClass="sm"><b>{fmtDT(t.arriveAt)}</b></Line>}
-      {t.deliver && <>
-        <Line k="Giao cho">{t.deliver.name}</Line>
-        {t.deliver.address && <Line k="Địa chỉ giao" kFix vClass="sm">{t.deliver.address}</Line>}
-        {(t.deliver.receiverName || t.deliver.receiverPhone) && <Line k="Người nhận" vClass="sm">{t.deliver.receiverName}{t.deliver.receiverPhone && <> · <a href={`tel:${t.deliver.receiverPhone}`}>{t.deliver.receiverPhone}</a></>}</Line>}
-        {(t.deliver.contactName || t.deliver.contactPhone) && <Line k="Liên hệ" vClass="sm">{t.deliver.contactName}{t.deliver.contactPhone && <> · <a href={`tel:${t.deliver.contactPhone}`}>{t.deliver.contactPhone}</a></>}</Line>}
-      </>}
-      {t.kgRequired > 0 && <Line k={isMa ? 'Khối lượng chở đi mạ' : 'Khối lượng lấy từ mạ'}><Kg value={t.kgRequired} /></Line>}
+      <TaskRoute t={t} />
       <Line k="Giao việc" vClass="light">{fmtDT(t.assignedAt)} · {relTime(t.assignedAt)}</Line>
-      {t.note && <Line k="Ghi chú" kFix vClass="light">{t.note}</Line>}
       {t.fillDeadline && !t.filledAt && !overdue && t.status === 'Đang chạy' && (
         <div className="deadline-chip"><Timer />Còn&nbsp;<b>{hl}h</b>&nbsp;để điền phiếu (hạn {fmtDT(t.fillDeadline)})</div>
       )}
@@ -161,7 +153,7 @@ function TaskCard({ t }: { t: Task }) {
       {t.status === 'Đã nhận' && (
         <>
           <div className="btn-row"><Btn variant="rust" icon={Navigation} loading={depart.isPending} onClick={() => depart.mutate(t.id)}>XUẤT PHÁT</Btn></div>
-          <div className="f-hint" style={{ marginTop: 6, textAlign: 'center' }}>Sau khi xuất phát bạn có {m.meta?.fillHours ?? 24}h để điền số cân + ảnh phiếu.</div>
+          <div className="f-hint" style={{ marginTop: 6, textAlign: 'center' }}>Điền số cân + ảnh phiếu trước <b>{t.fillDeadline ? fmtDT(t.fillDeadline) : 'hạn trả phiếu'}</b>.</div>
         </>
       )}
       {t.status === 'Đang chạy' && (isMa ? <GalvForm t={t} /> : <DelivForm t={t} />)}

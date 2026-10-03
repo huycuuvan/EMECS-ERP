@@ -668,6 +668,12 @@ def _kg_from_ref(db: Session, type_: str, ref_id: str | None) -> float:
     return (t.kg_at_galv if t and t.kg_at_galv is not None else (t.kg_required if t else 0)) or 0
 
 
+def _galv_of_ref(db: Session, ref_id: str | None) -> int | None:
+    """Giao khách: điểm lấy hàng = xưởng mạ của thẻ đi mạ gốc."""
+    t = db.get(Task, ref_id) if ref_id else None
+    return t.galvanizer_id if t else None
+
+
 def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | None, kg_required: float | None,
                 note: str, vehicle_plate: str | None = None, galvanizer_id: int | None = None, arrive_at=None,
                 fill_deadline=None, **deliver) -> Task:
@@ -687,7 +693,8 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
     t = Task(id=next_id(db, "VC", "vc"), type=type_, driver=driver, contract_id=cid, ref_id=ref_id,
              assigned_at=utcnow(), status="Chờ xác nhận", kg_required=kg or 0, note=note or "",
              vehicle_plate=(vehicle_plate or "").strip().upper() or None,
-             galvanizer_id=galvanizer_id if type_ == "di_ma" else None, arrive_at=arrive_at, fill_deadline=fill_deadline)
+             galvanizer_id=galvanizer_id if type_ == "di_ma" else _galv_of_ref(db, ref_id),
+             arrive_at=arrive_at, fill_deadline=fill_deadline)
     if type_ == "giao_khach":
         t.deliver_customer_id = deliver.get("deliver_customer_id")
         for k in ("deliver_name", "deliver_address", "receiver_name", "receiver_phone", "contact_name", "contact_phone"):
