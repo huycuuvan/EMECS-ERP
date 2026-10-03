@@ -4,11 +4,13 @@
    Lưu → hợp đồng sang bước "Đã soạn thảo"; Tải Word xuất đúng file mẫu; "Đã gửi khách hàng" → báo Quản lý. */
 import { Alert, App, Button, DatePicker, Input, InputNumber, Modal, Spin, Tooltip } from 'antd'
 import dayjs from 'dayjs'
-import { ArrowLeft, Download, Plus, RotateCcw, Save, Send, Settings2, Trash2 } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { ArrowLeft, Download, Plus, RotateCcw, Save, Send, Settings2, Trash2, UserPen } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useContract, useContractDocument, useSaveContractDocument, useSaveSeller } from '@/api/hooks'
 import { blobError, downloadFile } from '@/api/hooksEdit'
+import { useCustomers } from '@/api/hooksMaster'
+import CustomerFormModal from './customers/CustomerFormModal'
 import type { ContractDocument, ContractDraftInput, Party } from '@/api/types'
 import { CompleteChip, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
@@ -65,6 +67,20 @@ function Editor({ doc }: { doc: ContractDocument }) {
   const [s, setS] = useState<State>(() => fromDoc(doc))
   const [saved, setSaved] = useState<State>(() => fromDoc(doc))
   const [sellerOpen, setSellerOpen] = useState(false)
+  const [custOpen, setCustOpen] = useState(false)
+  const { data: customers = [] } = useCustomers()
+  const customer = customers.find((x) => x.id === doc.customerId)
+  /* Bên A "sống" theo danh mục khách hàng: khi thông tin khách được bổ sung, ô chưa sửa tay tự cập nhật theo */
+  const prevAuto = useRef(doc.buyerAuto)
+  useEffect(() => {
+    const old = prevAuto.current
+    prevAuto.current = doc.buyerAuto
+    if (samePerson(old, doc.buyerAuto)) return
+    setS((p) => (samePerson(p.buyer, old) ? { ...p, buyer: doc.buyerAuto } : p))
+    setSaved((p) => (samePerson(p.buyer, old) ? { ...p, buyer: doc.buyerAuto } : p))
+  }, [doc.buyerAuto])
+  const missing = ([['address', 'địa chỉ'], ['phone', 'điện thoại'], ['taxCode', 'mã số thuế'], ['representative', 'người đại diện'],
+    ['title', 'chức vụ'], ['banks', 'tài khoản']] as const).filter(([k]) => (k === 'banks' ? !doc.buyerAuto.banks.length : !doc.buyerAuto[k])).map(([, l]) => l)
   const set = <K extends keyof State>(k: K, v: State[K]) => setS((p) => ({ ...p, [k]: v }))
   const setBuyer = (k: keyof Party, v: string | string[]) => setS((p) => ({ ...p, buyer: { ...p.buyer, [k]: v } }))
   const ro = doc.locked || !can('hop-dong', 'edit')
@@ -160,6 +176,17 @@ function Editor({ doc }: { doc: ContractDocument }) {
                 <R><Input size="small" variant="borderless" className="b" disabled={ro} value={s.buyer.title} onChange={(e) => setBuyer('title', e.target.value)} style={{ width: 140 }} /></R>
               </Row>
               {!doc.customerId && <div className="hint">Đơn hàng chưa gắn khách trong danh mục — nhập tay thông tin Bên A.</div>}
+              {customer && (
+                <div className="hint" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                  {missing.length
+                    ? <span style={{ color: 'var(--amber)' }}>Khách “{customer.name}” trong tab Khách hàng chưa có: <b>{missing.join(', ')}</b>.</span>
+                    : <span>Tự điền từ tab Khách hàng — “{customer.name}”.</span>}
+                  {!ro && can('khach-hang', 'full') && (
+                    <Button size="small" type={missing.length ? 'primary' : 'link'} icon={<UserPen size={12} />} onClick={() => setCustOpen(true)}>
+                      {missing.length ? 'Bổ sung thông tin khách hàng' : 'Sửa thông tin khách hàng'}</Button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Bên B — thông tin công ty */}
@@ -284,6 +311,7 @@ function Editor({ doc }: { doc: ContractDocument }) {
       </div>
 
       {sellerOpen && <SellerModal seller={seller} onClose={() => setSellerOpen(false)} />}
+      {custOpen && customer && <CustomerFormModal customer={customer} onClose={() => setCustOpen(false)} />}
     </>
   )
 }
