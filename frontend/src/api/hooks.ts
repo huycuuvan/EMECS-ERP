@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App } from 'antd'
 import { api, errorMessage, tokenStore } from './client'
 import type {
-  AuditLog, AuthUser, Contract, ContractAgg, ContractRow, Dashboard, ID, Ledger, Lsx, Meta, Mismatch, MovementRow, Notification,
+  AuditLog, AuthUser, Contract, ContractAgg, ContractDocument, ContractDraftInput, ContractRow, Dashboard, Party, ID, Ledger, Lsx, Meta, Mismatch, MovementRow, Notification,
   Order, OrderItem, OverdueDoc, PendingDelta, Receipt, Task, TaskType, VLoss, Weighing,
 } from './types'
 
@@ -83,13 +83,22 @@ function useAction<TVars, TRes>(fn: (v: TVars) => Promise<TRes>, success?: strin
 export type OrderInput = { customer: string; customerId?: number; code?: string; items: Omit<OrderItem, 'id' | 'amount'>[]; file?: string; note?: string; vatPct?: number }
 export const useCreateOrder = () => useAction((v: OrderInput) => post<Order>('/orders', v), (o) => `Đã tạo đơn ${o.id}`)
 export const useUpdateOrder = () => useAction(({ id, ...v }: Partial<OrderInput> & { id: ID }) => api.patch<Order>(`/orders/${id}`, v).then((r) => r.data), (o) => `Đã lưu đơn ${o.id}`)
-export const useSendOrderToKT = () => useAction((id: ID) => post<Contract>(`/orders/${id}/send-to-kt`), (c) => `Đã chuyển kế toán — tạo hợp đồng ${c.id}`)
+export const useSendOrderToKT = () => useAction(({ id, completeBy }: { id: ID; completeBy: string }) => post<Contract>(`/orders/${id}/send-to-kt`, { completeBy }), (c) => `Đã chuyển kế toán — tạo hợp đồng ${c.id}`)
 
 export type ContractPatch = { id: ID; owner?: string; dueAt?: string; unitPrice?: number; advancePct?: number; note?: string }
 export const useUpdateContract = () => useAction(({ id, ...v }: ContractPatch) => api.patch<Contract>(`/contracts/${id}`, v).then((r) => r.data), (c) => `Đã lưu hợp đồng ${c.id}`)
-export const useContractReturned = () => useAction((id: ID) => post<Contract>(`/contracts/${id}/returned`), (c) => `${c.id}: đã trả hợp đồng cho khách`)
-export const useContractSigned = () => useAction((id: ID) => post<Contract>(`/contracts/${id}/signed`), (c) => `${c.id}: đã ký hợp đồng`)
-export const useRecordPayment = () => useAction(({ id, ...v }: { id: ID; amount: number; type: string; note?: string }) => post<Contract>(`/contracts/${id}/payments`, v), 'Đã ghi nhận tiền về')
+export const useContractReturned = () => useAction((id: ID) => post<Contract>(`/contracts/${id}/returned`), (c) => `${c.id}: đã gửi hợp đồng cho khách hàng — đã báo Quản lý`)
+export const useContractSigned = () => useAction((id: ID) => post<Contract>(`/contracts/${id}/signed`), (c) => `${c.id}: đã nhận về hợp đồng khách ký`)
+export const useContractCompleted = () => useAction((id: ID) => post<Contract>(`/contracts/${id}/completed`), (c) => `${c.id}: đã hoàn thành`)
+export const useRecordPayment = () => useAction(({ id, ...v }: { id: ID; amount: number; type: string; note?: string }) => post<Contract>(`/contracts/${id}/payments`, v), 'Đã ghi tiền về — chờ Quản lý duyệt')
+export const useApprovePayment = () => useAction((pid: number) => post<Contract>(`/payments/${pid}/approve`), 'Đã duyệt tiền về')
+export const useRejectPayment = () => useAction(({ pid, reason }: { pid: number; reason: string }) => post<Contract>(`/payments/${pid}/reject`, { reason }), 'Đã từ chối khoản tiền về')
+
+/* soạn thảo hợp đồng theo mẫu + thông tin công ty (Bên B) */
+export const useContractDocument = (id?: ID) => useQuery({ queryKey: ['contracts', id, 'document'], queryFn: () => get<ContractDocument>(`/contracts/${id}/document`), enabled: !!id })
+export const useSaveContractDocument = () => useAction(({ id, ...v }: ContractDraftInput & { id: ID }) => api.put<ContractDocument>(`/contracts/${id}/document`, v).then((r) => r.data), 'Đã lưu bản soạn thảo hợp đồng')
+export const useSeller = () => useQuery({ queryKey: ['settings', 'seller'], queryFn: () => get<Party>('/settings/seller') })
+export const useSaveSeller = () => useAction((v: Party) => api.put<Party>('/settings/seller', v).then((r) => r.data), 'Đã lưu thông tin công ty (Bên B)')
 
 export const useCreateLsx = () => useAction((v: { contractId: ID; name?: string; qty: number; kg: number; leadDays: number }) => post<Lsx>('/lsx', v), (x) => `Đã phát lệnh ${x.id}`)
 export const useLsxAccept = () => useAction((id: ID) => post<Lsx>(`/lsx/${id}/accept`), (x) => `Xưởng đã nhận lệnh ${x.id}`)

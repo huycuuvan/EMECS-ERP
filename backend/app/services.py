@@ -10,7 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import serializers as S
-from .config import CONTRACT_DAYS, FILL_HOURS, PC_FILL_HOURS, PEOPLE, TOLERANCE_KG
+from .config import (COMPLETE_WARN_DAYS, CONTRACT_DAYS, CT_DONE, CT_RECEIVED, CT_SENT, CT_WAIT, FILL_HOURS, PAY_OK,
+                     PAY_PENDING, PAY_REJECTED, PC_FILL_HOURS, PEOPLE, TOLERANCE_KG)
 from .db import utcnow
 from .security import actor
 from .models import (Contract, Customer, Lsx, LsxLog, Mismatch, Notification, Order, OrderItem, Payment, Receipt,
@@ -38,8 +39,14 @@ def next_id(db: Session, prefix: str, key: str, month_code: bool = False) -> str
     return f"{prefix}-{seq.value:04d}"
 
 
-def notify(db: Session, title: str, sub: str = "", type_: str = "warning") -> None:
-    db.add(Notification(at=utcnow(), title=title, sub=sub, type=type_))
+def notify(db: Session, title: str, sub: str = "", type_: str = "warning", roles: str | None = None) -> None:
+    """roles: vai trò nhận ("admin", "kt,admin"…); None = mọi người."""
+    db.add(Notification(at=utcnow(), title=title, sub=sub, type=type_, roles=roles))
+
+
+def approved(payments) -> list:
+    """Chỉ tiền về đã được Quản lý duyệt mới tính vào tiền đã về / công nợ."""
+    return [p for p in payments if (p.status or PAY_OK) == PAY_OK]
 
 
 def _sum(items, f) -> float:
@@ -76,7 +83,8 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
     at_galv_kg = sent_galv_kg - picked_kg
     stock_kg = received_kg - weighed_kg
     delivered_value = round(delivered_kg * (c.unit_price or 0))
-    paid_total = _sum(c.payments, lambda p: p.amount)
+    paid_total = _sum(approved(c.payments), lambda p: p.amount)
+    pending_pay = _sum([p for p in c.payments if p.status == PAY_PENDING], lambda p: p.amount)
     debt = delivered_value - paid_total
 
     checks = [
@@ -104,7 +112,8 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
         "producedKg": produced_kg, "producedQty": produced_qty, "receivedKg": received_kg, "weighedKg": weighed_kg,
         "sentGalvKg": sent_galv_kg, "inTransitToGalvKg": in_transit_kg, "atGalvKg": at_galv_kg,
         "pickedKg": picked_kg, "deliveredKg": delivered_kg, "stockKg": stock_kg,
-        "deliveredValue": delivered_value, "paidTotal": paid_total, "debt": debt,
+        "deliveredValue": delivered_value, "paidTotal": paid_total, "debt": debt, "pendingPayment": pending_pay,
+        "complete": complete_info(c, delivered_kg),
         "pctProduced": round(produced_kg / tk * 100) if tk else 0,
         "pctDelivered": round(delivered_kg / tk * 100) if tk else 0,
         "pctPaid": round(paid_total / c.value * 100) if c.value else 0,
@@ -202,6 +211,21 @@ def contract_due_info(c: Contract) -> dict:
     return {"state": "due" if dl <= 1 else "fine", "label": f"Còn {dl} ngày", "days": dl}
 
 
+def complete_info(c: Contract, delivered_kg: float | None = None) -> dict:
+    """Cảnh báo theo NGÀY HOÀN THÀNH đơn (QL nhập khi chuyển kế toán): quá hạn / sắp tới hạn mà chưa giao đủ."""
+    if not c.complete_by:
+        return {"state": "none", "label": "Chưa có ngày hoàn thành", "days": None}
+    done = c.status == CT_DONE or (delivered_kg is not None and c.total_kg and delivered_kg >= c.total_kg - 0.5)
+    if done:
+        return {"state": "ok", "label": f"Đã hoàn thành · hạn {fmt_d(c.complete_by)}", "days": None}
+    dl = _days_left(c.complete_by)
+    if dl < 0:
+        return {"state": "overdue", "label": f"QUÁ HẠN HOÀN THÀNH {abs(dl)} ngày ({fmt_d(c.complete_by)})", "days": dl}
+    if dl <= COMPLETE_WARN_DAYS:
+        return {"state": "soon", "label": f"Còn {dl} ngày tới hạn hoàn thành ({fmt_d(c.complete_by)})", "days": dl}
+    return {"state": "fine", "label": f"Hoàn thành trước {fmt_d(c.complete_by)} · còn {dl} ngày", "days": dl}
+
+
 def advance_info(c: Contract) -> dict:
     if not c.advance_required:
         return {"state": "none", "label": "Không yêu cầu"}
@@ -241,9 +265,17 @@ def contract_alerts(db: Session) -> list[dict]:
     out = []
     for c in db.scalars(select(Contract)):
         due, adv = contract_due_info(c), advance_info(c)
-        if due["state"] in ("overdue", "due") or adv["state"] == "missing":
-            out.append({"contract": S.contract(c), "due": due, "adv": adv})
+        delivered = _sum(db.scalars(select(Task).where(Task.contract_id == c.id, Task.type == "giao_khach")).all(),
+                         lambda t: t.kg_delivered)
+        comp = complete_info(c, delivered)
+        if due["state"] in ("overdue", "due") or adv["state"] == "missing" or comp["state"] in ("overdue", "soon"):
+            out.append({"contract": S.contract(c), "due": due, "adv": adv, "complete": comp})
     return out
+
+
+def pending_payments(db: Session) -> list[dict]:
+    return [{**S.payment(p), "contractId": p.contract_id, "customer": p.contract.customer}
+            for p in db.scalars(select(Payment).where(Payment.status == PAY_PENDING).order_by(Payment.date))]
 
 
 def pending_deltas(db: Session) -> list[dict]:
@@ -280,13 +312,14 @@ def dashboard(db: Session, tag: int | None = None, segment: str | None = None) -
         cids = seg if cids is None else cids & seg
     keep = (lambda cid: cid in cids) if cids is not None else (lambda cid: True)
     contracts = [c for c in db.scalars(select(Contract)).all() if keep(c.id)]
-    active = [c for c in contracts if c.status in ("Đang triển khai", "Đã ký")]
+    active = [c for c in contracts if c.status == CT_RECEIVED]
     pending_sl = [m for m in db.scalars(select(Mismatch).where(Mismatch.status == "Chờ QL ký")).all() if keep(m.contract_id)]
     delivered_total = _sum([t for t in db.scalars(select(Task).where(Task.type == "giao_khach")).all() if keep(t.contract_id)],
                            lambda t: t.kg_delivered)
     return {
         "activeContracts": len(active), "deliveredKgTotal": delivered_total,
         "contractAlerts": [a for a in contract_alerts(db) if keep(a["contract"]["id"])],
+        "pendingPayments": [p for p in pending_payments(db) if keep(p["contractId"])],
         "overdueDocs": [o for o in overdue_docs(db) if keep(o["contractId"])],
         "pendingMismatches": [S.mismatch(m) for m in pending_sl],
         "pendingMismatchKg": _sum(pending_sl, lambda m: abs(m.delta)),
@@ -347,21 +380,32 @@ def update_order(db: Session, oid: str, data: dict) -> Order:
     return o
 
 
-def send_order_to_kt(db: Session, oid: str) -> Contract:
+def send_order_to_kt(db: Session, oid: str, complete_by: datetime | None) -> Contract:
     o = get_or_404(db, Order, oid)
     if o.contract_id:
         raise HTTPException(400, f"Đơn {oid} đã có hợp đồng {o.contract_id}")
+    if not complete_by:
+        raise HTTPException(400, "Chưa nhập ngày hoàn thành đơn hàng")
     now = utcnow()
+    if complete_by.tzinfo is None:
+        from .utils import VN_TZ
+        complete_by = complete_by.replace(tzinfo=VN_TZ)
+    if complete_by < now:
+        raise HTTPException(400, "Ngày hoàn thành phải sau hôm nay")
+    o.complete_by = complete_by
     first = o.items[0] if o.items else None
     c = Contract(id=next_id(db, "HD", "hd", month_code=True), order_id=o.id, code=o.code, customer=o.customer,
-                 sent_to_kt_at=now, due_at=add_days(now, CONTRACT_DAYS), status="Soạn thảo", owner=KT,
+                 sent_to_kt_at=now, due_at=add_days(now, CONTRACT_DAYS), status=CT_WAIT, owner=KT,
+                 number=o.id, complete_by=complete_by,
                  total_qty=sum(i.qty for i in o.items), unit=first.unit if first else "cấu kiện",
                  total_kg=o.total_kg, unit_price=round(o.value / o.total_kg) if o.total_kg else 0, value=o.value,
                  vat_pct=o.vat_pct if o.vat_pct is not None else 10, advance_pct=30, advance_required=round(o.value * 0.3), advance_received=0,
                  note=f"Tạo từ đơn {o.id} — giá theo giá thị trường ngày chốt.")
     db.add(c)
     o.contract_id, o.status = c.id, "Đã chuyển kế toán"
-    notify(db, f"Đơn {o.id} đã chuyển kế toán", f"Hạn trả hợp đồng: {fmt_d(c.due_at)} (05 ngày)", "info")
+    notify(db, f"Đơn {o.id} đã chuyển kế toán — soạn hợp đồng {c.id}",
+           f"Hạn gửi hợp đồng cho khách: {fmt_d(c.due_at)} (05 ngày) · ngày hoàn thành đơn {fmt_d(complete_by)}", "info",
+           roles="kt,admin")
     db.commit()
     return c
 
@@ -385,37 +429,89 @@ def update_contract(db: Session, cid: str, data: dict) -> Contract:
 
 
 def mark_contract_returned(db: Session, cid: str) -> Contract:
+    """Bước 2 — đã gửi hợp đồng cho khách hàng (sau khi soạn thảo) → báo Quản lý."""
     c = get_or_404(db, Contract, cid)
+    if c.status == CT_WAIT or not c.drafted_at and c.status not in (CT_SENT, CT_RECEIVED, CT_DONE):
+        raise HTTPException(400, "Chưa soạn thảo hợp đồng — vào Soạn thảo hợp đồng trước khi gửi khách")
+    if c.status in (CT_RECEIVED, CT_DONE):
+        raise HTTPException(400, f"Hợp đồng đang ở bước \"{c.status}\"")
     c.returned_at = utcnow()
-    if not c.sign_date:
-        c.status = "Đã trả khách"
+    c.status = CT_SENT
+    notify(db, f"HĐ {c.id} đã gửi khách hàng", f"{c.customer} · số {c.number or c.order_id} — kế toán đã soạn và gửi khách",
+           "info", roles="admin")
     db.commit()
     return c
 
 
 def mark_contract_signed(db: Session, cid: str) -> Contract:
+    """Bước 3 — đã nhận về hợp đồng khách ký → được phát lệnh sản xuất."""
     c = get_or_404(db, Contract, cid)
+    if c.status not in (CT_SENT,) and not c.returned_at:
+        raise HTTPException(400, "Hợp đồng chưa gửi khách hàng")
+    if c.status in (CT_RECEIVED, CT_DONE):
+        raise HTTPException(400, f"Hợp đồng đã ở bước \"{c.status}\"")
     c.sign_date = utcnow()
     c.returned_at = c.returned_at or c.sign_date
-    c.status = "Đã ký"
+    c.status = CT_RECEIVED
     o = db.get(Order, c.order_id)
     if o:
         o.status = "Đã có hợp đồng"
+    notify(db, f"HĐ {c.id} đã nhận về (khách đã ký)", f"{c.customer} — có thể phát lệnh sản xuất", "success", roles="admin,kt")
+    db.commit()
+    return c
+
+
+def mark_contract_completed(db: Session, cid: str) -> Contract:
+    """Bước 4 — hoàn thành hợp đồng."""
+    c = get_or_404(db, Contract, cid)
+    if c.status != CT_RECEIVED:
+        raise HTTPException(400, "Chỉ hoàn thành hợp đồng đã nhận về")
+    c.status, c.completed_at = CT_DONE, utcnow()
+    notify(db, f"HĐ {c.id} đã hoàn thành", c.customer, "success", roles="admin,kt")
     db.commit()
     return c
 
 
 def record_payment(db: Session, cid: str, amount: float, type_: str, note: str) -> Contract:
+    """Kế toán nhập tay tiền về → chờ Quản lý duyệt (chưa tính vào tiền đã về / tạm ứng)."""
     c = get_or_404(db, Contract, cid)
     if not amount or amount <= 0:
         raise HTTPException(400, "Số tiền phải lớn hơn 0")
-    c.payments.append(Payment(date=utcnow(), amount=amount, type=type_ or "Thanh toán", note=note or ""))
-    if "tạm ứng" in (type_ or "").lower():
-        c.advance_received = (c.advance_received or 0) + amount
-        c.advance_received_at = c.advance_received_at or utcnow()
-    notify(db, f"Tiền về HĐ {cid}", f"{type_ or 'Thanh toán'}: {money(amount)}", "success")
+    c.payments.append(Payment(date=utcnow(), amount=amount, type=type_ or "Thanh toán", note=note or "",
+                              status=PAY_PENDING, created_by=actor(KT)))
+    notify(db, f"Tiền về chờ duyệt — HĐ {cid}", f"{type_ or 'Thanh toán'}: {money(amount)} · {actor(KT)} nhập",
+           "warning", roles="admin")
     db.commit()
     return c
+
+
+def _payment(db: Session, pid: int) -> Payment:
+    p = db.get(Payment, pid)
+    if not p:
+        raise HTTPException(404, f"Không tìm thấy khoản tiền về #{pid}")
+    if p.status != PAY_PENDING:
+        raise HTTPException(400, f"Khoản tiền này đã {p.status.lower()}")
+    return p
+
+
+def approve_payment(db: Session, pid: int) -> Contract:
+    p = _payment(db, pid)
+    c = p.contract
+    p.status, p.approved_by, p.approved_at = PAY_OK, actor(QL), utcnow()
+    if "tạm ứng" in (p.type or "").lower():
+        c.advance_received = (c.advance_received or 0) + p.amount
+        c.advance_received_at = c.advance_received_at or utcnow()
+    notify(db, f"Đã duyệt tiền về HĐ {c.id}", f"{p.type}: {money(p.amount)}", "success", roles="kt,admin")
+    db.commit()
+    return c
+
+
+def reject_payment(db: Session, pid: int, reason: str) -> Contract:
+    p = _payment(db, pid)
+    p.status, p.approved_by, p.approved_at, p.reject_reason = PAY_REJECTED, actor(QL), utcnow(), reason
+    notify(db, f"Từ chối tiền về HĐ {p.contract_id}", f"{p.type}: {money(p.amount)} — {reason}", "error", roles="kt,admin")
+    db.commit()
+    return p.contract
 
 
 # ---------------------------------------------------------------- lệnh sản xuất

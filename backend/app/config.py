@@ -27,6 +27,14 @@ ALLOW_DEMO_RESET = os.getenv("ALLOW_DEMO_RESET", "1") == "1"
 TOLERANCE_KG = 30   # dung sai cân xe tải — lệch quá mức này thì tạo sai lệch
 FILL_HOURS = 24     # hạn lái xe điền kg + ảnh phiếu kể từ khi xuất phát
 CONTRACT_DAYS = 5   # hạn kế toán trả hợp đồng kể từ khi nhận đơn
+COMPLETE_WARN_DAYS = int(os.getenv("COMPLETE_WARN_DAYS", "7"))  # cảnh báo khi còn ≤ N ngày tới ngày hoàn thành đơn
+
+# Trạng thái hợp đồng (4 bước kế toán) — trước bước 1 là "Chờ soạn thảo" (vừa nhận đơn từ Quản lý)
+CT_WAIT, CT_DRAFTED, CT_SENT, CT_RECEIVED, CT_DONE = (
+    "Chờ soạn thảo", "Đã soạn thảo", "Đã gửi khách hàng", "Đã nhận về", "Đã hoàn thành")
+CONTRACT_STATUSES = (CT_WAIT, CT_DRAFTED, CT_SENT, CT_RECEIVED, CT_DONE)
+# Tiền về: kế toán nhập → Quản lý duyệt mới tính vào tiền đã về / tạm ứng / công nợ
+PAY_PENDING, PAY_OK, PAY_REJECTED = "Chờ duyệt", "Đã duyệt", "Từ chối"
 PC_FILL_HOURS = 4   # phiếu cân trạm quá 4 giờ chưa có số/ảnh → quá hạn
 
 # Cảnh báo cuối ngày (giờ Việt Nam): sau END_OF_DAY_HOUR hệ thống tự tạo thông báo tổng hợp 1 lần/ngày.

@@ -125,7 +125,7 @@ export default function OrderFormModal({ order, onClose, onSaved }: { order?: Or
 
         {imported && (
           <Alert style={{ marginBottom: 12 }} type={imported.warnings.length ? 'warning' : 'info'} showIcon closable onClose={() => setImported(null)}
-            message={`Đã điền ${imported.items.length} dòng từ "${imported.fileName}" (sheet ${imported.sheet}) — kiểm tra lại rồi bấm Lưu.`}
+            title={`Đã điền ${imported.items.length} dòng từ "${imported.fileName}" (sheet ${imported.sheet}) — kiểm tra lại rồi bấm Lưu.`}
             description={imported.warnings.length ? <ul style={{ margin: 0, paddingLeft: 18 }}>{imported.warnings.map((w) => <li key={w}>{w}</li>)}</ul> : undefined} />
         )}
 

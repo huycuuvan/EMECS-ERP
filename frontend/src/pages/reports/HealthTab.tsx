@@ -42,7 +42,7 @@ export default function HealthTab() {
     },
     {
       title: 'Trạng thái', key: 'st', render: (_, g) => {
-        const standard = g.contract.status === 'Hoàn thành' && threePoint(g).allOk && g.pctDelivered >= 100
+        const standard = g.contract.status === 'Đã hoàn thành' && threePoint(g).allOk && g.pctDelivered >= 100
         return (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             <StatusTag status={g.contract.status} />

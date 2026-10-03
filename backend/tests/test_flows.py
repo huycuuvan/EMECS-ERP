@@ -37,7 +37,9 @@ def test_seed_dashboard_matches_demo(c):
     d = c.get("/api/dashboard").json()
     assert d["activeContracts"] == 4
     assert d["deliveredKgTotal"] == 103880
-    assert len(d["contractAlerts"]) == 4
+    assert len(d["contractAlerts"]) == 5
+    sd06 = next(a for a in d["contractAlerts"] if a["contract"]["id"] == "HD-2609-06")
+    assert sd06["complete"]["state"] == "soon"  # còn ≤ 7 ngày tới ngày hoàn thành mà chưa giao đủ
     assert [x["id"] for x in d["overdueDocs"]] == ["VC-0006"]
     assert d["pendingMismatchKg"] == 160
 
@@ -46,10 +48,14 @@ def test_order_to_contract(c):
     o = c.post("/api/orders", json={"customer": "Cty Test", "items": [
         {"name": "Dầm I-300", "qty": 10, "unit": "cấu kiện", "kg": 5000, "price": 50000}]}).json()
     assert o["status"] == "Chốt đơn" and o["value"] == 250_000_000
-    hd = c.post(f"/api/orders/{o['id']}/send-to-kt").json()
-    assert hd["status"] == "Soạn thảo" and hd["advance"]["required"] == 75_000_000
-    assert c.post(f"/api/orders/{o['id']}/send-to-kt").status_code == 400
+    assert c.post(f"/api/orders/{o['id']}/send-to-kt", json={}).status_code == 400  # thiếu ngày hoàn thành
+    hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-12-31T00:00:00+07:00"}).json()
+    assert hd["status"] == "Chờ soạn thảo" and hd["advance"]["required"] == 75_000_000
+    assert hd["number"] == o["id"] and hd["completeBy"].startswith("2099-12-31")
+    assert c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-12-31"}).status_code == 400
     hd = c.post(f"/api/contracts/{hd['id']}/payments", json={"amount": 75_000_000, "type": "Tạm ứng 30%"}).json()
+    assert hd["advance"]["received"] == 0 and hd["payments"][0]["status"] == "Chờ duyệt"  # chờ Quản lý duyệt
+    hd = c.post(f"/api/payments/{hd['payments'][0]['id']}/approve").json()
     assert hd["advance"]["received"] == 75_000_000
 
 
@@ -113,7 +119,10 @@ def test_movement_log_accepts_plain_dates(c):
 
 
 def test_sign_contract_updates_order_status(c):
-    c.post("/api/contracts/HD-2609-02/signed")
+    assert c.post("/api/contracts/HD-2609-02/signed").status_code == 400  # chưa gửi khách
+    c.put("/api/contracts/HD-2609-02/document", json={})
+    c.post("/api/contracts/HD-2609-02/returned")
+    assert c.post("/api/contracts/HD-2609-02/signed").json()["status"] == "Đã nhận về"
     assert c.get("/api/orders/DH-2609-02").json()["status"] == "Đã có hợp đồng"
 
 
@@ -127,7 +136,10 @@ def test_requires_login():
 def test_role_permissions(c):
     login(c, "kt")
     assert c.get("/api/contracts").status_code == 200
+    assert c.post("/api/contracts/HD-2609-02/returned").status_code == 400  # chưa soạn thảo
+    assert c.put("/api/contracts/HD-2609-02/document", json={"warranty": "18 tháng"}).status_code == 200
     assert c.post("/api/contracts/HD-2609-02/returned").status_code == 200  # kế toán: full hợp đồng
+    assert c.post("/api/payments/1/approve").status_code == 403  # chỉ Quản lý duyệt tiền về
     assert c.post("/api/mismatches/SL-0002/sign").status_code == 403  # chỉ Quản lý ký
     assert c.get("/api/weighings").status_code == 200  # đọc: mọi người đăng nhập
     assert c.post("/api/weighings", json={"sourceId": "LSX-SD06", "kgExpected": 1}).status_code == 403  # kế toán không ghi trạm cân

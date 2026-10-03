@@ -44,6 +44,7 @@ export default function OrderDrawer({ id }: { id: string }) {
             <Cell label="Khách hàng" extra={<CustomerTags name={o.customer} />}>{o.customer}</Cell>
             <Cell label="Mã nội bộ">{o.code}</Cell>
             <Cell label="Ngày chốt">{fmtD(o.date)}</Cell>
+            {o.completeBy && <Cell label="Ngày hoàn thành">{fmtD(o.completeBy)}</Cell>}
             <Cell label="File đính kèm">
               {o.file ? (
                 <a style={{ color: 'var(--rust)', display: 'inline-flex', alignItems: 'center', gap: 5 }}
@@ -102,6 +103,7 @@ export default function OrderDrawer({ id }: { id: string }) {
           <HistoryBlock type="dh" id={o.id} />
 
           {editing && <OrderFormModal order={o} onClose={() => setEditing(false)} />}
+          {askSend.dialog}
         </>
       )}
     </PeekShell>

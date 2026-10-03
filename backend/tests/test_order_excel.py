@@ -61,7 +61,7 @@ def test_order_kg_per_unit_vat_and_export(c):
     assert o["totalKg"] == 15800 + 500 and o["value"] == 426_600_000 + 10_000_000
     assert o["items"][0]["kg"] == 15800 and o["items"][0]["note"] == "đợt 1" and o["items"][1]["kgPerUnit"] == 250
     assert o["vatPct"] == 10 and o["valueAfterVat"] == round(o["value"] * 1.1)
-    hd = c.post(f"/api/orders/{o['id']}/send-to-kt").json()
+    hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     assert hd["vatPct"] == 10
 
     x = c.get(f"/api/orders/{o['id']}/excel")

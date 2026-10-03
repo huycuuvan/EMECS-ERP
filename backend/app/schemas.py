@@ -46,6 +46,10 @@ class OrderUpdate(In):
     vat_pct: float | None = Field(default=None, ge=0, le=100)
 
 
+class SendToKtIn(In):
+    complete_by: datetime | None = None  # ngày hoàn thành đơn (bắt buộc — kiểm tra ở service để báo lỗi tiếng Việt)
+
+
 class ContractUpdate(In):
     owner: str | None = None
     due_at: datetime | None = None

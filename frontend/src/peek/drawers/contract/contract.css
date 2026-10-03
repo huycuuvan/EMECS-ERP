@@ -103,3 +103,10 @@
   .hdbs-eq { justify-content: center; }
   .hdta { grid-template-columns: 1fr; }
 }
+
+/* ---------- 4 bước hợp đồng (kế toán) ---------- */
+.hd-steps { background: var(--canvas); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px 10px; margin-bottom: 12px; }
+.hd-steps .ant-steps-item-title { font-size: 12px !important; }
+.hd-steps-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; font-size: 12px; color: var(--ash); align-items: center; }
+.hd-steps-meta > span { display: inline-flex; align-items: center; gap: 6px; }
+.hd-steps-meta b { color: var(--ink); }

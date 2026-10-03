@@ -1,9 +1,14 @@
 /* Drawer Hợp đồng (port ERPPeek.register('hd') của steel-data.js) — 3 màn hình:
    (1) Tổng quan · (2) Hàng giao ⇄ Tiền về (tài khoản chữ T) · (3) Luân chuyển thép (nguồn = phân bổ + sổ số dư chạy).
-   Thao tác: Sửa · Đã trả HĐ · Đã ký · + Tiền về · Phát lệnh SX (theo trạng thái + quyền). */
-import { Button } from 'antd'
-import { ArrowLeftRight, BadgeCheck, Banknote, Factory, Info, Pencil, Scale, Undo2 } from 'lucide-react'
+   Thanh 4 bước kế toán (Đã soạn thảo → Đã gửi khách hàng → Đã nhận về → Đã hoàn thành) · ngày hoàn thành ·
+   Thao tác: Soạn thảo / Tải Word · chuyển bước · + Tiền về (chờ QL duyệt) · Phát lệnh SX · Sửa. */
+import { App, Button, Steps } from 'antd'
+import { ArrowLeftRight, BadgeCheck, Banknote, CircleCheckBig, Download, Factory, FilePen, Info, Pencil, Scale, Send } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { blobError, downloadFile } from '@/api/hooksEdit'
+import { CONTRACT_STEPS } from '@/api/types'
+import { CompleteChip } from '@/components/ui'
 import { useContract, useLedger } from '@/api/hooks'
 import HistoryBlock from '@/components/HistoryBlock'
 import { useAuth } from '@/lib/auth'
@@ -15,6 +20,7 @@ import { useContractFlow } from './contract/useContractFlow'
 import { committedKg } from './contract/utils'
 import MoneyTab from './contract/MoneyTab'
 import OverviewTab from './contract/OverviewTab'
+import PaymentApprovals from './contract/PaymentApprovals'
 import RelatedLinks from './contract/RelatedLinks'
 import './contract/contract.css'
 
@@ -31,17 +37,22 @@ export default function ContractDrawer({ id }: { id: string }) {
   const { data: L } = useLedger(id)
   const { can, hasRole } = useAuth()
   const flow = useContractFlow()
+  const navigate = useNavigate()
+  const { message } = App.useApp()
   const [tab, setTab] = useState(0)
   const [dialog, setDialog] = useState<Dialog>(null)
 
   const c = g?.contract
   const canEdit = can('hop-dong', 'edit')
   const canLsx = hasRole('admin') // server: chỉ Quản lý phát lệnh SX
-  const canPay = !!c && canEdit && !!c.signDate && c.status !== 'Hoàn thành'
+  const canPay = !!c && canEdit && c.status === 'Đã nhận về'
   const lsxRemain = g && c ? c.totalKg - committedKg(g.lsxs) : 0
-  const showReturned = !!c && canEdit && !c.returnedAt
-  const showSigned = !!c && canEdit && !!c.returnedAt && !c.signDate
-  const showLsx = !!c && canLsx && !!c.signDate && c.status !== 'Hoàn thành' && lsxRemain > 0
+  const showReturned = !!c && canEdit && c.status === 'Đã soạn thảo'
+  const showSigned = !!c && canEdit && c.status === 'Đã gửi khách hàng'
+  const showDone = !!c && canEdit && c.status === 'Đã nhận về'
+  const showLsx = !!c && canLsx && !!c.signDate && c.status !== 'Đã hoàn thành' && lsxRemain > 0
+  const step = c ? CONTRACT_STEPS.indexOf(c.status) : -1
+  const word = () => c && downloadFile(`/contracts/${c.id}/document.docx`, `Hop-dong_${c.id}.docx`).catch(async (e) => message.error(await blobError(e)))
 
   const actions = c && canEdit
     ? <Button size="small" ghost icon={<Pencil size={12} />} onClick={() => setDialog('edit')}>Sửa</Button>
@@ -52,11 +63,29 @@ export default function ContractDrawer({ id }: { id: string }) {
       sub={c ? `${c.customer} · ${fmtNum(c.totalQty)} ${c.unit} · ${fmtT(c.totalKg)}` : undefined}>
       {g && c && (
         <>
-          {(showReturned || showSigned || canPay || showLsx) && (
+          <div className="hd-steps">
+            <Steps size="small" current={step < 0 ? 0 : c.status === 'Đã hoàn thành' ? 4 : step + 1}
+              status={c.status === 'Chờ soạn thảo' ? 'wait' : 'process'}
+              items={CONTRACT_STEPS.map((s) => ({ title: s }))} />
+            <div className="hd-steps-meta">
+              <span>Số HĐ <b className="mono">{c.number || '—'}</b></span>
+              <span>Ngày hoàn thành <CompleteChip info={g.complete} /></span>
+            </div>
+          </div>
+
+          {(canEdit || showLsx) && (
             <div className="hd-actbar">
               <span className="lbl">Thao tác</span>
-              {showReturned && <Button size="small" icon={<Undo2 size={13} />} onClick={() => flow.askReturned(c)}>Đã trả HĐ</Button>}
-              {showSigned && <Button size="small" icon={<BadgeCheck size={13} />} onClick={() => flow.askSigned(c)}>Đã ký</Button>}
+              {canEdit && (
+                <Button size="small" type={c.status === 'Chờ soạn thảo' ? 'primary' : 'default'} icon={<FilePen size={13} />}
+                  onClick={() => navigate(`/hop-dong/${c.id}/soan-thao`)}>
+                  {c.status === 'Chờ soạn thảo' ? 'Soạn thảo hợp đồng' : c.status === 'Đã soạn thảo' || c.status === 'Đã gửi khách hàng' ? 'Sửa bản hợp đồng' : 'Xem bản hợp đồng'}
+                </Button>
+              )}
+              {c.draftedAt && <Button size="small" icon={<Download size={13} />} onClick={word}>Tải Word</Button>}
+              {showReturned && <Button size="small" icon={<Send size={13} />} onClick={() => flow.askReturned(c)}>Đã gửi khách hàng</Button>}
+              {showSigned && <Button size="small" icon={<BadgeCheck size={13} />} onClick={() => flow.askSigned(c)}>Đã nhận về</Button>}
+              {showDone && <Button size="small" icon={<CircleCheckBig size={13} />} onClick={() => flow.askCompleted(c)}>Đã hoàn thành</Button>}
               {canPay && <Button size="small" type="primary" icon={<Banknote size={13} />} onClick={() => setDialog('pay')}>+ Tiền về</Button>}
               {showLsx && (
                 <>
@@ -66,6 +95,8 @@ export default function ContractDrawer({ id }: { id: string }) {
               )}
             </div>
           )}
+
+          <PaymentApprovals payments={c.payments} />
 
           <div className="hdtabs">
             {TABS.map((t, i) => (

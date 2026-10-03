@@ -18,7 +18,14 @@ def order(o: Order) -> dict:
         "totalKg": o.total_kg, "value": o.value, "vatPct": o.vat_pct, "vatAmount": vat_amount(o),
         "valueAfterVat": o.value + vat_amount(o),
         "status": o.status, "contractId": o.contract_id, "note": o.note, "customerId": o.customer_id,
+        "completeBy": iso(o.complete_by),
     }
+
+
+def payment(p) -> dict:
+    return {"id": p.id, "date": iso(p.date), "amount": p.amount, "type": p.type, "note": p.note,
+            "status": p.status or "Đã duyệt", "createdBy": p.created_by or "", "approvedBy": p.approved_by,
+            "approvedAt": iso(p.approved_at), "rejectReason": p.reject_reason}
 
 
 def contract(c: Contract) -> dict:
@@ -29,9 +36,10 @@ def contract(c: Contract) -> dict:
         "unit": c.unit, "totalKg": c.total_kg, "unitPrice": c.unit_price, "value": c.value, "vatPct": c.vat_pct,
         "advance": {"pct": c.advance_pct, "required": c.advance_required, "received": c.advance_received,
                     "receivedAt": iso(c.advance_received_at)},
-        "payments": [{"id": p.id, "date": iso(p.date), "amount": p.amount, "type": p.type, "note": p.note}
-                     for p in c.payments],
-        "note": c.note,
+        "payments": [payment(p) for p in c.payments],
+        "pendingPayment": sum(p.amount for p in c.payments if p.status == "Chờ duyệt"),
+        "note": c.note, "number": c.number or c.order_id, "completeBy": iso(c.complete_by),
+        "draftedAt": iso(c.drafted_at), "completedAt": iso(c.completed_at),
     }
 
 

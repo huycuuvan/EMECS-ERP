@@ -8,7 +8,7 @@ export type OrderStatus = 'Chốt đơn' | 'Đã chuyển kế toán' | 'Đã c�
 export interface Order {
   id: ID; customer: string; code: string; date: string; file: string | null; items: OrderItem[]
   totalKg: number; value: number; status: OrderStatus; contractId: ID | null; note: string
-  vatPct: number; vatAmount: number; valueAfterVat: number; customerId?: number | null
+  vatPct: number; vatAmount: number; valueAfterVat: number; customerId?: number | null; completeBy: string | null
 }
 
 /** Kết quả đọc file Excel đặt hàng (POST /orders/import-excel) — chưa lưu. */
@@ -17,19 +17,30 @@ export interface OrderExcelImport {
   vatPct: number; totalKg: number; value: number; vatAmount: number; valueAfterVat: number; warnings: string[]
 }
 
-export interface Payment { id: number; date: string; amount: number; type: string; note: string }
-export type ContractStatus = 'Soạn thảo' | 'Đã trả khách' | 'Đã ký' | 'Đang triển khai' | 'Hoàn thành'
+/** Tiền về: kế toán nhập → Quản lý duyệt mới tính vào tiền đã về / tạm ứng / công nợ. */
+export type PaymentStatus = 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'
+export interface Payment {
+  id: number; date: string; amount: number; type: string; note: string
+  status: PaymentStatus; createdBy: string; approvedBy: string | null; approvedAt: string | null; rejectReason: string | null
+}
+export const paidOf = (ps: Payment[] = []) => ps.filter((p) => p.status === 'Đã duyệt').reduce((s, p) => s + (p.amount || 0), 0)
+/** Hợp đồng: "Chờ soạn thảo" (vừa nhận đơn) rồi 4 bước kế toán. */
+export type ContractStatus = 'Chờ soạn thảo' | 'Đã soạn thảo' | 'Đã gửi khách hàng' | 'Đã nhận về' | 'Đã hoàn thành'
+export const CONTRACT_STEPS: ContractStatus[] = ['Đã soạn thảo', 'Đã gửi khách hàng', 'Đã nhận về', 'Đã hoàn thành']
 export interface Contract {
   id: ID; orderId: ID; code: string; customer: string; sentToKtAt: string; dueAt: string
   returnedAt: string | null; signDate: string | null; status: ContractStatus; owner: string
   totalQty: number; unit: string; totalKg: number; unitPrice: number; value: number; vatPct: number
   advance: { pct: number; required: number; received: number; receivedAt: string | null }
   payments: Payment[]; note: string
+  number: string; completeBy: string | null; draftedAt: string | null; completedAt: string | null; pendingPayment: number
 }
+/** Cảnh báo theo ngày hoàn thành đơn (QL nhập khi chuyển kế toán). */
+export interface CompleteInfo { state: 'none' | 'ok' | 'fine' | 'soon' | 'overdue'; label: string; days: number | null }
 export interface DueInfo { state: 'ok' | 'fine' | 'due' | 'overdue'; label: string; days: number }
 export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label: string }
 /** GET /contracts trả kèm due/adv */
-export interface ContractRow extends Contract { due: DueInfo; adv: AdvanceInfo }
+export interface ContractRow extends Contract { due: DueInfo; adv: AdvanceInfo; complete: CompleteInfo }
 
 export type LsxStatus = 'Chờ nhận' | 'Đang SX' | 'Từ chối' | 'Hoàn thành'
 export interface Lsx {
@@ -85,7 +96,7 @@ export interface ContractAgg {
   lsxs: Lsx[]; receipts: Receipt[]; weighings: Weighing[]; tasksDiMa: Task[]; tasksGiao: Task[]
   producedKg: number; producedQty: number; receivedKg: number; weighedKg: number; sentGalvKg: number
   inTransitToGalvKg: number; atGalvKg: number; pickedKg: number; deliveredKg: number; stockKg: number
-  deliveredValue: number; paidTotal: number; debt: number
+  deliveredValue: number; paidTotal: number; debt: number; pendingPayment: number; complete: CompleteInfo
   pctProduced: number; pctDelivered: number; pctPaid: number
   checks: Check[]; mismatches: Mismatch[]; due: DueInfo; adv: AdvanceInfo
 }
@@ -105,7 +116,8 @@ export interface OverdueDoc { kind: string; type: 'pc' | 'vc'; id: ID; contractI
 
 export interface Dashboard {
   activeContracts: number; deliveredKgTotal: number
-  contractAlerts: { contract: Contract; due: DueInfo; adv: AdvanceInfo }[]
+  contractAlerts: { contract: Contract; due: DueInfo; adv: AdvanceInfo; complete: CompleteInfo }[]
+  pendingPayments: (Payment & { contractId: ID; customer: string })[]
   overdueDocs: OverdueDoc[]; pendingMismatches: Mismatch[]; pendingMismatchKg: number
   pendingLSX: Lsx[]; pendingTasks: Task[]; contracts: ContractAggLite[]
 }
@@ -130,4 +142,27 @@ export interface Meta {
   toleranceKg: number; fillHours: number; contractDays: number
   /** phiếu cân chưa có số/ảnh sau N giờ → quá hạn */
   pcFillHours: number
+}
+
+/* ---------------------------------------------------------------- soạn thảo hợp đồng theo mẫu */
+export interface Party { name: string; address: string; phone: string; banks: string[]; taxCode: string; representative: string; title: string }
+export interface DocLine {
+  itemId: number; stt: number; name: string; unit: string; qty: number; kg: number; pricePerKg: number
+  defaultUnitPrice: number; unitPrice: number; custom: boolean; amount: number
+}
+/** GET /contracts/{id}/document — phần KT nhập (ô vàng) + dữ liệu tự điền (chữ đỏ) + số đã tính. */
+export interface ContractDocument {
+  contractId: ID; orderId: ID; status: ContractStatus; locked: boolean; draftedAt: string | null
+  number: string; date: string | null; dateText: string; basis: string[]
+  buyer: Party; buyerAuto: Party; buyerCustom: boolean; customerId: number | null; seller: Party; scope: string
+  lines: DocLine[]; total: number; vatPct: number; vat: number; grandTotal: number; words: string; wordsAuto: string
+  priceIncludes: string[]; paymentMethod: string; advances: { amount: number; words: string }[]; paymentRest: string[]
+  conditions: string[]; warranty: string; deliveryTime: string; deliveryPlace: string; acceptancePlace: string
+  completeBy: string | null
+}
+export interface ContractDraftInput {
+  number?: string; date?: string | null; basis?: string[]; buyer?: Party | null; scope?: string
+  prices?: Record<string, number | null>; vatPct?: number; words?: string | null; priceIncludes?: string[]
+  paymentMethod?: string; advances?: number[]; paymentRest?: string[]; conditions?: string[]; warranty?: string
+  deliveryTime?: string; deliveryPlace?: string; acceptancePlace?: string
 }

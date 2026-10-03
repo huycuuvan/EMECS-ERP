@@ -140,7 +140,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
   const create = useCreateLsx()
   const { data: contracts = [] } = useContracts()
   const { data: lsxs = [] } = useLsxList()
-  const signed = useMemo(() => contracts.filter((c) => c.signDate != null), [contracts])
+  const signed = useMemo(() => contracts.filter((c) => c.signDate != null && c.status !== 'Đã hoàn thành'), [contracts])
   const waiting = useMemo(() => contracts.filter((c) => c.signDate == null), [contracts])
   /* kg đã phát lệnh của 1 HĐ (không tính lệnh bị từ chối — lệnh đó sẽ phát lại) */
   const remainOf = (cid: ID) => {
@@ -150,6 +150,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
   }
   const [form] = Form.useForm<{ contractId: ID; name: string; qty: number; kg: number; leadDays: number }>()
   const cid = Form.useWatch('contractId', form)
+  const leadDays = Form.useWatch('leadDays', form) as number | undefined
   const rem = cid ? remainOf(cid) : 0
 
   const sync = (id: ID) => {
@@ -167,7 +168,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
           <p style={{ margin: '0 0 8px' }}>Chưa có hợp đồng <b>đã ký</b> để phát lệnh — lệnh sản xuất chỉ phát cho hợp đồng khách đã ký.</p>
           {waiting.length > 0 && (
             <>
-              <p className="caption" style={{ margin: '0 0 6px' }}>Hợp đồng đang chờ — vào <b>Hợp đồng &amp; Tạm ứng</b> bấm <b>Đã trả HĐ</b> rồi <b>Đã ký</b> (Kế toán / Quản lý):</p>
+              <p className="caption" style={{ margin: '0 0 6px' }}>Hợp đồng đang chờ — kế toán soạn thảo, bấm <b>Đã gửi khách hàng</b> rồi <b>Đã nhận về</b> khi khách ký gửi lại (Hợp đồng &amp; Tạm ứng):</p>
               <ul style={{ margin: 0, paddingLeft: 18 }}>
                 {waiting.map((c) => <li key={c.id}><RecordLink id={c.id} type="hd" /> — {c.customer} · <b>{c.status}</b></li>)}
               </ul>
@@ -205,6 +206,15 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
           </div>
+          {(() => {
+            const c = contracts.find((z) => z.id === cid)
+            if (!c?.completeBy) return null
+            const end = dayjs().add(leadDays || 7, 'day')
+            const by = dayjs(c.completeBy)
+            return end.isAfter(by, 'day')
+              ? <WarnBox>Hạn lệnh ({end.format('DD/MM')}) <b>vượt ngày hoàn thành đơn {by.format('DD/MM/YYYY')}</b> — rút ngắn tiến độ hoặc báo khách.</WarnBox>
+              : <p className="caption" style={{ margin: 0 }}>Ngày hoàn thành đơn: <b>{by.format('DD/MM/YYYY')}</b> · hạn lệnh {end.format('DD/MM')}.</p>
+          })()}
         </Form>
       )}
     </Modal>

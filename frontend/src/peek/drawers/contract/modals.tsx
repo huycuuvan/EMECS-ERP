@@ -20,7 +20,7 @@ export function PaymentModal({ contract: c, onClose }: { contract: Contract; onC
     onClose()
   }
   return (
-    <Modal open zIndex={MODAL_Z} title={`Ghi nhận tiền về — ${c.id}`} okText="Ghi nhận" cancelText="Hủy" onOk={submit} onCancel={onClose}
+    <Modal open zIndex={MODAL_Z} title={`Nhập tiền về — ${c.id}`} okText="Gửi Quản lý duyệt" cancelText="Hủy" onOk={submit} onCancel={onClose}
       confirmLoading={pay.isPending} destroyOnHidden>
       <Form form={form} layout="vertical" requiredMark={false}
         initialValues={{ type: advLeft > 0 ? PAYMENT_TYPES[0] : PAYMENT_TYPES[1], amount: advLeft || undefined, note: '' }}>
@@ -31,7 +31,8 @@ export function PaymentModal({ contract: c, onClose }: { contract: Contract; onC
         <Form.Item name="note" label="Ghi chú"><Input placeholder="UNC ngân hàng..." /></Form.Item>
       </Form>
       <p className="caption" style={{ margin: 0 }}>
-        Khoản ghi loại "tạm ứng" sẽ cộng vào tạm ứng đã về ({money(c.advance.received)} / {money(c.advance.required)}).
+        Kế toán nhập tay theo UNC / sao kê — khoản này <b>chờ Quản lý duyệt</b> rồi mới tính vào tiền đã về. Loại "tạm ứng" khi
+        được duyệt sẽ cộng vào tạm ứng đã về ({money(c.advance.received)} / {money(c.advance.required)}).
       </p>
     </Modal>
   )

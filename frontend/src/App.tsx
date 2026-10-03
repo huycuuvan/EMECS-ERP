@@ -8,6 +8,7 @@ import Login from '@/pages/Login'
 
 // Tách tải theo trang: lần đầu chỉ tải trang đang mở (quan trọng với điện thoại 4G ở hiện trường)
 const Contracts = lazy(() => import('@/pages/Contracts'))
+const ContractDraft = lazy(() => import('@/pages/ContractDraft'))
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
 const GalvReconcile = lazy(() => import('@/pages/GalvReconcile'))
 const LsxPage = lazy(() => import('@/pages/LsxPage'))
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/don-hang" element={<Orders />} />
         <Route path="/hop-dong" element={<Contracts />} />
+        <Route path="/hop-dong/:id/soan-thao" element={<ContractDraft />} />
         <Route path="/lsx" element={<LsxPage />} />
         <Route path="/tiep-nhan" element={<Receipts />} />
         <Route path="/phieu-can" element={<Weighings />} />

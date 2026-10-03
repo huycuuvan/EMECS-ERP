@@ -3,7 +3,7 @@
 import { App, Button, Result, Select, Skeleton, Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  AlarmClock, AlertTriangle, ArrowRight, BarChart3, BellRing, ClipboardX, FileSignature, Hourglass, Info, RotateCcw, Scale,
+  AlarmClock, Banknote, AlertTriangle, ArrowRight, BarChart3, BellRing, ClipboardX, FileSignature, Hourglass, Info, RotateCcw, Scale,
   Smartphone, TimerOff, XCircle,
 } from 'lucide-react'
 import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
@@ -11,9 +11,10 @@ import { useNavigate } from 'react-router-dom'
 import { useMovementLog, useResetDemo } from '@/api/hooks'
 import { useDashboardByTag, useRunEndOfDay } from '@/api/hooksMaster'
 import type { ContractAggLite, MovementRow } from '@/api/types'
-import { AdvChip, DueChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
+import { AdvChip, CompleteChip, DueChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtDelta, fmtDT, fmtKg, fmtT, relTime } from '@/lib/format'
+import { fmtDelta, fmtDT, fmtKg, fmtT, money, relTime } from '@/lib/format'
+import { PaymentDecision } from '@/peek/drawers/contract/PaymentApprovals'
 import RecordLink from '@/peek/RecordLink'
 import { usePeek } from '@/peek/context'
 import { Donut, GroupedBar, LegendRow } from './dashboard/charts'
@@ -50,6 +51,8 @@ export default function Dashboard() {
   const nOver = alerts.filter((a) => a.due.state === 'overdue').length
   const nDue = alerts.filter((a) => a.due.state === 'due').length
   const nAdv = alerts.filter((a) => a.adv.state === 'missing').length
+  const nLate = alerts.filter((a) => a.complete.state === 'soon' || a.complete.state === 'overdue').length
+  const pays = d.pendingPayments
   const pm = d.pendingMismatches
   const nPending = d.pendingLSX.length + d.pendingTasks.length
 
@@ -62,7 +65,7 @@ export default function Dashboard() {
         <Kpi tone="steel" label="Đang triển khai" value={d.activeContracts}
           sub={`hợp đồng · đã giao lũy kế ${fmtT(d.deliveredKgTotal)}`} onClick={() => open('hd', 'HD-2609-01')} />
         <Kpi tone="signal" label="Cảnh báo hợp đồng" value={<span className={alerts.length ? 'text-signal' : ''}>{alerts.length}</span>}
-          sub={<span className="text-signal">{nOver} quá hạn trả · {nDue} đến hạn · {nAdv} tạm ứng chưa về</span>} onClick={() => scrollTo(refContract)} />
+          sub={<span className="text-signal">{nOver} quá hạn gửi HĐ · {nDue} đến hạn · {nAdv} tạm ứng chưa về · {nLate} hạn hoàn thành</span>} onClick={() => scrollTo(refContract)} />
         <Kpi tone="signal" label="Thẻ / phiếu quá hạn" value={<span className={d.overdueDocs.length ? 'text-signal' : ''}>{d.overdueDocs.length}</span>}
           sub={<span className="text-signal">chưa điền số kg + ảnh phiếu</span>} onClick={() => scrollTo(refOverdue)} />
         <Kpi tone="rust" label="Sai lệch chờ QL ký" value={<span className={pm.length ? 'text-signal' : ''}>{pm.length}</span>}
@@ -74,14 +77,16 @@ export default function Dashboard() {
       <SectionLabel>Trung tâm cảnh báo</SectionLabel>
       <Grid>
         <div ref={refContract} style={{ scrollMarginTop: 80 }}>
-          <AlertCard icon={<AlarmClock size={15} color="var(--signal)" />} title="Hợp đồng đến hạn / quá hạn / tạm ứng" count={alerts.length} bad>
+          <AlertCard icon={<AlarmClock size={15} color="var(--signal)" />} title="Hợp đồng: hạn gửi · tạm ứng · ngày hoàn thành" count={alerts.length} bad>
             {alerts.length ? alerts.map((x) => (
               <AlertItem key={x.contract.id} onClick={() => open('hd', x.contract.id)}
                 t1={<><span className="mono" style={{ fontWeight: 700 }}>{x.contract.id}</span> · {x.contract.customer}</>}
                 t2={<>{x.contract.code} · {fmtT(x.contract.totalKg)} · {x.adv.state === 'missing'
                   ? <span className="text-signal" style={{ fontWeight: 700 }}><AlertTriangle size={11} style={{ verticalAlign: -2 }} /> Tạm ứng {x.adv.label}</span>
-                  : x.adv.label}</>}
-                right={<DueChip due={x.due} />} />
+                  : x.adv.label}
+                  {(x.complete.state === 'soon' || x.complete.state === 'overdue') && <> · <span className={x.complete.state === 'overdue' ? 'text-signal' : ''} style={{ fontWeight: 700 }}>{x.complete.label}</span></>}</>}
+                right={x.due.state === 'overdue' || x.due.state === 'due' || x.complete.state === 'none' || x.complete.state === 'ok' || x.complete.state === 'fine'
+                  ? <DueChip due={x.due} /> : <CompleteChip info={x.complete} />} />
             )) : <AlertEmpty>Không có hợp đồng cần chú ý.</AlertEmpty>}
           </AlertCard>
         </div>
@@ -110,6 +115,15 @@ export default function Dashboard() {
             )) : <AlertEmpty>Không còn sai lệch chờ Quản lý ký.</AlertEmpty>}
           </AlertCard>
         </div>
+
+        <AlertCard icon={<Banknote size={15} color="var(--amber)" />} title="Tiền về chờ Quản lý duyệt" count={pays.length} bad={pays.length > 0}>
+          {pays.length ? pays.map((p) => (
+            <AlertItem key={p.id} onClick={() => open('hd', p.contractId)}
+              t1={<><span className="mono" style={{ fontWeight: 700 }}>{p.contractId}</span> · {p.customer}</>}
+              t2={<>{p.type} · <b className="num">{money(p.amount)}</b> · {p.createdBy || 'kế toán'} nhập {relTime(p.date)}{p.note && <> · {p.note}</>}</>}
+              right={<PaymentDecision p={p} />} />
+          )) : <AlertEmpty>Không có khoản tiền về chờ duyệt.</AlertEmpty>}
+        </AlertCard>
 
         <AlertCard icon={<Hourglass size={15} color="var(--amber)" />} title="Chờ xác nhận công việc" count={nPending}>
           {d.pendingLSX.map((x) => x.status === 'Chờ nhận' ? (
@@ -330,7 +344,7 @@ function WeeklyChart() {
 function ContractChecks({ contracts }: { contracts: ContractAggLite[] }) {
   const { open } = usePeek()
   const navigate = useNavigate()
-  const rows = contracts.filter((g) => g.producedKg + g.weighedKg > 0 || ['Đã ký', 'Đang triển khai'].includes(g.contract.status))
+  const rows = contracts.filter((g) => g.producedKg + g.weighedKg > 0 || g.contract.status === 'Đã nhận về')
   const kgCell = (v: number, sub?: ReactNode) => (
     <div><b className="num mono" style={{ fontSize: 12.5 }}>{fmtKg(v)}</b>{sub && <div style={{ fontSize: 11, color: 'var(--ash)' }}>{sub}</div>}</div>
   )

@@ -2,7 +2,7 @@
 import { Progress, Tag, Tooltip } from 'antd'
 import { AlarmClock, CheckCircle2, AlertTriangle } from 'lucide-react'
 import type { CSSProperties, ReactNode } from 'react'
-import type { AdvanceInfo, DueInfo } from '@/api/types'
+import type { AdvanceInfo, CompleteInfo, DueInfo } from '@/api/types'
 import { C } from '@/theme'
 import { fmtDelta } from '@/lib/format'
 
@@ -43,6 +43,10 @@ const STATUS_TONE: Record<string, { bg: string; fg: string }> = {
   // cam = chờ người làm
   'Chờ nhận': { bg: C.rustSoft, fg: C.rustDeep }, 'Chờ xác nhận': { bg: C.rustSoft, fg: C.rustDeep }, 'Chờ cân': { bg: C.rustSoft, fg: C.rustDeep },
   'Soạn thảo': { bg: C.paper3, fg: C.ink3 }, 'Chốt đơn': { bg: C.rustSoft, fg: C.rustDeep }, 'Đang treo': { bg: C.amberSoft, fg: C.amber },
+  // hợp đồng (4 bước kế toán) + tiền về chờ Quản lý duyệt
+  'Chờ soạn thảo': { bg: C.rustSoft, fg: C.rustDeep }, 'Đã soạn thảo': { bg: C.paper3, fg: C.ink3 },
+  'Đã gửi khách hàng': { bg: C.steelSoft, fg: C.steel }, 'Đã nhận về': { bg: C.amberSoft, fg: C.amber },
+  'Đã hoàn thành': { bg: C.mossSoft, fg: C.moss }, 'Chờ duyệt': { bg: C.amberSoft, fg: C.amber }, 'Đã duyệt': { bg: C.mossSoft, fg: C.moss },
   // đỏ = cần xử lý
   'Từ chối': { bg: C.signalSoft, fg: C.signal }, 'Đang chạy — quá hạn': { bg: C.signalSoft, fg: C.signal }, 'Quá hạn': { bg: C.signalSoft, fg: C.signal }, 'Lệch — chờ ký': { bg: C.signalSoft, fg: C.signal }, 'Chờ QL ký': { bg: C.signalSoft, fg: C.signal },
 }
@@ -67,6 +71,23 @@ export function DueChip({ due }: { due: DueInfo }) {
     <Tag variant="filled" className={due.state === 'overdue' ? 'chip-overdue' : ''}
       style={{ background: map.bg, color: map.fg, fontWeight: 700, borderRadius: 999, margin: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       {map.icon}{due.label}
+    </Tag>
+  )
+}
+
+/** Chip hạn hoàn thành đơn (completeInfo): đỏ quá hạn, vàng sắp tới hạn (≤ 7 ngày). */
+export function CompleteChip({ info }: { info: CompleteInfo }) {
+  if (info.state === 'none') return <span className="text-ash">—</span>
+  const map = {
+    ok: { bg: C.mossSoft, fg: C.moss, icon: <CheckCircle2 size={12} /> },
+    fine: { bg: C.paper2, fg: C.ink3, icon: <AlarmClock size={12} /> },
+    soon: { bg: C.amberSoft, fg: C.amber, icon: <AlarmClock size={12} /> },
+    overdue: { bg: C.signalSoft, fg: C.signal, icon: <AlertTriangle size={12} /> },
+  }[info.state]
+  return (
+    <Tag variant="filled" className={info.state === 'overdue' ? 'chip-overdue' : ''}
+      style={{ background: map.bg, color: map.fg, fontWeight: 700, borderRadius: 999, margin: 0, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'normal' }}>
+      {map.icon}{info.label}
     </Tag>
   )
 }

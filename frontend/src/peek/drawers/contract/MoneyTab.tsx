@@ -14,7 +14,7 @@ export default function MoneyTab({ g }: { g: ContractAgg }) {
     const luy = deliv.slice(0, i + 1).reduce((s, x) => s + Math.round((x.kgDelivered || 0) * c.unitPrice), 0)
     return { t, v, luy }
   })
-  const pays = c.payments || []
+  const pays = (c.payments || []).filter((p) => p.status === 'Đã duyệt')  // chờ duyệt / từ chối: xem khối Tiền về chờ duyệt
   const coRows = pays.map((p, i) => ({ p, luy: pays.slice(0, i + 1).reduce((s, x) => s + x.amount, 0) }))
   const conGiao = c.totalKg - g.deliveredKg
   const conThu = c.value - g.paidTotal
@@ -51,7 +51,7 @@ export default function MoneyTab({ g }: { g: ContractAgg }) {
               </tr>
             )) : <tr><td colSpan={3} style={{ color: 'var(--ash)', textAlign: 'center', padding: 14 }}>Chưa có tiền về.</td></tr>}
             <tr className="hdta-tot">
-              <td colSpan={2}>TỔNG {(c.payments || []).length} lần tiền về</td>
+              <td colSpan={2}>TỔNG {pays.length} lần tiền về (đã duyệt)</td>
               <td className="num">{money(g.paidTotal)}</td>
             </tr>
           </tbody></table>

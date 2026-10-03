@@ -11,7 +11,7 @@ Danh mục (_seed_master): khách hàng + thẻ (Khách thân thiết / Khách l
 """
 from sqlalchemy.orm import Session
 
-from .config import CONTRACT_DAYS, DEMO_PASSWORD, PEOPLE
+from .config import CONTRACT_DAYS, CT_DONE, CT_RECEIVED, CT_SENT, CT_WAIT, DEMO_PASSWORD, PEOPLE
 from .db import Base, engine, utcnow
 from .security import hash_password
 from .models import (Contract, LsxLog, Lsx, Mismatch, Notification, Order, OrderItem, Payment,
@@ -59,16 +59,24 @@ def _orders():
     return out
 
 
+# trạng thái cũ trong dữ liệu mẫu → 4 bước kế toán
+SEED_STATUS = {"Soạn thảo": CT_WAIT, "Đã trả khách": CT_SENT, "Đã ký": CT_RECEIVED, "Đang triển khai": CT_RECEIVED,
+               "Hoàn thành": CT_DONE}
+
+
 def _contract(cid, oid, code, cust, sent_days, returned, signed, status, qty, unit, kg, price,
-              adv_pct, adv_received, adv_received_at, payments, note):
+              adv_pct, adv_received, adv_received_at, payments, note, complete_days=30):
     sent = ago(sent_days)
     value = kg * price
-    c = Contract(id=cid, order_id=oid, code=code, customer=cust, sent_to_kt_at=sent,
+    status = SEED_STATUS.get(status, status)
+    c = Contract(id=cid, order_id=oid, code=code, customer=cust, sent_to_kt_at=sent, number=oid,
+                 complete_by=add_days(sent, complete_days), completed_at=ago(10) if status == CT_DONE else None,
                  due_at=add_days(sent, CONTRACT_DAYS), returned_at=returned, sign_date=signed, status=status,
                  owner=KT, total_qty=qty, unit=unit, total_kg=kg, unit_price=price, value=value, vat_pct=8,
                  advance_pct=adv_pct, advance_required=round(value * adv_pct / 100),
                  advance_received=adv_received, advance_received_at=adv_received_at, note=note)
-    c.payments = [Payment(date=d, amount=a, type=t, note=n) for d, a, t, n in payments]
+    c.payments = [Payment(date=d, amount=a, type=t, note=n, status="Đã duyệt", created_by=KT, approved_by=QL, approved_at=d)
+                  for d, a, t, n in payments]
     return c
 
 
@@ -99,7 +107,7 @@ def _contracts():
         _contract("HD-2609-06", "DH-2609-06", "SD06", "Cty Xây lắp Sông Đà 9", 12, ago(10), ago(9),
                   "Đang triển khai", 45, "cấu kiện", 28000, 49500, 30, 415800000, ago(8),
                   [(ago(8), 415800000, "Tạm ứng 30%", "UNC Vietcombank")],
-                  "Mới vào sản xuất — chưa gửi mạ chuyến nào, 1 phiếu cân đang chờ nhập kết quả."),
+                  "Mới vào sản xuất — chưa gửi mạ chuyến nào, 1 phiếu cân đang chờ nhập kết quả.", complete_days=16),
         _contract("HD-2609-07", "DH-2609-07", "DS07", "Cầu trục Doosan Vina", 8, ago(6), ago(5), "Đã ký",
                   60, "dầm", 36000, 50500, 40, 400000000, ago(4),
                   [(ago(4), 400000000, "Tạm ứng đợt 1", "Khách xin chia tạm ứng 2 đợt")],

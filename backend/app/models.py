@@ -58,6 +58,7 @@ class Order(Base):
     contract_id: Mapped[str | None] = mapped_column(String(32))
     note: Mapped[str] = mapped_column(Text, default="")
     customer_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # → customers.id
+    complete_by = mapped_column(UTCDateTime, nullable=True)  # ngày hoàn thành (QL nhập khi chuyển kế toán)
     vat_pct: Mapped[float] = mapped_column(Float, default=10, server_default="10")  # thuế VAT % (file đặt hàng khách)
     items: Mapped[list["OrderItem"]] = relationship(
         back_populates="order", cascade="all, delete-orphan", order_by="OrderItem.id")
@@ -87,7 +88,13 @@ class Contract(Base):
     due_at = mapped_column(UTCDateTime)
     returned_at = mapped_column(UTCDateTime, nullable=True)
     sign_date = mapped_column(UTCDateTime, nullable=True)
-    status: Mapped[str] = mapped_column(String(40))  # Soạn thảo | Đã trả khách | Đã ký | Đang triển khai | Hoàn thành
+    # Chờ soạn thảo | Đã soạn thảo | Đã gửi khách hàng | Đã nhận về | Đã hoàn thành (config.CONTRACT_STATUSES)
+    status: Mapped[str] = mapped_column(String(40))
+    number: Mapped[str] = mapped_column(String(64), default="", server_default="")  # Số HĐ in trên văn bản
+    complete_by = mapped_column(UTCDateTime, nullable=True)  # ngày hoàn thành đơn (từ đơn hàng)
+    draft: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON bản soạn thảo (ô vàng KT nhập)
+    drafted_at = mapped_column(UTCDateTime, nullable=True)
+    completed_at = mapped_column(UTCDateTime, nullable=True)
     owner: Mapped[str] = mapped_column(String(120))
     total_qty: Mapped[float] = mapped_column(Float, default=0)
     unit: Mapped[str] = mapped_column(String(32), default="cấu kiện")
@@ -112,6 +119,11 @@ class Payment(Base):
     amount: Mapped[float] = mapped_column(Float)
     type: Mapped[str] = mapped_column(String(80))
     note: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), default="Đã duyệt", server_default="Đã duyệt")  # Chờ duyệt | Đã duyệt | Từ chối
+    created_by: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    approved_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    approved_at = mapped_column(UTCDateTime, nullable=True)
+    reject_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     contract: Mapped[Contract] = relationship(back_populates="payments")
 
 
@@ -245,6 +257,13 @@ class VLoss(Base):
     resolution: Mapped[str | None] = mapped_column(String(120))
     resolved_at = mapped_column(UTCDateTime, nullable=True)
     resolved_note: Mapped[str | None] = mapped_column(Text)
+
+
+class Setting(Base):
+    """Cài đặt dạng khóa → JSON (vd "seller": thông tin công ty mình = Bên B trên hợp đồng)."""
+    __tablename__ = "settings"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="{}")
 
 
 class Notification(Base):

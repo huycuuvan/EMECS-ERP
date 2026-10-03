@@ -28,7 +28,7 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
   const plateOf = (driver?: string) => activeVehicles.find((v) => v.defaultDriver && v.defaultDriver === driver)?.plate
   const { data: agg } = useContract(open ? cid : null)
 
-  const cs = (contracts ?? []).filter((c) => c.status === 'Đang triển khai' || c.status === 'Đã ký')
+  const cs = (contracts ?? []).filter((c) => c.status === 'Đã nhận về')
 
   useEffect(() => {
     if (open) {

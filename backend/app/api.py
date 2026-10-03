@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from . import config as C
 from . import schemas as SC
 from . import serializers as S
+from . import contract_doc as CD
 from . import services as svc
 from .db import get_db
 from .history import contract_snapshot, order_snapshot, track
@@ -164,8 +165,8 @@ def update_order(oid: str, body: SC.OrderUpdate, db: Session = DB):
 
 
 @router.post("/orders/{oid}/send-to-kt", dependencies=[Depends(require("don-hang", "full"))])
-def send_to_kt(oid: str, db: Session = DB):
-    return S.contract(svc.send_order_to_kt(db, oid))
+def send_to_kt(oid: str, body: SC.SendToKtIn, db: Session = DB):
+    return S.contract(svc.send_order_to_kt(db, oid, body.complete_by))
 
 
 # ---------------------------------------------------------------- hợp đồng
@@ -177,12 +178,16 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
     if segment:
         seg = svc.contract_ids_for_customers(db, svc.customer_ids_for_segment(db, segment))
         keep = seg if keep is None else keep & seg
+    delivered: dict[str, float] = {}
+    for t in db.scalars(select(Task).where(Task.type == "giao_khach")):
+        delivered[t.contract_id] = delivered.get(t.contract_id, 0) + (t.kg_delivered or 0)
     for c in db.scalars(select(Contract).order_by(Contract.sent_to_kt_at.desc())):
         if keep is not None and c.id not in keep:
             continue
         d = S.contract(c)
         d["customerId"] = cust_of.get(c.order_id)
         d["due"], d["adv"] = svc.contract_due_info(c), svc.advance_info(c)
+        d["complete"] = svc.complete_info(c, delivered.get(c.id, 0))
         out.append(d)
     return out
 
@@ -206,12 +211,69 @@ def update_contract(cid: str, body: SC.ContractUpdate, db: Session = DB):
 
 @router.post("/contracts/{cid}/returned", dependencies=[Depends(require("hop-dong", "edit"))])
 def contract_returned(cid: str, db: Session = DB):
+    """Bước 2: Đã gửi khách hàng."""
     return S.contract(svc.mark_contract_returned(db, cid))
 
 
 @router.post("/contracts/{cid}/signed", dependencies=[Depends(require("hop-dong", "edit"))])
 def contract_signed(cid: str, db: Session = DB):
+    """Bước 3: Đã nhận về (khách đã ký)."""
     return S.contract(svc.mark_contract_signed(db, cid))
+
+
+@router.post("/contracts/{cid}/completed", dependencies=[Depends(require("hop-dong", "edit"))])
+def contract_completed(cid: str, db: Session = DB):
+    """Bước 4: Đã hoàn thành."""
+    return S.contract(svc.mark_contract_completed(db, cid))
+
+
+# ---------------------------------------------------------------- soạn thảo hợp đồng theo mẫu
+@router.get("/contracts/{cid}/document")
+def contract_document(cid: str, db: Session = DB):
+    return CD.document(db, svc.get_or_404(db, Contract, cid))
+
+
+@router.put("/contracts/{cid}/document", dependencies=[Depends(require("hop-dong", "edit"))])
+def save_contract_document(cid: str, body: dict, db: Session = DB):
+    c = svc.get_or_404(db, Contract, cid)
+    with track(db, "hd", cid, lambda: contract_snapshot(c)):
+        return CD.save_draft(db, c, body)
+
+
+@router.get("/contracts/{cid}/document.docx")
+def contract_docx(cid: str, db: Session = DB):
+    doc = CD.document(db, svc.get_or_404(db, Contract, cid))
+    data = CD.render_docx(doc)
+    name = CD.docx_filename(doc)
+    cd = f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"
+    return Response(content=data, headers={"Content-Disposition": cd},
+                    media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/settings/seller")
+def get_seller(db: Session = DB):
+    return CD.get_seller(db)
+
+
+@router.put("/settings/seller", dependencies=[Depends(require_roles("admin"))])
+def put_seller(body: dict, db: Session = DB):
+    return CD.set_seller(db, body)
+
+
+# ---------------------------------------------------------------- tiền về: Quản lý duyệt
+@router.get("/payments/pending")
+def pending_payments(db: Session = DB):
+    return svc.pending_payments(db)
+
+
+@router.post("/payments/{pid}/approve", dependencies=[Depends(require_roles("admin"))])
+def approve_payment(pid: int, db: Session = DB):
+    return S.contract(svc.approve_payment(db, pid))
+
+
+@router.post("/payments/{pid}/reject", dependencies=[Depends(require_roles("admin"))])
+def reject_payment(pid: int, body: SC.ReasonIn, db: Session = DB):
+    return S.contract(svc.reject_payment(db, pid, body.reason))
 
 
 @router.post("/contracts/{cid}/payments", dependencies=[Depends(require("hop-dong", "edit"))])
