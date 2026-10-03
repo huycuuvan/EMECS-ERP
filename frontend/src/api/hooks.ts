@@ -106,7 +106,7 @@ export const useLsxReject = () => useAction(({ id, reason }: { id: ID; reason: s
 export const useLsxDaily = () => useAction(({ id, ...v }: { id: ID; day?: string; kg: number; note?: string }) => post<Lsx>(`/lsx/${id}/daily`, v), (x) => `Đã ghi sản lượng ${x.id} — lũy kế ${x.kgDone.toLocaleString('vi-VN')} kg`)
 export const useLsxExtend = () => useAction(({ id, ...v }: { id: ID; to: string; reason: string }) => post<Lsx>(`/lsx/${id}/extend`, v), (x) => `Đã duyệt gia hạn ${x.id}`)
 
-export const useCreateReceipt = () => useAction((v: { lsxId: ID; qty?: number; kg?: number; note?: string; items?: { itemId: number; qty: number }[] }) => post<Receipt>('/receipts', v), (r) => `Đã lập phiếu chuẩn bị hàng ${r.id}`)
+export const useCreateReceipt = () => useAction((v: { lsxId: ID; qty?: number; kg?: number; note?: string; items?: { itemId: number; qty: number }[]; driver?: string; vehiclePlate?: string; galvanizerId?: number; arriveAt?: string; fillDeadline?: string }) => post<Receipt>('/receipts', v), (r) => `Đã lập phiếu chuẩn bị hàng ${r.id}`)
 
 /** sourceId: PTN-… hoặc LSX-… */
 export const useCreateWeighing = () => useAction((v: { sourceId: ID; kgExpected: number }) => post<Weighing>('/weighings', v), (p) => `Đã tạo phiếu cân ${p.id}`)

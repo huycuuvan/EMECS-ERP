@@ -97,6 +97,12 @@ class ReceiptCreate(In):
     qty: float | None = Field(default=None, ge=0)
     kg: float | None = Field(default=None, ge=0)  # có items → tự tính = Σ SL × KL/1 bộ
     items: list[ReceiptItemIn] | None = None
+    # Quản lý chỉ định luôn tài xế chở chuyến hàng này (đi mạ) — tạo thẻ công việc gắn phiếu cân
+    driver: str | None = None
+    vehicle_plate: str | None = None
+    galvanizer_id: int | None = None
+    arrive_at: datetime | None = None
+    fill_deadline: datetime | None = None
     note: str = ""
 
 

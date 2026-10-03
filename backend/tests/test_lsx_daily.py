@@ -121,3 +121,21 @@ def test_prepare_goods_to_warehouse_weigh_5pct_and_billing(c):
     c.post(f"/api/mismatches/{p['mismatchId']}/sign")
     g = c.get(f"/api/contracts/{hd['id']}").json()
     assert g["billedKg"] == 2200 and g["deliveredValue"] == round(2200 * g["contract"]["unitPrice"])
+
+
+def test_prepare_goods_assigns_driver_task(c):
+    o = c.post("/api/orders", json={"customer": "Cty Test Tài xế", "items": [
+        {"name": "Cột", "qty": 10, "unit": "Bộ", "kgPerUnit": 100, "price": 20000}]}).json()
+    hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
+    x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 1000}).json()
+    item = c.get(f"/api/orders/{o['id']}").json()["items"][0]["id"]
+    r = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": item, "qty": 5}], "driver": "Lê Đức Vận",
+                                      "vehiclePlate": "29c-999.99", "arriveAt": "2099-01-01T08:00:00+07:00"}).json()
+    w = next(p for p in c.get("/api/weighings").json() if p["receiptId"] == r["id"])
+    assert w["signers"]["laiXe"] == "Lê Đức Vận" and w["vehiclePlate"] == "29C-999.99"
+    t = next(t for t in c.get("/api/tasks").json() if t["refId"] == w["id"])
+    assert t["driver"] == "Lê Đức Vận" and t["type"] == "di_ma" and t["status"] == "Chờ xác nhận" and t["kgRequired"] == 500
+    login(c, "kho")
+    c.post(f"/api/weighings/{w['id']}/fill", json={"grossKg": 8490, "tareKg": 8000})  # 490 kg (thiếu 2%)
+    login(c, "ql")
+    assert c.get(f"/api/tasks/{t['id']}").json()["kgRequired"] == 490  # cập nhật theo cân thực

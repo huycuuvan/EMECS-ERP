@@ -1,9 +1,11 @@
 /* Lập phiếu chuẩn bị hàng (kho nhận từ sản xuất): chọn HỢP ĐỒNG → lệnh SX của hợp đồng đó; chỉ khối lượng (kg).
    Chặn nhận vượt số kg xưởng đã báo hoàn thành. */
-import { Form, Input, InputNumber, Modal, Select } from 'antd'
+import { DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
 import { AlertOctagon, Factory } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useContracts, useCreateReceipt, useLsxList, useReceipts } from '@/api/hooks'
+import { useContracts, useCreateReceipt, useLsxList, useMeta, useReceipts } from '@/api/hooks'
+import { useGalvanizers, useVehicles } from '@/api/hooksMaster'
 import type { ID, Receipt } from '@/api/types'
 import { fmtD, fmtKg, fmtNum } from '@/lib/format'
 import { InfoBox, WarnBox } from '../lsx/boxes'
@@ -18,7 +20,11 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
   const recOf = (id: ID) => rcs.filter((r) => r.lsxId === id).reduce((s, r) => s + (Number(r.kg) || 0), 0)
 
   const { data: contracts = [] } = useContracts()
-  const [form] = Form.useForm<{ contractId: ID; lsxId: ID; kg: number; note?: string }>()
+  const [form] = Form.useForm<{ contractId: ID; lsxId: ID; kg: number; note?: string; driver?: string; plate?: string; galvId?: number; arriveAt?: Dayjs; fillDeadline?: Dayjs }>()
+  const { data: meta } = useMeta()
+  const { data: vehicles = [] } = useVehicles()
+  const { data: galvs = [] } = useGalvanizers()
+  const driver = Form.useWatch('driver', form)
   const sel = Form.useWatch('lsxId', form)
   const cid = Form.useWatch('contractId', form)
   const cOpts = useMemo(() => contracts.filter((c) => lsxs.some((l) => l.contractId === c.id)), [contracts, lsxs])
@@ -37,7 +43,8 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
   useEffect(() => {
     if (form.getFieldValue('lsxId') || !lsxs.length) return
     const first = (lsxId && lsxs.find((l) => l.id === lsxId)) || lsxs[0]
-    form.setFieldsValue({ contractId: first.contractId, lsxId: first.id })
+    form.setFieldsValue({ contractId: first.contractId, lsxId: first.id, arriveAt: dayjs().add(1, 'hour').minute(0).second(0),
+      fillDeadline: dayjs().add(25, 'hour').minute(0).second(0) })
   }, [lsxs, lsxId, form])
   const pickContract = (c: ID) => {
     const ls = lsxs.filter((l) => l.contractId === c)
@@ -52,7 +59,9 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}
           onFinish={async (v) => {
             const items = lines.map((i) => ({ itemId: i.id!, qty: qtys[i.id!] || 0 }))
-            const r = await create.mutateAsync({ lsxId: v.lsxId, note: v.note, ...(items.length ? { items } : { kg: v.kg }) })
+            const dispatch = v.driver ? { driver: v.driver, vehiclePlate: v.plate || undefined, galvanizerId: v.galvId,
+              arriveAt: v.arriveAt?.format(), fillDeadline: v.fillDeadline?.format() } : {}
+            const r = await create.mutateAsync({ lsxId: v.lsxId, note: v.note, ...(items.length ? { items } : { kg: v.kg }), ...dispatch })
             onClose()
             onCreated?.(r)
           }}>
@@ -81,7 +90,30 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
           </div>
           {over > 0 && <WarnBox title={<><AlertOctagon size={13} /> Vượt số SX đã báo {fmtNum(over)} kg — kiểm tra lại với xưởng</>} />}
           <p className="caption" style={{ margin: '0 0 10px' }}>Bấm <b>Giao xuống kho</b> → kho nhận phiếu cân <b>Chờ cân</b> với số lượng này; kho cân xe, chụp phiếu.
-            Cân thiếu trong 5% là đạt; <b>thiếu quá 5% hoặc dư</b> so với số giao → kho nhập lý do, Quản lý duyệt mới tính công nợ.</p>
+            Chỉ định tài xế → tài xế nhận ngay thẻ đi mạ gắn phiếu cân này. Cân thiếu trong 5% là đạt; <b>thiếu quá 5% hoặc dư</b> so với số giao → kho nhập lý do, Quản lý duyệt mới tính công nợ.</p>
+          <div style={{ border: '1px solid var(--rule)', borderRadius: 10, padding: '10px 12px 0', marginBottom: 12, background: 'var(--paper)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0 12px' }}>
+              <Form.Item name="driver" label="Chỉ định tài xế nhận chuyến (đi mạ)" extra="Bỏ trống nếu điều xe sau.">
+                <Select allowClear placeholder="— Chưa chỉ định —" options={(meta?.drivers ?? []).map((d) => ({ value: d, label: d }))}
+                  onChange={(d) => { const p = vehicles.find((x) => x.active && x.defaultDriver === d)?.plate; if (p) form.setFieldValue('plate', p) }} />
+              </Form.Item>
+              {driver && <>
+                <Form.Item name="plate" label="Xe">
+                  <Select allowClear placeholder="— Chọn xe —" options={vehicles.filter((x) => x.active).map((x) => ({ value: x.plate, label: x.plate }))} />
+                </Form.Item>
+                <Form.Item name="galvId" label="Xưởng mạ">
+                  <Select allowClear placeholder="— Chọn xưởng mạ —" options={galvs.filter((g) => g.active).map((g) => ({ value: g.id, label: g.name }))} />
+                </Form.Item>
+                <Form.Item name="arriveAt" label="Giờ tài xế có mặt lấy hàng" rules={[{ required: true, message: 'Chọn giờ có mặt' }]}>
+                  <DatePicker showTime={{ format: 'HH:mm', minuteStep: 15 }} format="HH:mm DD/MM/YYYY" style={{ width: '100%' }}
+                    onChange={(d) => { if (d) form.setFieldValue('fillDeadline', d.add(24, 'hour')) }} />
+                </Form.Item>
+                <Form.Item name="fillDeadline" label="Hạn trả phiếu" rules={[{ required: true, message: 'Chọn hạn trả phiếu' }]}>
+                  <DatePicker showTime={{ format: 'HH:mm', minuteStep: 15 }} format="HH:mm DD/MM/YYYY" style={{ width: '100%' }} />
+                </Form.Item>
+              </>}
+            </div>
+          </div>
           <Form.Item name="note" label="Ghi chú">
             <Input placeholder="VD: Đợt 5 — cấu kiện số 069–078" />
           </Form.Item>

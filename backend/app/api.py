@@ -333,7 +333,9 @@ def get_receipt(rid: str, db: Session = DB):
 @router.post("/receipts", dependencies=[Depends(require("tiep-nhan", "edit"))])
 def create_receipt(body: SC.ReceiptCreate, db: Session = DB):
     items = [i.model_dump() for i in body.items] if body.items else None
-    return S.receipt(svc.create_receipt(db, body.lsx_id, body.qty, body.kg, body.note, items))
+    dispatch = body.model_dump(include={"driver", "vehicle_plate", "galvanizer_id", "arrive_at", "fill_deadline"}) \
+        if body.driver else None
+    return S.receipt(svc.create_receipt(db, body.lsx_id, body.qty, body.kg, body.note, items, dispatch))
 
 
 # ---------------------------------------------------------------- phiếu cân

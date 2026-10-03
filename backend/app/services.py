@@ -612,7 +612,7 @@ def lsx_extend(db: Session, lid: str, to: datetime, reason: str) -> Lsx:
 
 # ---------------------------------------------------------------- kho & trạm cân
 def create_receipt(db: Session, lsx_id: str, qty: float | None, kg: float | None, note: str,
-                   items: list[dict] | None = None) -> Receipt:
+                   items: list[dict] | None = None, dispatch: dict | None = None) -> Receipt:
     """Phiếu chuẩn bị hàng. Có `items` (SL từng mặt hàng của đơn) → tổng KL = Σ SL × KL/1 bộ, tổng SL = Σ SL."""
     import json
     x = get_or_404(db, Lsx, lsx_id)
@@ -646,9 +646,18 @@ def create_receipt(db: Session, lsx_id: str, qty: float | None, kg: float | None
                  by=actor(KHO), status="Chờ cân")
     db.add(w)
     what = "; ".join(f"{l['name']}: {l['qty']:g} {l['unit']}" for l in lines) or fmt_kg(r.kg)
-    notify(db, f"Giao kho chuẩn bị hàng {r.id} → cân xuất {w.id}", f"HĐ {x.contract_id} · {what} · ~{fmt_kg(r.kg)}",
+    if dispatch and dispatch.get("driver"):
+        w.signer_lai_xe = dispatch["driver"]
+        w.vehicle_plate = (dispatch.get("vehicle_plate") or "").strip().upper() or None
+    notify(db, f"Giao kho chuẩn bị hàng {r.id} → cân xuất {w.id}",
+           f"HĐ {x.contract_id} · {what} · ~{fmt_kg(r.kg)}" + (f" · tài xế {dispatch['driver']}" if dispatch else ""),
            "info", roles="kho,admin")
     db.commit()
+    if dispatch and dispatch.get("driver"):
+        # thẻ đi mạ cho tài xế được chỉ định, gắn phiếu cân (KG cập nhật theo số cân thực khi kho cân xong)
+        create_task(db, "di_ma", dispatch["driver"], x.contract_id, w.id, None, f"Chuyến hàng {r.id}",
+                    dispatch.get("vehicle_plate"), dispatch.get("galvanizer_id"), dispatch.get("arrive_at"),
+                    dispatch.get("fill_deadline"))
     return r
 
 
@@ -698,6 +707,8 @@ def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | N
     if plate:
         p.vehicle_plate = plate.strip().upper()
     p.kg_actual = kg_actual or 0
+    for t in db.scalars(select(Task).where(Task.ref_id == p.id, Task.type == "di_ma", Task.kg_at_galv.is_(None))):
+        t.kg_required = p.kg_actual  # thẻ đi mạ đã giao trước khi cân → KG theo số cân thực
     if photo:
         p.photo = photo
     if signer_lai_xe:
