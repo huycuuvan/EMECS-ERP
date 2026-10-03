@@ -111,6 +111,8 @@ def task(t: Task, photo: bool = True) -> dict:
         "filledAt": iso(t.filled_at), "photo": sign_photo(t.photo) if photo else None, "hasPhoto": bool(t.photo), "rejectReason": t.reject_reason,
         "mismatchId": t.mismatch_id, "note": t.note, "lossAccepted": t.loss_accepted,
         "vehiclePlate": t.vehicle_plate, "galvanizerId": t.galvanizer_id, "arriveAt": iso(t.arrive_at),
+        "reason": t.reason, "reasonNote": t.reason_note, "approvedBy": t.approved_by, "approvedAt": iso(t.approved_at),
+        "qlRejectReason": t.reject_reason_ql,
         "deliver": ({"customerId": t.deliver_customer_id, "name": t.deliver_name or "", "address": t.deliver_address or "",
                      "receiverName": t.receiver_name or "", "receiverPhone": t.receiver_phone or "",
                      "contactName": t.contact_name or "", "contactPhone": t.contact_phone or ""}

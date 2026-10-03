@@ -76,7 +76,7 @@ export interface Weighing {
 }
 
 export type TaskType = 'di_ma' | 'giao_khach'
-export type TaskStatus = 'Chờ xác nhận' | 'Đã nhận' | 'Từ chối' | 'Đang chạy' | 'Hoàn thành'
+export type TaskStatus = 'Chờ xác nhận' | 'Đã nhận' | 'Từ chối' | 'Đang chạy' | 'Chờ QL duyệt' | 'Hoàn thành'
 export interface Task {
   id: ID; type: TaskType; driver: string; contractId: ID; refId: ID | null; assignedAt: string
   status: TaskStatus; acceptedAt: string | null; departedAt: string | null; fillDeadline: string | null
@@ -88,6 +88,8 @@ export interface Task {
   arriveAt: string | null
   /** giao khách: thông tin nơi giao (lấy từ danh mục khách hàng, sửa được theo chuyến) */
   deliver: DeliverInfo | null
+  /** phiếu lệch: lý do lái xe ghi → Quản lý chấp nhận / không chấp nhận (qlRejectReason → lái xe điền lại) */
+  reason?: string | null; reasonNote?: string | null; approvedBy?: string | null; approvedAt?: string | null; qlRejectReason?: string | null
 }
 export interface DeliverInfo {
   customerId: number | null; name: string; address: string; receiverName: string; receiverPhone: string

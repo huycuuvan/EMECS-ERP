@@ -1,11 +1,11 @@
 /* Thao tác vòng đời thẻ lái xe (dùng ở bảng danh sách + drawer thẻ VC):
    Chờ xác nhận → Đồng ý / Từ chối · Đã nhận → Xuất phát · Đang chạy → Điền phiếu cân mạ / phiếu giao nhận.
    Chỉ hiện với vai trò được thao tác trang van-chuyen (Quản lý A, Lái xe). */
-import { Button, Form, Input, InputNumber, Modal, Select } from 'antd'
+import { App, Button, Form, Input, InputNumber, Modal, Select } from 'antd'
 import { AlarmClock, AlertTriangle, Check, ClipboardPen, Play, X } from 'lucide-react'
 import { useState, type MouseEvent, type ReactNode } from 'react'
 import {
-  useContract, useMeta, useTaskAccept, useTaskDepart, useTaskFillDelivery, useTaskFillGalv, useTaskReject,
+  useApproveTask, useContract, useMeta, useRejectTaskFill, useTaskAccept, useTaskDepart, useTaskFillDelivery, useTaskFillGalv, useTaskReject,
 } from '@/api/hooks'
 import type { Task } from '@/api/types'
 import { PhotoInput } from '@/components/PhotoBlock'
@@ -22,9 +22,35 @@ const strong = { color: 'var(--rust-deep)', fontWeight: 700 }
 const warnBox = { background: 'var(--signal-soft)', border: '1px solid rgba(138,31,31,.35)', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }
 const warnTitle = { color: 'var(--signal)', fontWeight: 800, fontSize: 12, marginBottom: 8, display: 'flex', gap: 6, alignItems: 'flex-start' }
 
+/** Quản lý chấp nhận / không chấp nhận phiếu lệch của lái xe — ngay trên màn lái xe (không qua biên bản sai lệch). */
+export function TaskApproval({ t, size = 'small' }: { t: Task; size?: 'small' | 'middle' }) {
+  const { hasRole } = useAuth()
+  const { modal } = App.useApp()
+  const approve = useApproveTask()
+  const reject = useRejectTaskFill()
+  if (t.status !== 'Chờ QL duyệt') return null
+  if (!hasRole('admin')) return <span className="caption">Chờ Quản lý duyệt</span>
+  const askReject = () => {
+    let reason = ''
+    modal.confirm({
+      title: `Không chấp nhận phiếu ${t.id}?`, zIndex: MODAL_Z, okText: 'Không chấp nhận', okButtonProps: { danger: true }, cancelText: 'Hủy',
+      content: <><p style={{ margin: '0 0 8px' }}>Lái xe sẽ phải điền lại phiếu.</p>
+        <Input.TextArea autoFocus rows={2} placeholder="Lý do (bắt buộc)" onChange={(e) => { reason = e.target.value }} /></>,
+      onOk: () => (reason.trim() ? reject.mutateAsync({ id: t.id, reason: reason.trim() }) : Promise.reject(new Error('Nhập lý do'))),
+    })
+  }
+  return (
+    <span onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+      <Button size={size} type="primary" icon={<Check size={13} />} loading={approve.isPending} onClick={() => approve.mutate(t.id)}>Chấp nhận</Button>
+      <Button size={size} danger icon={<X size={13} />} onClick={askReject}>Không chấp nhận</Button>
+    </span>
+  )
+}
+
 export default function TaskActions({ task: t, size = 'small' }: { task: Task; size?: 'small' | 'middle' }) {
   const { can } = useAuth()
   const [mode, setMode] = useState<Mode>(null)
+  if (t.status === 'Chờ QL duyệt') return <TaskApproval t={t} size={size} />
   if (!can('van-chuyen', 'edit')) return null
 
   const stop = (e: MouseEvent) => e.stopPropagation()

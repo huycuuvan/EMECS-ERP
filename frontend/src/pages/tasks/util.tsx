@@ -25,6 +25,8 @@ export function TaskStatusTag({ t, now, withReason }: { t: Task; now?: number; w
         ? <StatusTag status="Đang chạy — quá hạn" style={{ background: 'var(--signal-soft)', color: 'var(--signal)' }} />
         : <StatusTag status={t.status} />}
       {withReason && t.rejectReason && <div className="caption" style={{ color: 'var(--signal)', marginTop: 3, fontSize: 11 }}>{t.rejectReason}</div>}
+      {withReason && t.status === 'Chờ QL duyệt' && t.reason && <div className="caption" style={{ marginTop: 3, fontSize: 11 }}>Lý do: {t.reason}{t.reasonNote ? ` — ${t.reasonNote}` : ''}</div>}
+      {withReason && t.status === 'Đang chạy' && t.qlRejectReason && <div className="caption" style={{ color: 'var(--signal)', marginTop: 3, fontSize: 11 }}>QL không chấp nhận: {t.qlRejectReason} — điền lại</div>}
     </div>
   )
 }

@@ -57,6 +57,9 @@ export default function TaskDrawer({ id }: { id: string }) {
           {t.acceptedAt ? `Đồng ý lúc ${fmtDT(t.acceptedAt)}` : t.status === 'Từ chối' ? 'TỪ CHỐI' : `Chờ xác nhận ${relTime(t.assignedAt)}`}
         </Cell>
         {t.rejectReason && <Cell label="Lý do từ chối" wide alert>{t.rejectReason}</Cell>}
+        {t.reason && t.status !== 'Hoàn thành' && <Cell label="Lý do lệch (lái xe)" wide alert={t.status === 'Chờ QL duyệt'}>{t.reason}{t.reasonNote ? ` — ${t.reasonNote}` : ''}</Cell>}
+        {t.reason && t.status === 'Hoàn thành' && t.approvedBy && <Cell label="Phiếu lệch — đã chấp nhận" wide>{t.reason} · {t.approvedBy}</Cell>}
+        {t.qlRejectReason && t.status === 'Đang chạy' && <Cell label="QL không chấp nhận" wide alert>{t.qlRejectReason} — lái xe điền lại</Cell>}
         {t.departedAt && <Cell label="Xuất phát"><span className="num">{fmtDT(t.departedAt)}</span></Cell>}
         {t.fillDeadline && (
           <Cell label="Hạn trả phiếu" alert={over}>

@@ -237,7 +237,7 @@ class Task(Base):
     contract_id: Mapped[str] = mapped_column(String(32), index=True)
     ref_id: Mapped[str | None] = mapped_column(String(32))
     assigned_at = mapped_column(UTCDateTime)
-    status: Mapped[str] = mapped_column(String(32))  # Chờ xác nhận | Đã nhận | Từ chối | Đang chạy | Hoàn thành
+    status: Mapped[str] = mapped_column(String(32))  # Chờ xác nhận | Đã nhận | Từ chối | Đang chạy | Chờ QL duyệt | Hoàn thành
     accepted_at = mapped_column(UTCDateTime, nullable=True)
     departed_at = mapped_column(UTCDateTime, nullable=True)
     fill_deadline = mapped_column(UTCDateTime, nullable=True)
@@ -262,6 +262,12 @@ class Task(Base):
     receiver_phone: Mapped[str] = mapped_column(String(40), default="", server_default="")
     contact_name: Mapped[str] = mapped_column(String(120), default="", server_default="")
     contact_phone: Mapped[str] = mapped_column(String(40), default="", server_default="")
+    # lái xe điền phiếu có lệch → lý do → Quản lý duyệt / từ chối ngay ở màn lái xe (không qua biên bản sai lệch)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reason_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    approved_at = mapped_column(UTCDateTime, nullable=True)
+    reject_reason_ql: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Mismatch(Base):

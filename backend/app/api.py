@@ -406,6 +406,18 @@ def create_task(body: SC.TaskCreate, db: Session = DB):
                                   body.note, body.vehicle_plate, body.galvanizer_id, **extra))
 
 
+@router.post("/tasks/{tid}/approve", dependencies=[Depends(require_roles("admin"))])
+def approve_task(tid: str, db: Session = DB):
+    """Quản lý chấp nhận phiếu lệch của lái xe."""
+    return S.task(svc.approve_task(db, tid))
+
+
+@router.post("/tasks/{tid}/reject-fill", dependencies=[Depends(require_roles("admin"))])
+def reject_task_fill(tid: str, body: SC.ReasonIn, db: Session = DB):
+    """Quản lý không chấp nhận → lái xe điền lại."""
+    return S.task(svc.reject_task(db, tid, body.reason))
+
+
 @router.post("/tasks/{tid}/accept", dependencies=[Depends(own_task)])
 def task_accept(tid: str, db: Session = DB):
     return S.task(svc.task_accept(db, tid))

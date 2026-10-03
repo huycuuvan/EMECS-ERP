@@ -89,22 +89,27 @@ def test_task_galv_flow(c):
     c.post(f"/api/tasks/{t['id']}/accept")
     t = c.post(f"/api/tasks/{t['id']}/depart").json()
     assert t["status"] == "Đang chạy" and t["fillDeadline"]
+    assert c.post(f"/api/tasks/{t['id']}/fill-galv", json={"kg": 9950}).status_code == 400  # lệch → bắt lý do
     t = c.post(f"/api/tasks/{t['id']}/fill-galv", json={"kg": 9950, "reason": "Sai số thiết bị cân"}).json()
-    assert t["status"] == "Hoàn thành" and t["mismatchId"]
+    assert t["status"] == "Chờ QL duyệt" and t["mismatchId"] is None and t["reason"] == "Sai số thiết bị cân"
+    t = c.post(f"/api/tasks/{t['id']}/reject-fill", json={"reason": "Chụp lại phiếu mạ"}).json()
+    assert t["status"] == "Đang chạy" and t["qlRejectReason"] == "Chụp lại phiếu mạ"
+    t = c.post(f"/api/tasks/{t['id']}/fill-galv", json={"kg": 9990}).json()  # điền lại, trong dung sai
+    assert t["status"] == "Hoàn thành"
 
 
-def test_delivery_mismatch_and_accept_loss(c):
+def test_delivery_deviation_manager_approves_directly(c):
     t = c.post("/api/tasks/VC-0105/accept")  # đã nhận sẵn → 400 vì không ở Chờ xác nhận
     assert t.status_code == 400
     c.post("/api/tasks/VC-0105/depart")
-    t = c.post("/api/tasks/VC-0105/fill-delivery", json={"kgPicked": 10000, "kgDelivered": 9960}).json()
-    assert t["mismatchId"]
-    e = c.post("/api/vloss/accept-loss", json={"refType": "vc", "refId": "VC-0105"}).json()
-    assert e["kg"] == 40 and e["status"] == "Đang treo"
-    assert c.get(f"/api/mismatches/{t['mismatchId']}").json()["status"] == "Đã ký xác nhận"
-    assert all(x["id"] != "VC-0105" for x in c.get("/api/vloss/pending-deltas").json())
-    e = c.post(f"/api/vloss/{e['id']}/resolve", json={"resolution": "Chấp nhận chi phí"}).json()
-    assert e["status"] == "Đã xử lý"
+    t = c.post("/api/tasks/VC-0105/fill-delivery", json={"kgPicked": 10000, "kgDelivered": 9960, "reason": "Rơi rớt khi bốc"}).json()
+    assert t["status"] == "Chờ QL duyệt" and t["mismatchId"] is None  # không tạo biên bản sai lệch
+    login(c, "lx2")
+    assert c.post("/api/tasks/VC-0105/approve").status_code == 403  # lái xe không tự duyệt
+    login(c, "ql")
+    t = c.post("/api/tasks/VC-0105/approve").json()
+    assert t["status"] == "Hoàn thành" and t["approvedBy"] == "Quản lý A"
+    assert any(x["id"] == "VC-0105" for x in c.get("/api/vloss/pending-deltas").json())  # kho ảo: chỉ thống kê
 
 
 def test_peb_ledger_balanced(c):

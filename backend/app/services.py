@@ -876,18 +876,32 @@ def task_depart(db: Session, tid: str) -> Task:
     return t
 
 
+def _task_result(db: Session, t: Task, off: bool, what: str, reason: str | None, reason_note: str | None) -> None:
+    """Có lệch → bắt lý do, thẻ chờ Quản lý duyệt (không tạo biên bản sai lệch; kho ảo chỉ thống kê). Không lệch → xong."""
+    t.filled_at = utcnow()
+    if off:
+        if not (reason or "").strip():
+            raise HTTPException(400, f"{what} — bắt buộc chọn lý do")
+        t.status, t.reason, t.reason_note, t.reject_reason_ql = "Chờ QL duyệt", reason, reason_note or "", None
+        t.approved_by = t.approved_at = None
+        notify(db, f"{t.id}: {what} — chờ Quản lý duyệt", f"{t.driver} · {reason}" + (f" — {reason_note}" if reason_note else ""),
+               "warning", roles="admin")
+    else:
+        t.status, t.reason, t.reason_note, t.reject_reason_ql = "Hoàn thành", None, None, None
+
+
 def task_fill_galv(db: Session, tid: str, kg: float, photo: str | None, reason: str | None,
                    reason_note: str | None) -> Task:
     t = get_or_404(db, Task, tid)
     if t.type != "di_ma":
         raise HTTPException(400, "Thẻ này không phải thẻ đi mạ")
-    t.kg_at_galv, t.filled_at, t.status = kg or 0, utcnow(), "Hoàn thành"
+    if t.status not in ("Đang chạy", "Chờ QL duyệt"):
+        raise HTTPException(400, f"Thẻ đang \"{t.status}\" — xuất phát trước khi điền phiếu")
+    t.kg_at_galv = kg or 0
     if photo:
         t.photo = photo
-    if t.kg_required and abs(t.kg_at_galv - t.kg_required) > TOLERANCE_KG:  # chỉ so khi có số gốc (PC)
-        m = create_mismatch(db, "Cân tại xưởng mạ", "vc", t.id, t.contract_id, t.kg_required, t.kg_at_galv,
-                            reason or "Khác (ghi rõ)", reason_note, t.driver, "Vận tải")
-        t.mismatch_id = m.id
+    d = t.kg_at_galv - (t.kg_required or 0)
+    _task_result(db, t, bool(t.kg_required) and abs(d) > TOLERANCE_KG, f"Mạ cân lệch {d:+g} kg", reason, reason_note)
     db.commit()
     return t
 
@@ -897,18 +911,40 @@ def task_fill_delivery(db: Session, tid: str, kg_picked: float, kg_delivered: fl
     t = get_or_404(db, Task, tid)
     if t.type != "giao_khach":
         raise HTTPException(400, "Thẻ này không phải thẻ giao khách")
-    t.kg_picked, t.kg_delivered, t.filled_at, t.status = kg_picked or 0, kg_delivered or 0, utcnow(), "Hoàn thành"
+    if t.status not in ("Đang chạy", "Chờ QL duyệt"):
+        raise HTTPException(400, f"Thẻ đang \"{t.status}\" — xuất phát trước khi điền phiếu")
+    t.kg_picked, t.kg_delivered = kg_picked or 0, kg_delivered or 0
     if photo:
         t.photo = photo
     delta = t.kg_delivered - t.kg_picked
-    if abs(delta) > 0.5 or (t.kg_required and abs(t.kg_picked - t.kg_required) > TOLERANCE_KG):
-        exp, act = (t.kg_picked, t.kg_delivered) if abs(delta) > 0.5 else (t.kg_required, t.kg_picked)
-        m = create_mismatch(db, "Giao khách", "vc", t.id, t.contract_id, exp, act, reason or "Khác (ghi rõ)",
-                            reason_note, t.driver, "Vận tải")
-        t.mismatch_id = m.id
-    c = db.get(Contract, t.contract_id)
-    notify(db, f"Đã giao {fmt_kg(t.kg_delivered)} cho khách", f"HĐ {t.contract_id}" + (f" · {c.customer}" if c else ""),
-           "success")
+    off_req = bool(t.kg_required) and abs(t.kg_picked - t.kg_required) > TOLERANCE_KG
+    what = f"Khách ký lệch {delta:+g} kg" if abs(delta) > 0.5 else f"Lấy từ mạ lệch {t.kg_picked - t.kg_required:+g} kg"
+    _task_result(db, t, abs(delta) > 0.5 or off_req, what, reason, reason_note)
+    if t.status == "Hoàn thành":
+        c = db.get(Contract, t.contract_id)
+        notify(db, f"Đã giao {fmt_kg(t.kg_delivered)} cho khách", f"HĐ {t.contract_id}" + (f" · {c.customer}" if c else ""),
+               "success")
+    db.commit()
+    return t
+
+
+def approve_task(db: Session, tid: str) -> Task:
+    t = get_or_404(db, Task, tid)
+    if t.status != "Chờ QL duyệt":
+        raise HTTPException(400, f"Thẻ {tid} không ở trạng thái chờ duyệt")
+    t.status, t.approved_by, t.approved_at = "Hoàn thành", actor(QL), utcnow()
+    notify(db, f"Quản lý chấp nhận phiếu {tid}", f"{t.driver} · {t.reason}", "success", roles="lx,admin")
+    db.commit()
+    return t
+
+
+def reject_task(db: Session, tid: str, reason: str) -> Task:
+    """Không chấp nhận → thẻ về Đang chạy, lái xe điền lại phiếu."""
+    t = get_or_404(db, Task, tid)
+    if t.status != "Chờ QL duyệt":
+        raise HTTPException(400, f"Thẻ {tid} không ở trạng thái chờ duyệt")
+    t.status, t.reject_reason_ql, t.approved_by, t.approved_at = "Đang chạy", reason, actor(QL), utcnow()
+    notify(db, f"Quản lý không chấp nhận phiếu {tid} — điền lại", f"{t.driver}: {reason}", "error", roles="lx,admin")
     db.commit()
     return t
 

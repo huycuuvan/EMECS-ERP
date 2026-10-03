@@ -116,6 +116,8 @@ export const useFillWeighing = () => useAction(({ id, ...v }: { id: ID; kgActual
   (p) => p.mismatchId ? `${p.id}: LỆCH vượt dung sai — đã tạo ${p.mismatchId} chờ Quản lý ký` : `${p.id}: đã cân`)
 export const useWeighingPhoto = () => useAction(({ id, photo }: { id: ID; photo: string | null }) => api.put<Weighing>(`/weighings/${id}/photo`, { photo }).then((r) => r.data), 'Đã cập nhật ảnh phiếu')
 
+export const useApproveTask = () => useAction((id: ID) => post<Task>(`/tasks/${id}/approve`), (t) => `Đã chấp nhận phiếu ${t.id}`)
+export const useRejectTaskFill = () => useAction(({ id, reason }: { id: ID; reason: string }) => post<Task>(`/tasks/${id}/reject-fill`, { reason }), (t) => `Không chấp nhận ${t.id} — lái xe điền lại`)
 export const useCreateTask = () => useAction((v: { type: TaskType; driver: string; contractId: ID; refId?: ID | null; note?: string; arriveAt: string; fillDeadline?: string; vehiclePlate?: string | null; galvanizerId?: number | null; deliverCustomerId?: number | null; deliverName?: string; deliverAddress?: string; receiverName?: string; receiverPhone?: string; contactName?: string; contactPhone?: string }) => post<Task>('/tasks', v), (t) => `Đã giao thẻ ${t.id} cho ${t.driver}`)
 export const useTaskAccept = () => useAction((id: ID) => post<Task>(`/tasks/${id}/accept`), (t) => `${t.id}: đã nhận việc`)
 export const useTaskReject = () => useAction(({ id, reason }: { id: ID; reason: string }) => post<Task>(`/tasks/${id}/reject`, { reason }), (t) => `${t.id}: đã từ chối`)

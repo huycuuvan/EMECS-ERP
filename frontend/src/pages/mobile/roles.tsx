@@ -157,7 +157,13 @@ function TaskCard({ t }: { t: Task }) {
           <div className="f-hint" style={{ marginTop: 6, textAlign: 'center' }}>Điền số cân + ảnh phiếu trước <b>{t.fillDeadline ? fmtDT(t.fillDeadline) : 'hạn trả phiếu'}</b>.</div>
         </>
       )}
+      {t.status === 'Đang chạy' && t.qlRejectReason && <Line k="QL không chấp nhận" kFix vClass="red-txt sm">{t.qlRejectReason} — điền lại phiếu</Line>}
       {t.status === 'Đang chạy' && (isMa ? <GalvForm t={t} /> : <DelivForm t={t} />)}
+      {t.status === 'Chờ QL duyệt' && <>
+        <Line k="Đã gửi phiếu" vClass="sm">{isMa ? `Mạ cân ${fmtN(t.kgAtGalv)} kg` : `Mạ ${fmtN(t.kgPicked)} / khách ${fmtN(t.kgDelivered)} kg`}</Line>
+        <Line k="Lý do lệch" kFix vClass="sm">{t.reason}{t.reasonNote ? ` — ${t.reasonNote}` : ''}</Line>
+        <div className="f-hint" style={{ color: 'var(--amber)' }}>Đang chờ Quản lý chấp nhận.</div>
+      </>}
       {t.status === 'Hoàn thành' && (
         <>
           {isMa

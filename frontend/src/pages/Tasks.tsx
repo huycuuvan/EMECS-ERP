@@ -17,11 +17,11 @@ import { TaskAdminActions } from './tasks/TaskEditModals'
 import { isOverdue, useNow } from './tasks/logic'
 import { DueCell, KgCell, PhotoCell, RefCell, TaskStatusTag, TypeChip } from './tasks/util'
 
-type TabKey = 'all' | 'cho' | 'dang' | 'quahan' | 'xong' | 'tuchoi'
+type TabKey = 'all' | 'cho' | 'dang' | 'quahan' | 'duyet' | 'xong' | 'tuchoi'
 
 /** Tab → bộ lọc trạng thái server hiểu khi xuất Excel (overdue / running = lọc đặc biệt ở server). */
 const TAB_STATUS: Record<TabKey, string | undefined> = {
-  all: undefined, cho: 'Chờ xác nhận', dang: 'running', quahan: 'overdue', xong: 'Hoàn thành', tuchoi: 'Từ chối',
+  all: undefined, cho: 'Chờ xác nhận', dang: 'running', quahan: 'overdue', duyet: 'Chờ QL duyệt', xong: 'Hoàn thành', tuchoi: 'Từ chối',
 }
 
 const panel = { background: 'var(--canvas)', border: '1px solid var(--rule)', borderRadius: 12, padding: '6px 18px 18px' }
@@ -45,6 +45,7 @@ export default function Tasks() {
     if (k === 'cho') return t.status === 'Chờ xác nhận'
     if (k === 'dang') return (t.status === 'Đã nhận' || t.status === 'Đang chạy') && !isOverdue(t, now)
     if (k === 'quahan') return isOverdue(t, now)
+    if (k === 'duyet') return t.status === 'Chờ QL duyệt'
     if (k === 'xong') return t.status === 'Hoàn thành'
     if (k === 'tuchoi') return t.status === 'Từ chối'
     return true
@@ -89,7 +90,7 @@ export default function Tasks() {
   const cnt = (k: TabKey) => base.filter((t) => inTab(t, k)).length
   const tabItems: { key: TabKey; label: string }[] = [
     { key: 'all', label: 'Tất cả' }, { key: 'cho', label: 'Chờ xác nhận' }, { key: 'dang', label: 'Đang thực hiện' },
-    { key: 'quahan', label: 'Quá hạn điền' }, { key: 'xong', label: 'Hoàn thành' }, { key: 'tuchoi', label: 'Từ chối' },
+    { key: 'quahan', label: 'Quá hạn điền' }, { key: 'duyet', label: 'Chờ QL duyệt' }, { key: 'xong', label: 'Hoàn thành' }, { key: 'tuchoi', label: 'Từ chối' },
   ]
 
   return (
@@ -108,12 +109,14 @@ export default function Tasks() {
           sub={over.length
             ? <span style={{ color: 'var(--signal)' }}>{over.map((t, i) => <span key={t.id}>{i > 0 && ' · '}<RecordLink id={t.id} danger />{` quá ${hoursOver(t.fillDeadline!)}h`}</span>)}</span>
             : 'quá 24h chưa điền số cân + ảnh'} />
+        <Kpi tone="rust" label="Phiếu lệch chờ QL duyệt" value={<span className={cnt('duyet') ? 'text-signal' : ''}>{cnt('duyet')}</span>}
+          sub={cnt('duyet') ? 'lái xe đã ghi lý do — Quản lý chấp nhận / không chấp nhận' : 'không có phiếu chờ duyệt'} onClick={() => setTab('duyet')} />
         <Kpi tone="signal" label="Bị từ chối" value={rej} sub="cần Quản lý gán tài xế khác" onClick={() => setTab('tuchoi')} />
       </KpiGrid>
 
       <div style={panel}>
         <Tabs activeKey={tab} onChange={(k) => setTab(k as TabKey)}
-          items={tabItems.map((x) => ({ key: x.key, label: <span>{x.label} <span className="caption num" style={{ color: x.key === 'quahan' && cnt(x.key) ? 'var(--signal)' : undefined, fontWeight: 700 }}>{cnt(x.key)}</span></span> }))} />
+          items={tabItems.map((x) => ({ key: x.key, label: <span>{x.label} <span className="caption num" style={{ color: (x.key === 'quahan' || x.key === 'duyet') && cnt(x.key) ? 'var(--signal)' : undefined, fontWeight: 700 }}>{cnt(x.key)}</span></span> }))} />
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
           <Input allowClear prefix={<Search size={14} color="var(--ash)" />} placeholder="Tìm mã thẻ, hợp đồng, chứng từ, tài xế, biển số..." value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
           <Select allowClear placeholder="Tất cả tài xế" value={driver} onChange={setDriver} style={{ minWidth: 180 }}
