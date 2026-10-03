@@ -19,7 +19,7 @@ export default function WeighingDrawer({ id }: { id: string }) {
   const { data: p, isLoading, isError } = useWeighing(id)
   const { data: meta } = useMeta()
   const { data: tasks = [] } = useTasks()
-  const { can } = useAuth()
+  const { can, hasRole } = useAuth()
   const canEdit = can('phieu-can', 'edit')
   const setPhoto = useWeighingPhoto()
   const act = useWeighingActions()
@@ -37,8 +37,8 @@ export default function WeighingDrawer({ id }: { id: string }) {
 
   const actions = canEdit && (
     <>
-      {p.status === 'Chờ cân' && <Button size="small" type="primary" icon={<Scale size={13} />} onClick={() => act.fill(p)}>Nhập kết quả cân</Button>}
-      {p.kgActual != null && !vc && <Button size="small" ghost icon={<Truck size={13} />} onClick={() => act.dispatch(p)}>Điều xe đi mạ</Button>}
+      {(p.status === 'Chờ cân' || p.status === 'QL từ chối') && <Button size="small" type="primary" icon={<Scale size={13} />} onClick={() => act.fill(p)}>{p.status === 'QL từ chối' ? 'Cân lại' : 'Nhập kết quả cân'}</Button>}
+      {p.kgActual != null && !vc && hasRole('admin') && <Button size="small" ghost icon={<Truck size={13} />} onClick={() => act.dispatch(p)}>Điều xe đi mạ</Button>}
       <Button size="small" ghost icon={<Pencil size={12} />} onClick={() => setEditing(true)}>Sửa</Button>
     </>
   )

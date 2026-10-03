@@ -287,6 +287,8 @@ def pending_deltas(db: Session) -> list[dict]:
     """Mọi chênh lệch trên toàn hệ thống CHƯA được đưa vào kho ảo."""
     out = []
     for p in db.scalars(select(Weighing)):
+        if p.receipt_id:  # phiếu từ Chuẩn bị hàng: lệch do Quản lý duyệt / từ chối, không đưa vào kho ảo
+            continue
         if p.kg_actual is not None and p.kg_actual != p.kg_expected and not p.loss_accepted:
             out.append({"refType": "pc", "id": p.id, "contractId": p.contract_id, "source": "Trạm cân công ty",
                         "date": p.date, "expected": p.kg_expected, "actual": p.kg_actual,
@@ -720,14 +722,41 @@ def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | N
         if not (reason or "").strip():
             raise HTTPException(400, ("Cân lớn hơn số Quản lý giao" if over else f"Cân thiếu quá {PC_TOLERANCE_PCT:g}% so với số Quản lý giao")
                                 + " — bắt buộc nhập lý do")
-        m = create_mismatch(db, "Trạm cân công ty", "pc", p.id, p.contract_id, exp, p.kg_actual,
-                            reason, reason_note, actor(KHO), "Kho")
-        p.mismatch_id, p.status = m.id, "Lệch — chờ ký"
-        notify(db, f"{p.id}: cân xuất lệch {(p.kg_actual - exp) / exp * 100:+.1f}% — chờ Quản lý duyệt",
-               f"Giao {fmt_kg(exp)} · cân {fmt_kg(p.kg_actual)} · {reason}", "warning", roles="admin")
+        if p.receipt_id:  # Chuẩn bị hàng: chỉ cần Quản lý duyệt / từ chối, chưa đưa vào sai lệch / kho ảo
+            p.status, p.reason, p.reason_note, p.reject_reason = "Chờ QL duyệt", reason, reason_note or "", None
+            p.approved_by = p.approved_at = None
+        else:
+            m = create_mismatch(db, "Trạm cân công ty", "pc", p.id, p.contract_id, exp, p.kg_actual,
+                                reason, reason_note, actor(KHO), "Kho")
+            p.mismatch_id, p.status = m.id, "Lệch — chờ ký"
+        notify(db, f"{p.id}: cân xuất {'dư' if over else 'thiếu'} {(p.kg_actual - exp) / exp * 100:+.1f}% — chờ Quản lý duyệt",
+               f"{p.receipt_id or ''} · giao {fmt_kg(exp)} · cân {fmt_kg(p.kg_actual)} · {reason}", "warning", roles="admin")
     else:
-        p.mismatch_id, p.status = None, "Đã cân"
+        p.mismatch_id, p.status, p.reason, p.reason_note, p.reject_reason = None, "Đã cân", None, None, None
         _billed_notify(db, p)
+    db.commit()
+    return p
+
+
+def approve_weighing(db: Session, pid: str) -> Weighing:
+    """Quản lý duyệt phiếu cân lệch (Chuẩn bị hàng) → tính vào công nợ."""
+    p = get_or_404(db, Weighing, pid)
+    if p.status != "Chờ QL duyệt":
+        raise HTTPException(400, f"Phiếu {pid} không ở trạng thái chờ duyệt")
+    p.status, p.approved_by, p.approved_at = "Đã cân", actor(QL), utcnow()
+    _billed_notify(db, p)
+    notify(db, f"Quản lý đã duyệt phiếu cân {pid}", f"{fmt_kg(p.kg_actual)} — {p.reason}", "success", roles="kho,admin")
+    db.commit()
+    return p
+
+
+def reject_weighing(db: Session, pid: str, reason: str) -> Weighing:
+    """Quản lý từ chối → kho cân lại."""
+    p = get_or_404(db, Weighing, pid)
+    if p.status != "Chờ QL duyệt":
+        raise HTTPException(400, f"Phiếu {pid} không ở trạng thái chờ duyệt")
+    p.status, p.reject_reason, p.approved_by, p.approved_at = "QL từ chối", reason, actor(QL), utcnow()
+    notify(db, f"Quản lý từ chối phiếu cân {pid} — cân lại", reason, "error", roles="kho,admin")
     db.commit()
     return p
 
@@ -747,7 +776,7 @@ def billed_kg(db: Session, cid: str) -> tuple[float, float]:
             continue
         if p.status == "Đã cân":
             ok += p.kg_actual
-        elif p.status == "Lệch — chờ ký":
+        elif p.status in ("Lệch — chờ ký", "Chờ QL duyệt"):
             pend += p.kg_actual
     return ok, pend
 

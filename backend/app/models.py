@@ -211,7 +211,7 @@ class Weighing(Base):
     signer_lai_xe: Mapped[str] = mapped_column(String(120), default="")
     by: Mapped[str] = mapped_column(String(120))
     mismatch_id: Mapped[str | None] = mapped_column(String(32))
-    status: Mapped[str] = mapped_column(String(32))  # Chờ cân | Đã cân | Lệch — chờ ký
+    status: Mapped[str] = mapped_column(String(32))  # Chờ cân | Đã cân | Lệch — chờ ký | Chờ QL duyệt | QL từ chối
     loss_accepted: Mapped[bool] = mapped_column(Boolean, default=False)
     # cân xe: tổng (xe + hàng) − xe = hàng (kg_actual); giờ cân vào / ra; phiếu chuẩn bị hàng QL giao xuống
     receipt_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
@@ -220,6 +220,12 @@ class Weighing(Base):
     weigh_in_at = mapped_column(UTCDateTime, nullable=True)
     weigh_out_at = mapped_column(UTCDateTime, nullable=True)
     vehicle_plate: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # phiếu từ Chuẩn bị hàng: lệch → kho ghi lý do → Quản lý duyệt / từ chối (không qua biên bản sai lệch / kho ảo)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reason_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    approved_at = mapped_column(UTCDateTime, nullable=True)
+    reject_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Task(Base):

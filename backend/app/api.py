@@ -354,6 +354,16 @@ def create_weighing(body: SC.WeighingCreate, db: Session = DB):
     return S.weighing(svc.create_weighing(db, body.source_id, body.kg_expected))
 
 
+@router.post("/weighings/{pid}/approve", dependencies=[Depends(require_roles("admin"))])
+def approve_weighing(pid: str, db: Session = DB):
+    return S.weighing(svc.approve_weighing(db, pid))
+
+
+@router.post("/weighings/{pid}/reject", dependencies=[Depends(require_roles("admin"))])
+def reject_weighing(pid: str, body: SC.ReasonIn, db: Session = DB):
+    return S.weighing(svc.reject_weighing(db, pid, body.reason))
+
+
 @router.post("/weighings/{pid}/fill", dependencies=[Depends(require("phieu-can", "edit"))])
 def fill_weighing(pid: str, body: SC.WeighingFill, db: Session = DB):
     return S.weighing(svc.fill_weighing(db, pid, body.kg_actual, body.photo, body.reason, body.reason_note,

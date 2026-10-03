@@ -111,7 +111,7 @@ export function FillWeighingModal({ p, onClose }: { p: Weighing; onClose: () => 
         onFinish={async (v) => {
           await fill.mutateAsync({
             id: p.id, grossKg: v.gross, tareKg: v.tare, weighInAt: v.inAt.format(), weighOutAt: v.outAt.format(),
-            vehiclePlate: v.plate || undefined, photo: v.photo, signerLaiXe: v.laiXe || undefined,
+            vehiclePlate: v.plate || undefined, photo: v.photo,
             reason: bad ? v.reason : undefined, reasonNote: bad ? (v.note || '').trim() : undefined,
           })
           onClose()
@@ -142,9 +142,8 @@ export function FillWeighingModal({ p, onClose }: { p: Weighing; onClose: () => 
         <Form.Item name="photo" label="Ảnh phiếu cân" rules={[{ required: true, message: 'Bắt buộc chụp / tải ảnh phiếu cân' }]}>
           <PhotoInput demo={{ label: `${p.id} · ${p.contractId}`, kg: kg || p.kgExpected }} />
         </Form.Item>
-        <Form.Item name="laiXe" label="Lái xe">
-          <Select allowClear placeholder="Chọn lái xe" options={(meta?.drivers ?? []).map((d) => ({ value: d, label: d }))} />
-        </Form.Item>
+        {p.signers.laiXe && <p className="caption" style={{ marginTop: -6 }}>Tài xế (Quản lý chỉ định): <b>{p.signers.laiXe}</b>{p.vehiclePlate && <> · xe {p.vehiclePlate}</>}</p>}
+        {p.status === 'QL từ chối' && <WarnBox title={<>Quản lý từ chối lần cân trước: {p.rejectReason} — cân lại</>} />}
         {bad && (
           <WarnBox title={<><Siren size={14} /> {dev > 0 ? 'DƯ' : 'THIẾU'} {dev > 0 ? '+' : ''}{dev.toFixed(1)}% ({fmtDelta((kg ?? 0) - p.kgExpected)}) so với Quản lý giao — nhập lý do, chờ Quản lý duyệt mới tính công nợ</>}>
             <Form.Item name="reason" label="Lý do sai lệch (bắt buộc)" rules={[{ required: true, message: 'Bắt buộc chọn lý do' }]} style={{ marginBottom: 8 }}>

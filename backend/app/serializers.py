@@ -97,6 +97,8 @@ def weighing(p: Weighing, photo: bool = True) -> dict:
         "receiptId": p.receipt_id, "grossKg": p.gross_kg, "tareKg": p.tare_kg, "weighInAt": iso(p.weigh_in_at),
         "weighOutAt": iso(p.weigh_out_at), "vehiclePlate": p.vehicle_plate,
         "approved": p.kg_actual is not None and p.status == "Đã cân",  # tính vào công nợ
+        "reason": p.reason, "reasonNote": p.reason_note, "approvedBy": p.approved_by, "approvedAt": iso(p.approved_at),
+        "rejectReason": p.reject_reason,
     }
 
 

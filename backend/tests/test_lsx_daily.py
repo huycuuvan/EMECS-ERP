@@ -114,11 +114,20 @@ def test_prepare_goods_to_warehouse_weigh_5pct_and_billing(c):
             "weighOutAt": "2099-01-01T08:40:00+07:00", "vehiclePlate": "29c-12345"}  # hàng 2.200 kg = +10%
     assert c.post(f"/api/weighings/{pid}/fill", json=body).status_code == 400  # thiếu lý do
     p = c.post(f"/api/weighings/{pid}/fill", json={**body, "reason": "Bổ sung bản mã"}).json()
-    assert p["kgActual"] == 2200 and p["status"] == "Lệch — chờ ký" and not p["approved"] and p["vehiclePlate"] == "29C-12345"
+    assert p["kgActual"] == 2200 and p["status"] == "Chờ QL duyệt" and not p["approved"] and p["vehiclePlate"] == "29C-12345"
+    assert p["mismatchId"] is None and p["reason"] == "Bổ sung bản mã"  # không tạo biên bản sai lệch
+    assert c.post(f"/api/weighings/{pid}/approve").status_code == 403  # kho không tự duyệt
     login(c, "ql")
+    assert all(d["id"] != pid for d in c.get("/api/vloss/pending-deltas").json())  # không đưa vào kho ảo
     g = c.get(f"/api/contracts/{hd['id']}").json()
     assert g["billedKg"] == 0 and g["billPendingKg"] == 2200 and g["deliveredValue"] == 0  # chưa duyệt → chưa tính nợ
-    c.post(f"/api/mismatches/{p['mismatchId']}/sign")
+    p = c.post(f"/api/weighings/{pid}/reject", json={"reason": "Cân lại, số xe sai"}).json()
+    assert p["status"] == "QL từ chối" and p["rejectReason"] == "Cân lại, số xe sai"
+    login(c, "kho")
+    p = c.post(f"/api/weighings/{pid}/fill", json={**body, "reason": "Bổ sung bản mã (cân lại)"}).json()
+    assert p["status"] == "Chờ QL duyệt" and p["rejectReason"] is None
+    login(c, "ql")
+    c.post(f"/api/weighings/{pid}/approve")
     g = c.get(f"/api/contracts/{hd['id']}").json()
     assert g["billedKg"] == 2200 and g["deliveredValue"] == round(2200 * g["contract"]["unitPrice"])
 

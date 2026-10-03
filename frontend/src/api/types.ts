@@ -60,7 +60,7 @@ export interface Lsx {
 export interface ReceiptLine { itemId: number; name: string; unit: string; qty: number; kgPerUnit: number; kg: number }
 export interface Receipt { id: ID; lsxId: ID; contractId: ID; date: string; qty: number; kg: number; by: string; note: string; items: ReceiptLine[] }
 
-export type WeighingStatus = 'Chờ cân' | 'Đã cân' | 'Lệch — chờ ký'
+export type WeighingStatus = 'Chờ cân' | 'Đã cân' | 'Lệch — chờ ký' | 'Chờ QL duyệt' | 'QL từ chối'
 export interface Weighing {
   id: ID; contractId: ID; lsxId: ID; date: string; kgExpected: number; kgActual: number | null
   /** chỉ có ở API chi tiết (GET /weighings/{id}); danh sách trả null, dùng hasPhoto */
@@ -70,6 +70,7 @@ export interface Weighing {
   /** phiếu chuẩn bị hàng QL giao xuống kho; cân xe: tổng (xe + hàng), xe, giờ vào / ra */
   receiptId: ID | null; grossKg: number | null; tareKg: number | null; weighInAt: string | null; weighOutAt: string | null
   vehiclePlate: string | null; approved: boolean
+  reason: string | null; reasonNote: string | null; approvedBy: string | null; approvedAt: string | null; rejectReason: string | null
 }
 
 export type TaskType = 'di_ma' | 'giao_khach'

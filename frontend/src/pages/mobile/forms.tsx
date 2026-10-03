@@ -126,7 +126,6 @@ export function PcFillForm({ p }: { p: Weighing }) {
   const [photo, setPhoto] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
-  const [laiXe, setLaiXe] = useState(p.signers.laiXe || '')
   const v = gross !== '' && tare !== '' ? Math.round((num(gross) - num(tare)) * 1000) / 1000 : 0
   const dev = v > 0 && p.kgExpected ? ((v - p.kgExpected) / p.kgExpected) * 100 : 0
   const lech = v > 0 && p.kgExpected > 0 && (v > p.kgExpected || -dev > pct)  // thiếu quá pct% hoặc dư → lý do + duyệt
@@ -139,7 +138,7 @@ export function PcFillForm({ p }: { p: Weighing }) {
     try {
       await fill.mutateAsync({
         id: p.id, grossKg: num(gross), tareKg: num(tare), weighInAt: new Date(inAt).toISOString(), weighOutAt: new Date(outAt).toISOString(),
-        vehiclePlate: plate || undefined, photo, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined, signerLaiXe: laiXe || undefined,
+        vehiclePlate: plate || undefined, photo, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined,
       })
       m.pop()
     } catch { /* đã báo */ }
@@ -160,11 +159,8 @@ export function PcFillForm({ p }: { p: Weighing }) {
       <input type="datetime-local" className="inp" value={outAt} onChange={(e) => setOutAt(e.target.value)} />
       <label className="f-lbl">Biển số xe</label>
       <input className="inp" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="VD: 29C-123.45" />
-      <label className="f-lbl">Lái xe</label>
-      <select className="inp" value={laiXe} onChange={(e) => setLaiXe(e.target.value)}>
-        <option value="">— Chọn lái xe —</option>
-        {(m.meta?.drivers ?? []).map((n) => <option key={n} value={n}>{n}</option>)}
-      </select>
+      {p.signers.laiXe && <div className="f-hint">Tài xế (Quản lý chỉ định): <b>{p.signers.laiXe}</b></div>}
+      {p.status === 'QL từ chối' && <div className="f-hint red-txt">Quản lý từ chối lần cân trước: {p.rejectReason} — cân lại.</div>}
       <PhotoPicker label="Ảnh phiếu cân (bắt buộc)" value={photo} onChange={setPhoto} demo={{ label: `${p.id} · phiếu cân`, kg: v || p.kgExpected }} />
       <ReasonBox show={lech} msg={`${dev > 0 ? 'Dư' : 'Thiếu'} ${dev > 0 ? '+' : ''}${dev.toFixed(1)}% (${signed(v - p.kgExpected)} kg) so với Quản lý giao — chọn lý do, chờ Quản lý duyệt`} reasons={m.meta?.reasonsCan ?? []}
         reason={reason} setReason={setReason} note={note} setNote={setNote} />

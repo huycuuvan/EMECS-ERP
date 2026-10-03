@@ -24,7 +24,8 @@ const sameMonth = (iso?: string | null) => {
 
 export default function Weighings() {
   const { open } = usePeek()
-  const { can } = useAuth()
+  const { can, hasRole } = useAuth()
+  const isQl = hasRole('admin')
   const canEdit = can('phieu-can', 'edit')
   const { data: meta } = useMeta()
   const tol = meta?.toleranceKg ?? 30
@@ -131,13 +132,14 @@ export default function Weighings() {
     {
       title: '', key: 'ops',
       render: (_, p) => {
-        if (p.status === 'Chờ cân') return canEdit
-          ? <Button size="small" type="primary" icon={<Scale size={11} />} onClick={stop(() => act.fill(p))}>Nhập kết quả cân</Button>
+        if (p.status === 'Chờ cân' || p.status === 'QL từ chối') return canEdit
+          ? <Button size="small" type="primary" icon={<Scale size={11} />} onClick={stop(() => act.fill(p))}>{p.status === 'QL từ chối' ? 'Cân lại' : 'Nhập kết quả cân'}</Button>
           : null
         if (p.kgActual == null) return null
         const t = taskOf(p.id)
         if (t) return <RecordLink id={t.id} style={{ color: C.rust, fontSize: 11 }}><Truck size={11} style={{ verticalAlign: -2 }} /> {t.id}</RecordLink>
-        return canEdit ? <Button size="small" icon={<Truck size={11} />} onClick={stop(() => act.dispatch(p))}>Điều xe đi mạ</Button> : null
+        // giao việc cho lái xe là việc của Quản lý (kho không điều xe)
+        return isQl ? <Button size="small" icon={<Truck size={11} />} onClick={stop(() => act.dispatch(p))}>Điều xe đi mạ</Button> : null
       },
     },
   ]

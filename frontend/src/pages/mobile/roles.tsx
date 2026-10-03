@@ -277,7 +277,7 @@ export function KhoView({ tab, setTab, onRoleSheet }: RoleViewProps) {
   const { data: rcs = [], isLoading: l2 } = useReceipts()
   const { data: ods = [] } = useOverdueDocs()
   const alerts = khoAlerts(ps, ods)
-  const pend = ps.filter((p) => p.status === 'Chờ cân').sort((a, b) => b.date.localeCompare(a.date))
+  const pend = ps.filter((p) => p.status === 'Chờ cân' || p.status === 'QL từ chối').sort((a, b) => b.date.localeCompare(a.date))
   let body: ReactNode
   if (tab === 'cb') body = <AlertTab alerts={alerts} />
   else if (tab === 'ptn') {
@@ -314,21 +314,23 @@ function PcCard({ p }: { p: Weighing }) {
       <div className="mc-top"><span className="mc-id">{p.id}</span><span className="mc-status"><StatusChip status={p.status} /></span></div>
       <Line k={`${p.contractId} · ${p.lsxId}`} vClass="light">{fmtDT(p.date)}</Line>
       <Line k="Quản lý giao"><Kg value={p.kgExpected} /></Line>
-      {p.status === 'Chờ cân' && <AssignedGoods receiptId={p.receiptId} compact />}
+      {(p.status === 'Chờ cân' || p.status === 'QL từ chối') && <AssignedGoods receiptId={p.receiptId} compact />}
+      {p.signers.laiXe && <Line k="Tài xế (QL chỉ định)" vClass="sm">{p.signers.laiXe}{p.vehiclePlate ? ` · ${p.vehiclePlate}` : ''}</Line>}
+      {p.status === 'QL từ chối' && <Line k="QL từ chối" kFix vClass="red-txt sm">{p.rejectReason} — cân lại</Line>}
       {p.kgActual != null && (
         <Line k="Cân thực tế (hàng)" vClass={bad ? 'red-txt' : 'moss-txt'}>{fmtN(p.kgActual)} kg{delta ? ` (${signed(delta)})` : ' · khớp'}
           {p.grossKg != null && <small> · tổng {fmtN(p.grossKg)} − xe {fmtN(p.tareKg)}</small>}</Line>
       )}
-      {p.status === 'Lệch — chờ ký' && <Line k="Công nợ" vClass="red-txt sm">Chờ Quản lý duyệt mới tính</Line>}
+      {(p.status === 'Lệch — chờ ký' || p.status === 'Chờ QL duyệt') && <Line k="Công nợ" vClass="red-txt sm">Chờ Quản lý duyệt mới tính{p.reason ? ` · lý do: ${p.reason}` : ''}</Line>}
       {p.kgActual != null && (
         <Line k="Ảnh phiếu ký 3 bên">
           {p.hasPhoto ? <button type="button" className="m-chip ok" onClick={() => m.open('pc', p.id)}><CheckCheck />Đã có · xem</button>
             : <span className="m-chip bad"><AlertTriangle />Thiếu ảnh</span>}
         </Line>
       )}
-      {p.status === 'Chờ cân' && (
+      {(p.status === 'Chờ cân' || p.status === 'QL từ chối') && (
         <div className="btn-row">
-          <Btn variant="primary" icon={Scale} onClick={() => m.sheet({ icon: Scale, title: `Nhập kết quả cân ${p.id}`, body: <PcFillForm p={p} /> })}>Nhập kết quả cân</Btn>
+          <Btn variant="primary" icon={Scale} onClick={() => m.sheet({ icon: Scale, title: `Nhập kết quả cân ${p.id}`, body: <PcFillForm p={p} /> })}>{p.status === 'QL từ chối' ? 'Cân lại' : 'Nhập kết quả cân'}</Btn>
         </div>
       )}
     </Card>

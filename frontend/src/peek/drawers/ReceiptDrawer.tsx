@@ -10,6 +10,7 @@ import { fmtDT, fmtKg, fmtNum } from '@/lib/format'
 import { useAuth } from '@/lib/auth'
 import EditReceiptModal from '@/pages/receipts/EditReceiptModal'
 import { stockOfLsx, useWeighingActions } from '@/pages/weighings/WeighingModals'
+import { WeighActions, WeighResult } from '@/pages/receipts/WeighApproval'
 import { C } from '@/theme'
 import PeekShell from '../PeekShell'
 import RecordLink from '../RecordLink'
@@ -49,6 +50,19 @@ export default function ReceiptDrawer({ id }: { id: string }) {
         <Cell label="Hợp đồng"><RecordLink id={r.contractId} style={{ color: C.rust }} /></Cell>
         <Cell label="Ghi chú" wide>{r.note || '—'}</Cell>
       </CellGrid>
+      {(() => {
+        const w = allPcs.find((p) => p.receiptId === r.id)
+        return w ? (
+          <>
+            <Sec icon={<Scale />}>Cân xuất · {w.id}</Sec>
+            <CellGrid>
+              <Cell label="Tài xế (QL chỉ định)">{w.signers.laiXe || '—'}{w.vehiclePlate && <div className="caption mono" style={{ fontWeight: 400 }}>{w.vehiclePlate}</div>}</Cell>
+              <Cell label="Kết quả cân" wide><WeighResult p={w} /></Cell>
+            </CellGrid>
+            <div style={{ marginTop: 8 }}><WeighActions p={w} onWeigh={(p) => wAct.fill(p)} /></div>
+          </>
+        ) : null
+      })()}
       {!!r.items?.length && (
         <table className="pk-items" style={{ marginTop: 10 }}>
           <thead><tr><th>Mặt hàng</th><th className="r">Số lượng</th><th className="r">KL/1 bộ</th><th className="r">Khối lượng</th></tr></thead>
