@@ -18,6 +18,18 @@ import { SrcChip } from './vloss/SrcChip'
 const panel = { background: 'var(--canvas)', border: '1px solid var(--rule)', borderRadius: 12, padding: 18 }
 const SOURCES = ['Trạm cân công ty', 'Cân tại xưởng mạ', 'Giao khách']
 const sumKg = (arr: VLoss[]) => arr.reduce((s, e) => s + Math.abs(Number(e.kg) || 0), 0)
+/** Công thức trên thẻ: Σ số gốc − Σ số cân sau = chênh (cộng từ công thức từng khoản). */
+function CardFormula({ arr, a, b }: { arr: VLoss[]; a: string; b: string }) {
+  const fs = arr.map((e) => e.formula).filter((f): f is NonNullable<VLoss['formula']> => !!f)
+  if (!fs.length) return <>{arr.length} khoản</>
+  const sa = fs.reduce((s, f) => s + f.a, 0), sb = fs.reduce((s, f) => s + f.b, 0), d = sa - sb
+  return (
+    <span style={{ display: 'block', lineHeight: 1.45 }}>
+      <span style={{ display: 'block' }}>{a} <b className="num">{fmtKg(sa)}</b> − {b} <b className="num">{fmtKg(sb)}</b></span>
+      <span style={{ display: 'block' }}>= <b className="num">{fmtKg(Math.abs(d))}</b> {d > 0 ? 'hụt' : d < 0 ? 'dư' : ''} · {arr.length} khoản</span>
+    </span>
+  )
+}
 
 export default function VirtualLoss() {
   const { data: all = [], isLoading } = useVlossList()
@@ -69,10 +81,10 @@ export default function VirtualLoss() {
         </>} />
 
       <KpiGrid>
-        <Kpi tone="amber" label="Tổng lệch lũy kế" value={fmtKg(sumKg(all))} sub={`${all.length} khoản đã chấp nhận`} onClick={() => { setSrc(undefined); setSt(undefined) }} />
-        <Kpi tone="steel" label="Trong tháng này" value={fmtKg(sumKg(month))} sub={`${month.length} khoản`} />
-        <Kpi tone="rust" label="Cân tại xưởng mạ" value={fmtKg(sumKg(bySrc('Cân tại xưởng mạ')))} sub={`${bySrc('Cân tại xưởng mạ').length} khoản`} onClick={() => setSrc('Cân tại xưởng mạ')} />
-        <Kpi tone="moss" label="Giao khách" value={fmtKg(sumKg(bySrc('Giao khách')))} sub={`${bySrc('Giao khách').length} khoản`} onClick={() => setSrc('Giao khách')} />
+        <Kpi tone="amber" label="Tổng lệch lũy kế" value={fmtKg(sumKg(all))} sub={<CardFormula arr={all} a="Σ số gốc" b="Σ số cân sau" />} onClick={() => { setSrc(undefined); setSt(undefined) }} />
+        <Kpi tone="steel" label="Trong tháng này" value={fmtKg(sumKg(month))} sub={<CardFormula arr={month} a="Σ số gốc" b="Σ số cân sau" />} />
+        <Kpi tone="rust" label="Cân tại xưởng mạ" value={fmtKg(sumKg(bySrc('Cân tại xưởng mạ')))} sub={<CardFormula arr={bySrc('Cân tại xưởng mạ')} a="Cân xuất" b="Mạ cân nhận" />} onClick={() => setSrc('Cân tại xưởng mạ')} />
+        <Kpi tone="moss" label="Giao khách" value={fmtKg(sumKg(bySrc('Giao khách')))} sub={<CardFormula arr={bySrc('Giao khách')} a="Lấy từ mạ" b="Khách ký nhận" />} onClick={() => setSrc('Giao khách')} />
       </KpiGrid>
 
       <div style={panel}>
