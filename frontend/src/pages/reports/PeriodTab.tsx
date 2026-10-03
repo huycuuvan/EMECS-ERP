@@ -1,13 +1,12 @@
 /* Tab 1 — Đối ứng phiếu theo kỳ: 5 ô tổng theo tầng, bóc tách chênh Cân xuất ↔ Đến mạ (trên xe / rơi rớt chưa duyệt),
    biểu đồ 4 tuần, nhật ký chứng từ trong kỳ. */
-import { App, Button, Input, Modal, Table, Tag } from 'antd'
+import { Button, Modal, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { Archive, Check } from 'lucide-react'
+import { Archive } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
-import { useAcceptLoss, useMismatches, useMovementLog, useTasks, useVlossList } from '@/api/hooks'
+import { useMismatches, useMovementLog, useTasks, useVlossList } from '@/api/hooks'
 import type { Task } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
-import { useAuth } from '@/lib/auth'
 import { fmtKg } from '@/lib/format'
 import RecordLink from '@/peek/RecordLink'
 import { GroupedBar, LegendRow } from '../dashboard/charts'
@@ -89,9 +88,9 @@ export default function PeriodTab() {
           </div>
           <div className="c2">
             <StatCell dashed danger={loss !== 0} color={loss !== 0 ? 'var(--signal)' : 'var(--moss)'} onClick={() => setPopup('loss')}
-              title="Bấm xem phiếu liên quan & duyệt chuyển kho ảo" label="Rơi rớt chưa duyệt"
+              title="Bấm xem phiếu liên quan" label="Rơi rớt chưa duyệt"
               value={loss === 0 ? '0 kg ✓' : (loss > 0 ? '−' : '+') + fmtKg(Math.abs(loss))}
-              cap={`Cân xuất ${fmtKg(t.pc)} − mạ ${fmtKg(t.ma)} − xe ${fmtKg(onTruck)} − kho ảo ${fmtKg(vaultKg)} — bấm duyệt`} />
+              cap={`Cân xuất ${fmtKg(t.pc)} − mạ ${fmtKg(t.ma)} − xe ${fmtKg(onTruck)} − kho ảo ${fmtKg(vaultKg)} — bấm xem`} />
           </div>
         </div>
 
@@ -150,30 +149,6 @@ function TruckModal({ open, rows, onClose }: { open: boolean; rows: Task[]; onCl
 }
 
 function LossModal({ open, rows, onClose, mismatchStatus }: { open: boolean; rows: Task[]; onClose: () => void; mismatchStatus: (id: string) => string }) {
-  const { can } = useAuth()
-  const { modal } = App.useApp()
-  const accept = useAcceptLoss()
-  const canApprove = can('kho-ao', 'full')
-
-  const acceptUI = (x: Task) => {
-    const d = x.kgRequired - (x.kgAtGalv ?? 0)
-    let note = ''
-    modal.confirm({
-      zIndex: MODAL_Z + 10, width: 560, icon: null,
-      title: 'Cho phép rơi rớt — chuyển kho ảo',
-      okText: 'OK — cho phép & chuyển kho ảo', cancelText: 'Hủy',
-      content: (
-        <div>
-          <p>Quản lý xác nhận CHO PHÉP phần hụt <b className="text-signal">{fmtKg(Math.abs(d))}</b> của chuyến <b>{x.id}</b> (đã kiểm tra thực tế).</p>
-          <p className="caption">Lượng này được ghi vào <b>KHO ẢO RƠI RỚT</b> — tổng cân đối trở nên hợp lý: Cân xuất = Mạ nhận + Trên xe + Kho ảo.
-            Biên bản sai lệch liên quan (nếu đang chờ) sẽ được ký xác nhận.</p>
-          <div className="caption" style={{ marginBottom: 4 }}>Ghi chú duyệt</div>
-          <Input placeholder="VD: bavia rơi khi bốc xếp, đã kiểm tra camera" onChange={(e) => { note = e.target.value }} />
-        </div>
-      ),
-      onOk: () => accept.mutateAsync({ refType: 'vc', refId: x.id, note: note || undefined }).catch(() => undefined),
-    })
-  }
 
   const columns: ColumnsType<Task> = [
     { title: 'Thẻ xe', dataIndex: 'id', render: (id) => <PopLink id={id} type="vc" onNav={onClose} /> },
@@ -193,9 +168,9 @@ function LossModal({ open, rows, onClose, mismatchStatus }: { open: boolean; row
     {
       title: 'Duyệt kho ảo', key: 'vk', render: (_, x) => x.lossAccepted
         ? <Tag variant="filled" color="green" style={{ whiteSpace: 'nowrap', fontWeight: 700 }}><Archive size={11} style={{ verticalAlign: -2 }} /> ĐÃ CHUYỂN KHO ẢO</Tag>
-        : canApprove
-          ? <Button type="primary" size="small" icon={<Check size={12} />} style={{ whiteSpace: 'nowrap' }} onClick={() => acceptUI(x)}>OK — cho phép</Button>
-          : <span className="caption" style={{ whiteSpace: 'nowrap' }}>Chờ Quản lý A duyệt</span>,
+        : x.status === 'Chờ QL duyệt'
+          ? <span className="caption" style={{ whiteSpace: 'nowrap' }}>Chờ QL duyệt ở màn lái xe</span>
+          : <span className="caption" style={{ whiteSpace: 'nowrap' }}>—</span>,
     },
   ]
   return (
@@ -205,7 +180,7 @@ function LossModal({ open, rows, onClose, mismatchStatus }: { open: boolean; row
         locale={{ emptyText: <div style={{ padding: 20, color: 'var(--moss)' }}>Không có rơi rớt thất thoát nào giữa xưởng và mạ trong kỳ ✓</div> }} />
       {popHint}
       <p className="caption" style={{ margin: '6px 0 0' }}>
-        <Archive size={11} style={{ verticalAlign: -2 }} /> Bấm <b>OK — cho phép</b>: Quản lý chấp nhận phần rơi rớt, chuyển vào <b>kho ảo</b> để tổng cân đối hợp lý (biên bản chờ ký sẽ được ký luôn).
+        <Archive size={11} style={{ verticalAlign: -2 }} /> Phiếu lệch do Quản lý chấp nhận ở màn <b>Thẻ công việc lái xe</b>; khoản đã chấp nhận tự ghi vào <b>kho ảo</b> (chỉ thống kê).
       </p>
     </Modal>
   )

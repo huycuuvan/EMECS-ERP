@@ -47,7 +47,7 @@ const STATUS_TONE: Record<string, { bg: string; fg: string }> = {
   'Chờ soạn thảo': { bg: C.rustSoft, fg: C.rustDeep }, 'Đã soạn thảo': { bg: C.paper3, fg: C.ink3 },
   'Đã gửi khách hàng': { bg: C.steelSoft, fg: C.steel }, 'Đã nhận về': { bg: C.amberSoft, fg: C.amber },
   'Chờ QL duyệt': { bg: C.amberSoft, fg: C.amber }, 'QL từ chối': { bg: C.signalSoft, fg: C.signal },
-  'Đã hoàn thành': { bg: C.mossSoft, fg: C.moss }, 'Chờ duyệt': { bg: C.amberSoft, fg: C.amber }, 'Đã duyệt': { bg: C.mossSoft, fg: C.moss },
+  'Đã hoàn thành': { bg: C.mossSoft, fg: C.moss }, 'Đã ghi nhận': { bg: C.steelSoft, fg: C.steel }, 'Chờ duyệt': { bg: C.amberSoft, fg: C.amber }, 'Đã duyệt': { bg: C.mossSoft, fg: C.moss },
   // đỏ = cần xử lý
   'Từ chối': { bg: C.signalSoft, fg: C.signal }, 'Đang chạy — quá hạn': { bg: C.signalSoft, fg: C.signal }, 'Quá hạn': { bg: C.signalSoft, fg: C.signal }, 'Lệch — chờ ký': { bg: C.signalSoft, fg: C.signal }, 'Chờ QL ký': { bg: C.signalSoft, fg: C.signal },
 }

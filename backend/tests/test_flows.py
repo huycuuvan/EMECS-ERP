@@ -109,7 +109,9 @@ def test_delivery_deviation_manager_approves_directly(c):
     login(c, "ql")
     t = c.post("/api/tasks/VC-0105/approve").json()
     assert t["status"] == "Hoàn thành" and t["approvedBy"] == "Quản lý A"
-    assert any(x["id"] == "VC-0105" for x in c.get("/api/vloss/pending-deltas").json())  # kho ảo: chỉ thống kê
+    vk = [e for e in c.get("/api/vloss").json() if e["refId"] == "VC-0105"]  # chấp nhận → ghi luôn vào kho ảo (thống kê)
+    assert len(vk) == 1 and vk[0]["kg"] == 40 and vk[0]["status"] == "Đã ghi nhận" and vk[0]["note"] == "Rơi rớt khi bốc"
+    assert all(x["id"] != "VC-0105" for x in c.get("/api/vloss/pending-deltas").json())
 
 
 def test_peb_ledger_balanced(c):

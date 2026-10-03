@@ -306,7 +306,7 @@ def pending_deltas(db: Session) -> list[dict]:
                         "date": p.date, "expected": p.kg_expected, "actual": p.kg_actual,
                         "delta": p.kg_actual - p.kg_expected, "mismatchId": p.mismatch_id})
     for t in db.scalars(select(Task)):
-        if t.loss_accepted:
+        if t.loss_accepted or t.status == "Chờ QL duyệt":  # đang chờ duyệt ở màn lái xe
             continue
         if t.type == "di_ma" and t.kg_at_galv is not None and t.kg_at_galv != t.kg_required:
             out.append({"refType": "vc", "id": t.id, "contractId": t.contract_id, "source": "Cân tại xưởng mạ",
@@ -933,6 +933,18 @@ def approve_task(db: Session, tid: str) -> Task:
     if t.status != "Chờ QL duyệt":
         raise HTTPException(400, f"Thẻ {tid} không ở trạng thái chờ duyệt")
     t.status, t.approved_by, t.approved_at = "Hoàn thành", actor(QL), utcnow()
+    # kho ảo chỉ để thống kê: khoản lệch Quản lý đã chấp nhận ghi luôn vào kho ảo
+    if t.type == "di_ma":
+        kg, source = (t.kg_required or 0) - (t.kg_at_galv or 0), "Cân tại xưởng mạ"
+    elif abs((t.kg_delivered or 0) - (t.kg_picked or 0)) > 0.5:
+        kg, source = (t.kg_picked or 0) - (t.kg_delivered or 0), "Giao khách"
+    else:
+        kg, source = (t.kg_required or 0) - (t.kg_picked or 0), "Giao khách"
+    if abs(kg) > 0.001 and not t.loss_accepted:
+        db.add(VLoss(id=next_id(db, "VK", "vk"), date=utcnow(), ref_type="vc", ref_id=t.id, contract_id=t.contract_id,
+                     source=source, kg=kg, approved_by=actor(QL), status="Đã ghi nhận",
+                     note=(t.reason or "") + (f" — {t.reason_note}" if t.reason_note else "")))
+        t.loss_accepted = True
     notify(db, f"Quản lý chấp nhận phiếu {tid}", f"{t.driver} · {t.reason}", "success", roles="lx,admin")
     db.commit()
     return t
