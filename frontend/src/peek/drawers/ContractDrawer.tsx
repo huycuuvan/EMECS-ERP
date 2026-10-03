@@ -45,7 +45,7 @@ export default function ContractDrawer({ id }: { id: string }) {
   const c = g?.contract
   const canEdit = can('hop-dong', 'edit')
   const canLsx = hasRole('admin') // server: chỉ Quản lý phát lệnh SX
-  const canPay = !!c && canEdit && c.status === 'Đã nhận về'
+  const canPay = !!c && canEdit  // tiền về độc lập với bước hợp đồng (có thể về trước khi soạn xong)
   const lsxRemain = g && c ? c.totalKg - committedKg(g.lsxs) : 0
   const showReturned = !!c && canEdit && c.status === 'Đã soạn thảo'
   const showSigned = !!c && canEdit && c.status === 'Đã gửi khách hàng'

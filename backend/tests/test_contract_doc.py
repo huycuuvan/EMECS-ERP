@@ -80,6 +80,17 @@ def test_contract_four_steps_and_lock(c):
     assert c.post(f"/api/contracts/{cid}/completed").json()["status"] == "Đã hoàn thành"
 
 
+def test_payment_independent_of_contract_step(c):
+    _, hd = _contract(c)  # "Chờ soạn thảo" — khách đã chuyển tạm ứng trước khi soạn hợp đồng
+    login(c, "kt")
+    hd = c.post(f"/api/contracts/{hd['id']}/payments", json={"amount": 10_000_000, "type": "Tạm ứng 30%"}).json()
+    login(c, "ql")
+    hd = c.post(f"/api/payments/{hd['payments'][-1]['id']}/approve").json()
+    assert hd["status"] == "Chờ soạn thảo" and hd["advance"]["received"] == 10_000_000
+    row = next(x for x in c.get("/api/contracts").json() if x["id"] == hd["id"])
+    assert row["adv"]["label"].startswith("Đã về 10 tr")
+
+
 def test_payment_needs_manager_approval(c):
     login(c, "kt")
     hd = c.post("/api/contracts/HD-2609-04/payments", json={"amount": 480_000_000, "type": "Tạm ứng 30%"}).json()

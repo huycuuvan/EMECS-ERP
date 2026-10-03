@@ -232,7 +232,9 @@ def advance_info(c: Contract) -> dict:
     if (c.advance_received or 0) >= c.advance_required:
         return {"state": "ok", "label": f"Đã về đủ {money_short(c.advance_received)}"}
     if not c.sign_date:
-        return {"state": "wait", "label": f"Chờ ký HĐ ({c.advance_pct:g}% = {money_short(c.advance_required)})"}
+        got = c.advance_received or 0  # tiền về độc lập với bước hợp đồng — có thể về trước khi HĐ nhận về
+        return {"state": "wait", "label": (f"Đã về {money_short(got)} / {money_short(c.advance_required)} · HĐ chưa nhận về" if got
+                                           else f"Chờ HĐ nhận về ({c.advance_pct:g}% = {money_short(c.advance_required)})")}
     return {"state": "missing",
             "label": f"CHƯA VỀ {money_short(c.advance_required - (c.advance_received or 0))} ({c.advance_pct:g}%)"}
 

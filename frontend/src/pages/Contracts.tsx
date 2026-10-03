@@ -82,7 +82,8 @@ export default function Contracts() {
       onClick={stop(() => navigate(`/hop-dong/${c.id}/soan-thao`))}>{draftLbl}</Button>)
     if (c.status === 'Đã soạn thảo') btns.push(<Button key="r" size="small" onClick={stop(() => flow.askReturned(c))}>Đã gửi KH</Button>)
     if (c.status === 'Đã gửi khách hàng') btns.push(<Button key="s" size="small" onClick={stop(() => flow.askSigned(c))}>Đã nhận về</Button>)
-    if (c.status === 'Đã nhận về') btns.push(<Button key="p" size="small" type="primary" onClick={stop(() => setPaying(c))}>+ Tiền về</Button>)
+    // tiền về độc lập với bước hợp đồng — khách có thể chuyển trước khi soạn / ký xong
+    btns.push(<Button key="p" size="small" type={c.status === 'Đã nhận về' ? 'primary' : 'default'} onClick={stop(() => setPaying(c))}>+ Tiền về</Button>)
     return <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{btns}</div>
   }
 
