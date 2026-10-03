@@ -1,6 +1,7 @@
 /* Thao tác phiếu cân (dùng chung trang Trạm cân, drawer phiếu cân, trang/drawer phiếu tiếp nhận):
    tạo phiếu cân xuất từ PTN/LSX · nhập kết quả cân (kg + ảnh ký 3 bên + lý do khi lệch) · điều xe đi mạ. */
-import { Form, InputNumber, Input, Modal, Select } from 'antd'
+import { DatePicker, Form, InputNumber, Input, Modal, Select } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
 import { AlertOctagon, Siren } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useCreateTask, useCreateWeighing, useFillWeighing, useLsxList, useMeta, useReceipts, useWeighings } from '@/api/hooks'
@@ -137,6 +138,7 @@ export function DispatchModal({ p, onClose }: { p: Weighing; onClose: () => void
   const { data: meta } = useMeta()
   const drivers = meta?.drivers ?? []
   const [driver, setDriver] = useState<string | undefined>(p.signers.laiXe || drivers[0])
+  const [arrive, setArrive] = useState<Dayjs | null>(dayjs().add(1, 'hour').minute(0).second(0))
   const [err, setErr] = useState<ReactNode>(null)
   if (p.kgActual == null) return null
   return (
@@ -145,7 +147,8 @@ export function DispatchModal({ p, onClose }: { p: Weighing; onClose: () => void
       onOk={async () => {
         const d = driver ?? drivers[0]
         if (!d) return setErr('Chọn tài xế')
-        await create.mutateAsync({ type: 'di_ma', driver: d, contractId: p.contractId, refId: p.id, kgRequired: p.kgActual! })
+        if (!arrive) return setErr('Chọn ngày giờ lái xe phải có mặt')
+        await create.mutateAsync({ type: 'di_ma', driver: d, contractId: p.contractId, refId: p.id, arriveAt: arrive.format() })
         onClose()
       }}>
       <div style={{ marginTop: 12 }}>
@@ -155,6 +158,8 @@ export function DispatchModal({ p, onClose }: { p: Weighing; onClose: () => void
         </InfoBox>
         <div className="caption" style={{ marginBottom: 6 }}>Chọn tài xế</div>
         <Select value={driver ?? drivers[0]} onChange={setDriver} style={{ width: '100%' }} options={drivers.map((d) => ({ value: d, label: d }))} />
+        <div className="caption" style={{ margin: '10px 0 6px' }}>Ngày giờ lái xe phải có mặt</div>
+        <DatePicker showTime={{ format: 'HH:mm', minuteStep: 15 }} format="HH:mm DD/MM/YYYY" value={arrive} onChange={setArrive} style={{ width: '100%' }} />
         <div style={{ marginTop: 10 }}><ErrBox>{err}</ErrBox></div>
       </div>
     </Modal>

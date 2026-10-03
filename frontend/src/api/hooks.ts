@@ -106,7 +106,7 @@ export const useLsxReject = () => useAction(({ id, reason }: { id: ID; reason: s
 export const useLsxDaily = () => useAction(({ id, ...v }: { id: ID; day?: string; kg: number; note?: string }) => post<Lsx>(`/lsx/${id}/daily`, v), (x) => `Đã ghi sản lượng ${x.id} — lũy kế ${x.kgDone.toLocaleString('vi-VN')} kg`)
 export const useLsxExtend = () => useAction(({ id, ...v }: { id: ID; to: string; reason: string }) => post<Lsx>(`/lsx/${id}/extend`, v), (x) => `Đã duyệt gia hạn ${x.id}`)
 
-export const useCreateReceipt = () => useAction((v: { lsxId: ID; qty: number; kg: number; note?: string }) => post<Receipt>('/receipts', v), (r) => `Đã lập phiếu tiếp nhận ${r.id}`)
+export const useCreateReceipt = () => useAction((v: { lsxId: ID; qty?: number; kg: number; note?: string }) => post<Receipt>('/receipts', v), (r) => `Đã lập phiếu tiếp nhận ${r.id}`)
 
 /** sourceId: PTN-… hoặc LSX-… */
 export const useCreateWeighing = () => useAction((v: { sourceId: ID; kgExpected: number }) => post<Weighing>('/weighings', v), (p) => `Đã tạo phiếu cân ${p.id}`)
@@ -114,7 +114,7 @@ export const useFillWeighing = () => useAction(({ id, ...v }: { id: ID; kgActual
   (p) => p.mismatchId ? `${p.id}: LỆCH vượt dung sai — đã tạo ${p.mismatchId} chờ Quản lý ký` : `${p.id}: đã cân`)
 export const useWeighingPhoto = () => useAction(({ id, photo }: { id: ID; photo: string | null }) => api.put<Weighing>(`/weighings/${id}/photo`, { photo }).then((r) => r.data), 'Đã cập nhật ảnh phiếu')
 
-export const useCreateTask = () => useAction((v: { type: TaskType; driver: string; contractId: ID; refId?: ID | null; kgRequired: number; note?: string }) => post<Task>('/tasks', v), (t) => `Đã giao thẻ ${t.id} cho ${t.driver}`)
+export const useCreateTask = () => useAction((v: { type: TaskType; driver: string; contractId: ID; refId?: ID | null; note?: string; arriveAt: string; vehiclePlate?: string | null; galvanizerId?: number | null; deliverCustomerId?: number | null; deliverName?: string; deliverAddress?: string; receiverName?: string; receiverPhone?: string; contactName?: string; contactPhone?: string }) => post<Task>('/tasks', v), (t) => `Đã giao thẻ ${t.id} cho ${t.driver}`)
 export const useTaskAccept = () => useAction((id: ID) => post<Task>(`/tasks/${id}/accept`), (t) => `${t.id}: đã nhận việc`)
 export const useTaskReject = () => useAction(({ id, reason }: { id: ID; reason: string }) => post<Task>(`/tasks/${id}/reject`, { reason }), (t) => `${t.id}: đã từ chối`)
 export const useTaskDepart = () => useAction((id: ID) => post<Task>(`/tasks/${id}/depart`), (t) => `${t.id}: xe đã xuất phát — hạn điền phiếu 24h`)

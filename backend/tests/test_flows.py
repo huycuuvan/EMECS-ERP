@@ -75,7 +75,7 @@ def test_weighing_within_tolerance_no_mismatch(c):
 
 
 def test_task_galv_flow(c):
-    t = c.post("/api/tasks", json={"type": "di_ma", "driver": "Lê Đức Vận", "contractId": "HD-2609-06",
+    t = c.post("/api/tasks", json={"type": "di_ma", "driver": "Lê Đức Vận", "contractId": "HD-2609-06", "arriveAt": "2099-01-01T08:00:00+07:00",
                                    "refId": "PC-0201", "kgRequired": 10000}).json()
     assert c.post(f"/api/tasks/{t['id']}/depart").status_code == 400  # chưa nhận
     c.post(f"/api/tasks/{t['id']}/accept")

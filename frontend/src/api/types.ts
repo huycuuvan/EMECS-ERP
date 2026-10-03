@@ -76,6 +76,15 @@ export interface Task {
   kgRequired: number; kgAtGalv: number | null; kgPicked: number | null; kgDelivered: number | null
   filledAt: string | null; photo: string | null; hasPhoto: boolean; rejectReason: string | null
   mismatchId: ID | null; note: string; lossAccepted: boolean
+  vehiclePlate?: string | null; galvanizerId?: number | null
+  /** ngày giờ lái xe phải có mặt */
+  arriveAt: string | null
+  /** giao khách: thông tin nơi giao (lấy từ danh mục khách hàng, sửa được theo chuyến) */
+  deliver: DeliverInfo | null
+}
+export interface DeliverInfo {
+  customerId: number | null; name: string; address: string; receiverName: string; receiverPhone: string
+  contactName: string; contactPhone: string
 }
 
 export type MismatchStatus = 'Chờ QL ký' | 'Đã ký xác nhận'

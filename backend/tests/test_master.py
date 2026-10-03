@@ -143,7 +143,7 @@ def test_task_with_vehicle_and_galvanizer(c):
     assert v["plate"] == "29H-555.55"
     assert c.post("/api/vehicles", json={"plate": "29H-555.55"}).status_code == 400
     assert c.post("/api/vehicles", json={"plate": "29H-555.56", "kind": "xe"}).status_code == 400
-    t = c.post("/api/tasks", json={"type": "di_ma", "driver": "Lê Đức Vận", "contractId": "HD-2609-06",
+    t = c.post("/api/tasks", json={"type": "di_ma", "driver": "Lê Đức Vận", "contractId": "HD-2609-06", "arriveAt": "2099-01-01T08:00:00+07:00",
                                    "refId": "PC-0201", "kgRequired": 10000, "vehiclePlate": "29H-555.55",
                                    "galvanizerId": g[0]["id"]}).json()
     assert t["vehiclePlate"] == "29H-555.55" and t["galvanizerId"] == g[0]["id"]

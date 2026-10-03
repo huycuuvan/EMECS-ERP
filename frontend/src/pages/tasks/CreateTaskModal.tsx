@@ -1,15 +1,19 @@
-/* Quản lý A giao việc cho lái xe: loại việc, tài xế, hợp đồng, chứng từ gốc (PC/VC), KG yêu cầu, ghi chú. */
-import { Form, Input, InputNumber, Modal, Radio, Select } from 'antd'
+/* Quản lý giao việc cho lái xe: loại việc, tài xế, xe, NGÀY GIỜ PHẢI CÓ MẶT, hợp đồng, chứng từ gốc (PC/VC), ghi chú.
+   KG không nhập — lấy theo chứng từ gốc. Giao khách: chọn khách hàng → tự điền địa chỉ, người nhận, người liên hệ (sửa được). */
+import { DatePicker, Form, Input, Modal, Radio, Select } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
 import { useEffect } from 'react'
 import { useContract, useContracts, useCreateTask, useMeta } from '@/api/hooks'
-import { useGalvanizers, useVehicles } from '@/api/hooksMaster'
+import { useCustomers, useGalvanizers, useVehicles } from '@/api/hooksMaster'
 import type { TaskType } from '@/api/types'
 import { fmtKg, fmtT } from '@/lib/format'
 import { MODAL_Z } from './TaskActions'
 
 interface V {
-  type: TaskType; driver: string; contractId: string; refId?: string | null; kgRequired: number; note?: string
-  vehiclePlate?: string | null; galvanizerId?: number | null
+  type: TaskType; driver: string; contractId: string; refId?: string | null; note?: string
+  vehiclePlate?: string | null; galvanizerId?: number | null; arriveAt?: Dayjs
+  deliverCustomerId?: number | null; deliverName?: string; deliverAddress?: string
+  receiverName?: string; receiverPhone?: string; contactName?: string; contactPhone?: string
 }
 
 export default function CreateTaskModal({ open, onClose, initial }: { open: boolean; onClose: () => void; initial?: Partial<V> }) {
@@ -22,7 +26,8 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
   const type = Form.useWatch('type', form)
   const cid = Form.useWatch('contractId', form)
   const plate = Form.useWatch('vehiclePlate', form)
-  const kgReq = Form.useWatch('kgRequired', form)
+  const refId = Form.useWatch('refId', form)
+  const { data: customers = [] } = useCustomers(undefined, open)
   const activeVehicles = vehicles.filter((v) => v.active)
   const vehicle = vehicles.find((v) => v.plate === plate)
   const plateOf = (driver?: string) => activeVehicles.find((v) => v.defaultDriver && v.defaultDriver === driver)?.plate
@@ -35,7 +40,7 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
       form.resetFields()
       const driver = initial?.driver ?? meta?.drivers[0]
       form.setFieldsValue({ type: 'di_ma', driver, contractId: cs[0]?.id, vehiclePlate: plateOf(driver),
-        galvanizerId: galvs.find((g) => g.active)?.id, ...initial })
+        galvanizerId: galvs.find((g) => g.active)?.id, arriveAt: dayjs().add(1, 'hour').minute(0).second(0), ...initial })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -60,23 +65,36 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
     : agg.tasksDiMa.filter((t) => t.kgAtGalv != null)
       .map((t) => ({ value: t.id, label: `${t.id} · thẻ gửi mạ — mạ nhận ${fmtKg(t.kgAtGalv)}`, kg: t.kgAtGalv ?? t.kgRequired }))
 
-  // gợi ý KG giao khách = toàn bộ lượng còn tại mạ (như demo)
+  // giao khách: mặc định khách của hợp đồng → điền thông tin nơi giao
+  const fillCustomer = (id?: number | null) => {
+    const cu = customers.find((x) => x.id === id)
+    form.setFieldsValue({
+      deliverCustomerId: cu?.id ?? null, deliverName: cu?.name ?? '', deliverAddress: cu?.address ?? '',
+      receiverName: cu?.contactName ?? '', receiverPhone: cu?.phone ?? '', contactName: cu?.contactName || cu?.representative || '', contactPhone: cu?.phone ?? '',
+    })
+  }
   useEffect(() => {
     if (!open) return
     form.setFieldValue('refId', undefined)
-    if (type === 'giao_khach' && agg && !form.getFieldValue('kgRequired') && agg.atGalvKg > 0) form.setFieldValue('kgRequired', agg.atGalvKg)
+    if (type === 'giao_khach') {
+      const c = cs.find((x) => x.id === cid)
+      fillCustomer(c?.customerId ?? customers.find((x) => x.name === c?.customer)?.id)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, cid, agg?.contract.id])
+  }, [type, cid, customers.length])
+  const kgRef = refOptions.find((o) => o.value === refId)?.kg
 
   const submit = async () => {
     const v = await form.validateFields()
-    const body: V = { ...v, refId: v.refId || null, galvanizerId: v.type === 'di_ma' ? v.galvanizerId ?? null : null }
-    await create.mutateAsync(body) // vehiclePlate / galvanizerId: trường bổ sung (master_api)
+    await create.mutateAsync({
+      ...v, refId: v.refId || null, galvanizerId: v.type === 'di_ma' ? v.galvanizerId ?? null : null,
+      arriveAt: v.arriveAt!.format(),
+    })
     onClose()
   }
 
   return (
-    <Modal open={open} zIndex={MODAL_Z} title="Giao việc cho lái xe" okText="Giao việc" cancelText="Hủy" width={560}
+    <Modal open={open} zIndex={MODAL_Z} title="Giao việc cho lái xe" okText="Giao việc" cancelText="Hủy" width={620}
       confirmLoading={create.isPending} onCancel={onClose} onOk={submit} destroyOnHidden>
       <Form form={form} layout="vertical" requiredMark={false}>
         <Form.Item name="type" label="Loại việc">
@@ -90,8 +108,8 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
             onChange={(d: string) => { const p = plateOf(d); if (p) form.setFieldValue('vehiclePlate', p) }} />
         </Form.Item>
         <div style={{ display: 'grid', gridTemplateColumns: type === 'di_ma' ? '1fr 1fr' : '1fr', gap: '0 12px' }}>
-          <Form.Item name="vehiclePlate" label="Xe" extra={vehicle && kgReq > vehicle.capacityKg
-            ? <span className="text-signal">KG yêu cầu vượt tải trọng xe ({fmtT(vehicle.capacityKg)})</span> : undefined}>
+          <Form.Item name="vehiclePlate" label="Xe" extra={vehicle && (kgRef ?? 0) > vehicle.capacityKg
+            ? <span className="text-signal">Hàng theo chứng từ vượt tải trọng xe ({fmtT(vehicle.capacityKg)})</span> : undefined}>
             <Select allowClear placeholder="— Chưa gán xe —" showSearch={{ optionFilterProp: 'label' }}
               options={activeVehicles.map((v) => ({ value: v.plate, label: `${v.plate} · ${fmtT(v.capacityKg)} · xe ${v.kind}` }))} />
           </Form.Item>
@@ -101,18 +119,39 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
             </Form.Item>
           )}
         </div>
-        <Form.Item name="contractId" label="Hợp đồng (đang triển khai)" rules={[{ required: true, message: 'Chưa chọn hợp đồng' }]}>
+        <Form.Item name="arriveAt" label={type === 'di_ma' ? 'Ngày giờ lái xe phải có mặt (lấy hàng tại công ty)' : 'Ngày giờ lái xe phải có mặt (lấy hàng tại xưởng mạ)'}
+          rules={[{ required: true, message: 'Chọn ngày giờ lái xe phải có mặt' }]}>
+          <DatePicker showTime={{ format: 'HH:mm', minuteStep: 15 }} format="HH:mm — DD/MM/YYYY" style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item name="contractId" label="Hợp đồng" rules={[{ required: true, message: 'Chưa chọn hợp đồng' }]}>
           <Select showSearch={{ optionFilterProp: 'label' }} options={cs.map((c) => ({ value: c.id, label: `${c.id} — ${c.customer}` }))} />
         </Form.Item>
         <Form.Item name="refId" label={type === 'di_ma' ? 'Chứng từ gốc — phiếu cân xuất (PC)' : 'Chứng từ gốc — thẻ gửi mạ (VC)'}
           extra={refOptions.length === 0 && agg ? (type === 'di_ma' ? 'Không còn phiếu cân xuất nào chưa gán chuyến.' : 'Chưa có chuyến gửi mạ nào được mạ cân nhận.') : undefined}>
-          <Select allowClear placeholder="— Không gắn chứng từ —" options={refOptions.map(({ value, label }) => ({ value, label }))}
-            onChange={(v) => { const o = refOptions.find((x) => x.value === v); if (o) form.setFieldValue('kgRequired', o.kg) }} />
+          <Select allowClear placeholder="— Không gắn chứng từ —" options={refOptions.map(({ value, label }) => ({ value, label }))} />
         </Form.Item>
-        <Form.Item name="kgRequired" label="KG yêu cầu" rules={[{ required: true, message: 'KG yêu cầu phải lớn hơn 0' }, { type: 'number', min: 0.01, message: 'KG yêu cầu phải lớn hơn 0' }]}
-          extra={type === 'giao_khach' && agg ? <>Còn tại xưởng mạ: <b style={{ color: 'var(--rust-deep)' }}>{fmtKg(agg.atGalvKg)}</b> — gợi ý KG yêu cầu = toàn bộ lượng còn tại mạ.</> : undefined}>
-          <InputNumber style={{ width: '100%' }} min={0} step={100} placeholder="VD: 10000" suffix="kg" />
-        </Form.Item>
+        <p className="caption" style={{ margin: '-8px 0 12px' }}>
+          KG không cần nhập — {kgRef != null ? <>theo chứng từ: <b>{fmtKg(kgRef)}</b></> : 'lấy theo chứng từ gốc khi gắn'}
+          {type === 'giao_khach' && agg && <> · còn tại xưởng mạ <b style={{ color: 'var(--rust-deep)' }}>{fmtKg(agg.atGalvKg)}</b></>}.
+        </p>
+        {type === 'giao_khach' && (
+          <div style={{ border: '1px solid var(--rule)', borderRadius: 10, padding: '10px 12px 0', marginBottom: 12, background: 'var(--paper)' }}>
+            <Form.Item name="deliverCustomerId" label="Giao cho khách hàng" extra="Chọn khách → tự điền thông tin; sửa được cho riêng chuyến này.">
+              <Select showSearch={{ optionFilterProp: 'label' }} allowClear placeholder="Chọn khách hàng"
+                options={customers.map((x) => ({ value: x.id, label: x.name }))} onChange={(id) => fillCustomer(id)} />
+            </Form.Item>
+            <Form.Item name="deliverName" label="Tên khách / đơn vị nhận"><Input /></Form.Item>
+            <Form.Item name="deliverAddress" label="Địa chỉ giao hàng" rules={[{ required: true, whitespace: true, message: 'Nhập địa chỉ giao hàng' }]}>
+              <Input.TextArea autoSize={{ minRows: 1, maxRows: 3 }} placeholder="VD: Công trường KCN Yên Phong, Bắc Ninh" />
+            </Form.Item>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0 12px' }}>
+              <Form.Item name="receiverName" label="Người nhận hàng"><Input /></Form.Item>
+              <Form.Item name="receiverPhone" label="SĐT người nhận"><Input /></Form.Item>
+              <Form.Item name="contactName" label="Người liên hệ"><Input /></Form.Item>
+              <Form.Item name="contactPhone" label="SĐT liên hệ"><Input /></Form.Item>
+            </div>
+          </div>
+        )}
         <Form.Item name="note" label="Ghi chú">
           <Input placeholder="VD: lấy tại cổng 2 xưởng mạ Việt Đức..." />
         </Form.Item>

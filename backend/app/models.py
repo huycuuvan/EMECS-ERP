@@ -238,6 +238,15 @@ class Task(Base):
     loss_accepted: Mapped[bool] = mapped_column(Boolean, default=False)
     vehicle_plate: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)  # biển số xe chạy chuyến
     galvanizer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # → galvanizers.id (thẻ đi mạ)
+    arrive_at = mapped_column(UTCDateTime, nullable=True)  # ngày giờ lái xe phải có mặt (nơi lấy hàng)
+    # giao khách (mạ → khách): lấy từ danh mục khách hàng, Quản lý sửa được cho từng chuyến
+    deliver_customer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    deliver_name: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    deliver_address: Mapped[str] = mapped_column(Text, default="", server_default="")
+    receiver_name: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    receiver_phone: Mapped[str] = mapped_column(String(40), default="", server_default="")
+    contact_name: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    contact_phone: Mapped[str] = mapped_column(String(40), default="", server_default="")
 
 
 class Mismatch(Base):

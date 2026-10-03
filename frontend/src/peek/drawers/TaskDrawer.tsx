@@ -48,6 +48,12 @@ export default function TaskDrawer({ id }: { id: string }) {
         <Cell label="Xe">{t.vehiclePlate ? <span className="mono" style={{ fontWeight: 700 }}>{t.vehiclePlate}</span> : <span className="text-ash">Chưa gán xe</span>}</Cell>
         {isMa && <Cell label="Xưởng mạ">{galvs?.find((g) => g.id === t.galvanizerId)?.name ?? <span className="text-ash">—</span>}</Cell>}
         <Cell label="Giao việc lúc"><span className="num">{fmtDT(t.assignedAt)}</span></Cell>
+        <Cell label="Phải có mặt lúc"><span className="num" style={{ fontWeight: 700 }}>{t.arriveAt ? fmtDT(t.arriveAt) : '—'}</span></Cell>
+        {t.deliver && <>
+          <Cell label="Giao cho" wide>{t.deliver.name || '—'}<div className="caption" style={{ fontWeight: 400 }}>{t.deliver.address}</div></Cell>
+          <Cell label="Người nhận">{t.deliver.receiverName || '—'}{t.deliver.receiverPhone && <div className="caption num" style={{ fontWeight: 400 }}>{t.deliver.receiverPhone}</div>}</Cell>
+          <Cell label="Người liên hệ">{t.deliver.contactName || '—'}{t.deliver.contactPhone && <div className="caption num" style={{ fontWeight: 400 }}>{t.deliver.contactPhone}</div>}</Cell>
+        </>}
         <Cell label="Xác nhận" alert={t.status === 'Từ chối'}>
           {t.acceptedAt ? `Đồng ý lúc ${fmtDT(t.acceptedAt)}` : t.status === 'Từ chối' ? 'TỪ CHỐI' : `Chờ xác nhận ${relTime(t.assignedAt)}`}
         </Cell>

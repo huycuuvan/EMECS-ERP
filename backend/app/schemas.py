@@ -89,7 +89,7 @@ class LsxExtendIn(In):
 
 class ReceiptCreate(In):
     lsx_id: str
-    qty: float = Field(gt=0)
+    qty: float | None = Field(default=None, ge=0)  # bỏ số lượng SP — chỉ khối lượng (giữ để tương thích)
     kg: float = Field(gt=0)
     note: str = ""
 
@@ -112,10 +112,18 @@ class TaskCreate(In):
     driver: str
     contract_id: str
     ref_id: str | None = None
-    kg_required: float = Field(gt=0)
+    kg_required: float | None = Field(default=None, ge=0)  # không nhập → lấy theo chứng từ gốc (PC / thẻ đi mạ)
     note: str = ""
     vehicle_plate: str | None = None
     galvanizer_id: int | None = None
+    arrive_at: datetime | None = None  # ngày giờ lái xe phải có mặt
+    deliver_customer_id: int | None = None
+    deliver_name: str = ""
+    deliver_address: str = ""
+    receiver_name: str = ""
+    receiver_phone: str = ""
+    contact_name: str = ""
+    contact_phone: str = ""
 
 
 class TaskFillGalv(In):

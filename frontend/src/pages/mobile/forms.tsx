@@ -159,7 +159,10 @@ export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
   const { data: rcs = [] } = useReceipts()
   const options = lsxs.filter((x) => x.status === 'Đang SX' || x.status === 'Hoàn thành')
   const [lsxId, setLsxId] = useState(initial ?? '')
-  const [qty, setQty] = useState('')
+  const [cid, setCid] = useState(options.find((o) => o.id === initial)?.contractId ?? '')
+  const cids = [...new Set(options.map((o) => o.contractId))]
+  const ofC = options.filter((o) => o.contractId === cid)
+  const pickC = (c: string) => { setCid(c); const l = options.filter((o) => o.contractId === c); setLsxId(l.length === 1 ? l[0].id : '') }
   const [kg, setKg] = useState('')
   const [note, setNote] = useState('')
   const x = options.find((o) => o.id === lsxId)
@@ -168,15 +171,20 @@ export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
   const over = !!x && num(kg) > remainKg + 0.5
   const submit = async () => {
     if (!lsxId) { message.error('Chọn lệnh sản xuất bàn giao.'); return }
-    if (!(num(qty) > 0) || !(num(kg) > 0)) { message.error('SL và kg phải lớn hơn 0.'); return }
-    try { await create.mutateAsync({ lsxId, qty: num(qty), kg: num(kg), note: note.trim() }); m.pop() } catch { /* đã báo */ }
+    if (!(num(kg) > 0)) { message.error('Khối lượng phải lớn hơn 0.'); return }
+    try { await create.mutateAsync({ lsxId, kg: num(kg), note: note.trim() }); m.pop() } catch { /* đã báo */ }
   }
   return (
     <div className="m-form flat">
+      <label className="f-lbl">Hợp đồng</label>
+      <select className="inp" value={cid} onChange={(e) => pickC(e.target.value)}>
+        <option value="">— Chọn hợp đồng —</option>
+        {cids.map((c) => <option key={c} value={c}>{c}</option>)}
+      </select>
       <label className="f-lbl">Lệnh sản xuất bàn giao</label>
-      <select className="inp" value={lsxId} onChange={(e) => setLsxId(e.target.value)}>
+      <select className="inp" value={lsxId} onChange={(e) => setLsxId(e.target.value)} disabled={!cid}>
         <option value="">— Chọn lệnh SX —</option>
-        {options.map((o) => <option key={o.id} value={o.id}>{o.id} · {o.contractId} · {o.name}</option>)}
+        {ofC.map((o) => <option key={o.id} value={o.id}>{o.id} · {o.name}</option>)}
       </select>
       {x && (
         <div className="f-hint">
@@ -184,8 +192,6 @@ export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
           → còn <b className={remainKg > 0.5 ? '' : 'moss-txt'}>{fmtN(Math.max(0, remainKg))} kg</b> chưa bàn giao.
         </div>
       )}
-      <label className="f-lbl">Số lượng (SP)</label>
-      <NumInput big inputMode="numeric" value={qty} onChange={setQty} />
       <label className="f-lbl">Khối lượng (kg)</label>
       <NumInput big value={kg} onChange={setKg} bad={over} />
       {over && <div className="f-hint red-txt">Vượt số SX báo xong chưa bàn giao ({fmtN(remainKg)} kg) — kiểm tra lại.</div>}

@@ -138,7 +138,14 @@ function TaskCard({ t }: { t: Task }) {
       {overdue && <div className="overdue-banner"><Siren />QUÁ HẠN {hoursOver(t.fillDeadline!)}h — điền ngay!</div>}
       <div className="mc-top"><TypeChip type={t.type} /><span className="mc-id">{t.id}</span><span className="mc-status"><StatusChip status={t.status} overdue={overdue} /></span></div>
       <Line k="Hợp đồng">{t.contractId}{t.refId ? ` · ${t.refId}` : ''}</Line>
-      <Line k={isMa ? 'Khối lượng chở đi mạ' : 'Khối lượng lấy từ mạ'}><Kg value={t.kgRequired} /></Line>
+      {t.arriveAt && <Line k="Phải có mặt lúc" vClass="sm"><b>{fmtDT(t.arriveAt)}</b></Line>}
+      {t.deliver && <>
+        <Line k="Giao cho">{t.deliver.name}</Line>
+        {t.deliver.address && <Line k="Địa chỉ giao" kFix vClass="sm">{t.deliver.address}</Line>}
+        {(t.deliver.receiverName || t.deliver.receiverPhone) && <Line k="Người nhận" vClass="sm">{t.deliver.receiverName}{t.deliver.receiverPhone && <> · <a href={`tel:${t.deliver.receiverPhone}`}>{t.deliver.receiverPhone}</a></>}</Line>}
+        {(t.deliver.contactName || t.deliver.contactPhone) && <Line k="Liên hệ" vClass="sm">{t.deliver.contactName}{t.deliver.contactPhone && <> · <a href={`tel:${t.deliver.contactPhone}`}>{t.deliver.contactPhone}</a></>}</Line>}
+      </>}
+      {t.kgRequired > 0 && <Line k={isMa ? 'Khối lượng chở đi mạ' : 'Khối lượng lấy từ mạ'}><Kg value={t.kgRequired} /></Line>}
       <Line k="Giao việc" vClass="light">{fmtDT(t.assignedAt)} · {relTime(t.assignedAt)}</Line>
       {t.note && <Line k="Ghi chú" kFix vClass="light">{t.note}</Line>}
       {t.fillDeadline && !t.filledAt && !overdue && t.status === 'Đang chạy' && (

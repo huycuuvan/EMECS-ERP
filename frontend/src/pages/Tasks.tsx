@@ -8,7 +8,7 @@ import type { Task } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtKg, hoursOver, relTime } from '@/lib/format'
+import { fmtDT, fmtKg, hoursOver, relTime } from '@/lib/format'
 import { usePeek } from '@/peek/context'
 import RecordLink from '@/peek/RecordLink'
 import CreateTaskModal from './tasks/CreateTaskModal'
@@ -74,7 +74,10 @@ export default function Tasks() {
     { title: 'Tài xế', dataIndex: 'driver', render: (_, t) => <>{t.driver}{t.vehiclePlate && <div className="caption mono" style={{ fontSize: 11 }}>{t.vehiclePlate}</div>}</> },
     { title: 'HĐ', dataIndex: 'contractId', render: (v: string) => <RecordLink id={v} style={{ color: 'var(--rust)', fontSize: 12 }} /> },
     { title: 'Chứng từ gốc', dataIndex: 'refId', render: (_, t) => <RefCell t={t} /> },
-    { title: 'KG yêu cầu', dataIndex: 'kgRequired', align: 'right', render: (v: number) => <span className="num mono">{fmtKg(v)}</span> },
+    { title: 'Có mặt lúc', dataIndex: 'arriveAt', render: (_, t) => t.arriveAt
+      ? <span className="num" style={{ fontSize: 12 }}>{fmtDT(t.arriveAt)}{t.deliver?.address && <div className="caption" style={{ fontSize: 11, maxWidth: 200 }}>{t.deliver.address}</div>}</span>
+      : <span className="text-ash">—</span> },
+    { title: 'KG theo chứng từ', dataIndex: 'kgRequired', align: 'right', render: (v: number) => v ? <span className="num mono">{fmtKg(v)}</span> : <span className="text-ash">—</span> },
     { title: 'Số cân điền', key: 'kg', render: (_, t) => <KgCell t={t} tol={tol} /> },
     { title: 'Ảnh phiếu', key: 'photo', render: (_, t) => <PhotoCell t={t} /> },
     { title: 'Hạn điền (24h)', dataIndex: 'fillDeadline', render: (_, t) => <DueCell t={t} now={now} onOpen={() => open('vc', t.id)} /> },

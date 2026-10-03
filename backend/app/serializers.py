@@ -97,7 +97,11 @@ def task(t: Task, photo: bool = True) -> dict:
         "kgAtGalv": t.kg_at_galv, "kgPicked": t.kg_picked, "kgDelivered": t.kg_delivered,
         "filledAt": iso(t.filled_at), "photo": sign_photo(t.photo) if photo else None, "hasPhoto": bool(t.photo), "rejectReason": t.reject_reason,
         "mismatchId": t.mismatch_id, "note": t.note, "lossAccepted": t.loss_accepted,
-        "vehiclePlate": t.vehicle_plate, "galvanizerId": t.galvanizer_id,
+        "vehiclePlate": t.vehicle_plate, "galvanizerId": t.galvanizer_id, "arriveAt": iso(t.arrive_at),
+        "deliver": ({"customerId": t.deliver_customer_id, "name": t.deliver_name or "", "address": t.deliver_address or "",
+                     "receiverName": t.receiver_name or "", "receiverPhone": t.receiver_phone or "",
+                     "contactName": t.contact_name or "", "contactPhone": t.contact_phone or ""}
+                    if t.type == "giao_khach" else None),
     }
 
 

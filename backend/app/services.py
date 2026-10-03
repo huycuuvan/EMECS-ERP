@@ -657,18 +657,41 @@ def fill_weighing(db: Session, pid: str, kg_actual: float, photo: str | None, re
 
 
 # ---------------------------------------------------------------- thẻ công việc lái xe
-def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | None, kg_required: float,
-                note: str, vehicle_plate: str | None = None, galvanizer_id: int | None = None) -> Task:
+def _kg_from_ref(db: Session, type_: str, ref_id: str | None) -> float:
+    """KG yêu cầu tự lấy từ chứng từ gốc: đi mạ ← phiếu cân xuất (PC); giao khách ← thẻ đi mạ (mạ đã cân nhận)."""
+    if not ref_id:
+        return 0
+    if type_ == "di_ma":
+        p = db.get(Weighing, ref_id)
+        return (p.kg_actual if p and p.kg_actual is not None else (p.kg_expected if p else 0)) or 0
+    t = db.get(Task, ref_id)
+    return (t.kg_at_galv if t and t.kg_at_galv is not None else (t.kg_required if t else 0)) or 0
+
+
+def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | None, kg_required: float | None,
+                note: str, vehicle_plate: str | None = None, galvanizer_id: int | None = None, arrive_at=None,
+                **deliver) -> Task:
     if type_ not in ("di_ma", "giao_khach"):
         raise HTTPException(400, "Loại thẻ phải là di_ma hoặc giao_khach")
     get_or_404(db, Contract, cid)
+    if not arrive_at:
+        raise HTTPException(400, "Chưa nhập ngày giờ lái xe phải có mặt")
+    if arrive_at.tzinfo is None:
+        arrive_at = arrive_at.replace(tzinfo=VN_TZ)
+    kg = kg_required if kg_required else _kg_from_ref(db, type_, ref_id)
     t = Task(id=next_id(db, "VC", "vc"), type=type_, driver=driver, contract_id=cid, ref_id=ref_id,
-             assigned_at=utcnow(), status="Chờ xác nhận", kg_required=kg_required or 0, note=note or "",
+             assigned_at=utcnow(), status="Chờ xác nhận", kg_required=kg or 0, note=note or "",
              vehicle_plate=(vehicle_plate or "").strip().upper() or None,
-             galvanizer_id=galvanizer_id if type_ == "di_ma" else None)
+             galvanizer_id=galvanizer_id if type_ == "di_ma" else None, arrive_at=arrive_at)
+    if type_ == "giao_khach":
+        t.deliver_customer_id = deliver.get("deliver_customer_id")
+        for k in ("deliver_name", "deliver_address", "receiver_name", "receiver_phone", "contact_name", "contact_phone"):
+            setattr(t, k, (deliver.get(k) or "").strip())
     db.add(t)
+    where = (t.deliver_address or t.deliver_name) if type_ == "giao_khach" else "xưởng mạ"
     notify(db, f"Thẻ công việc mới {t.id}",
-           f"{'Chở hàng đi mạ' if type_ == 'di_ma' else 'Lấy hàng mạ giao khách'} — gán {driver}", "info")
+           f"{'Chở hàng đi mạ' if type_ == 'di_ma' else 'Lấy hàng mạ giao khách'} — gán {driver} · có mặt "
+           f"{arrive_at.astimezone(VN_TZ):%H:%M %d/%m}" + (f" · {where}" if where else ""), "info")
     db.commit()
     return t
 
@@ -710,7 +733,7 @@ def task_fill_galv(db: Session, tid: str, kg: float, photo: str | None, reason: 
     t.kg_at_galv, t.filled_at, t.status = kg or 0, utcnow(), "Hoàn thành"
     if photo:
         t.photo = photo
-    if abs(t.kg_at_galv - t.kg_required) > TOLERANCE_KG:
+    if t.kg_required and abs(t.kg_at_galv - t.kg_required) > TOLERANCE_KG:  # chỉ so khi có số gốc (PC)
         m = create_mismatch(db, "Cân tại xưởng mạ", "vc", t.id, t.contract_id, t.kg_required, t.kg_at_galv,
                             reason or "Khác (ghi rõ)", reason_note, t.driver, "Vận tải")
         t.mismatch_id = m.id
@@ -727,7 +750,7 @@ def task_fill_delivery(db: Session, tid: str, kg_picked: float, kg_delivered: fl
     if photo:
         t.photo = photo
     delta = t.kg_delivered - t.kg_picked
-    if abs(delta) > 0.5 or abs(t.kg_picked - t.kg_required) > TOLERANCE_KG:
+    if abs(delta) > 0.5 or (t.kg_required and abs(t.kg_picked - t.kg_required) > TOLERANCE_KG):
         exp, act = (t.kg_picked, t.kg_delivered) if abs(delta) > 0.5 else (t.kg_required, t.kg_picked)
         m = create_mismatch(db, "Giao khách", "vc", t.id, t.contract_id, exp, act, reason or "Khác (ghi rõ)",
                             reason_note, t.driver, "Vận tải")
