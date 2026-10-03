@@ -25,7 +25,7 @@ export const Grid = ({ min = 420, gap = 14, children, style }: { min?: number; g
 
 /* ---------- badge loại phiếu (nhật ký chứng từ) ---------- */
 const KIND_TONE: Record<string, [string, string]> = {
-  'Tiếp nhận TP': ['var(--steel-soft)', 'var(--steel)'],
+  'Chuẩn bị hàng': ['var(--steel-soft)', 'var(--steel)'],
   'Cân xuất đi mạ': ['var(--steel-soft)', 'var(--ink)'],
   'Nhập xưởng mạ': ['var(--amber-soft)', 'var(--amber)'],
   'Giao khách': ['var(--moss-soft)', 'var(--moss)'],

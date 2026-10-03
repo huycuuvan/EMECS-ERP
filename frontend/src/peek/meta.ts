@@ -7,7 +7,7 @@ export const PEEK_META: Record<PeekType, { label: string; icon: LucideIcon; page
   dh: { label: 'Đơn hàng khách', icon: ShoppingCart, page: '/don-hang' },
   hd: { label: 'Hợp đồng', icon: FileSignature, page: '/hop-dong' },
   lsx: { label: 'Lệnh sản xuất', icon: Factory, page: '/lsx' },
-  ptn: { label: 'Phiếu tiếp nhận TP', icon: PackageCheck, page: '/tiep-nhan' },
+  ptn: { label: 'Chuẩn bị hàng', icon: PackageCheck, page: '/tiep-nhan' },
   pc: { label: 'Phiếu cân trạm', icon: Scale, page: '/phieu-can' },
   vc: { label: 'Thẻ công việc lái xe', icon: Truck, page: '/van-chuyen' },
   sl: { label: 'Biên bản sai lệch', icon: FileWarning, page: '/sai-lech' },

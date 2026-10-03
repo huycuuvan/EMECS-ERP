@@ -1,6 +1,6 @@
 """Mô hình dữ liệu — bám theo shape của bản demo `Cơ khí thép/assets/js/steel-data.js`.
 
-Chuỗi nghiệp vụ: Đơn hàng (DH) → Hợp đồng (HD) → Lệnh SX (LSX) → Phiếu tiếp nhận TP (PTN)
+Chuỗi nghiệp vụ: Đơn hàng (DH) → Hợp đồng (HD) → Lệnh SX (LSX) → Chuẩn bị hàng (PTN)
 → Phiếu cân trạm (PC) → Thẻ lái xe (VC: đi mạ / giao khách) → Sai lệch (SL) → Kho ảo (VK).
 """
 from sqlalchemy import Boolean, Column, Date, Float, ForeignKey, Integer, String, Table, Text, UniqueConstraint
@@ -182,7 +182,7 @@ class LsxLog(Base):
 
 
 class Receipt(Base):
-    """Phiếu tiếp nhận thành phẩm (kho nhận từ xưởng)."""
+    """Chuẩn bị hàng (kho nhận từ xưởng)."""
     __tablename__ = "receipts"
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     lsx_id: Mapped[str] = mapped_column(String(32), index=True)
@@ -192,6 +192,8 @@ class Receipt(Base):
     kg: Mapped[float] = mapped_column(Float, default=0)
     by: Mapped[str] = mapped_column(String(120))
     note: Mapped[str] = mapped_column(Text, default="")
+    # số lượng chuẩn bị theo từng mặt hàng của đơn (JSON [{itemId,name,unit,qty,kgPerUnit,kg}]) — cộng dồn thành tổng KL
+    items: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Weighing(Base):

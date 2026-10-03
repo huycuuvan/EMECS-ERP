@@ -108,7 +108,7 @@ export default function Materials() {
         <Panel title="Theo mác thép" sub="kg nhập trong kỳ">
           {st?.byGrade.length ? <HBar color="#c5400a" items={st.byGrade.map((g) => ({ label: `${g.key} (${g.count})`, value: g.kg }))} /> : <p className="caption">—</p>}
         </Panel>
-        <Panel title="Nguyên liệu nhập vs SX hoàn thành" sub="SX hoàn thành = thành phẩm xưởng bàn giao kho (phiếu tiếp nhận) trong kỳ">
+        <Panel title="Nguyên liệu nhập vs SX hoàn thành" sub="SX hoàn thành = thành phẩm xưởng bàn giao kho (phiếu chuẩn bị hàng) trong kỳ">
           <HBar color="#2f5d3a" items={[
             { label: 'Nguyên liệu nhập', value: st?.totalKg ?? 0 },
             { label: 'SX hoàn thành bàn giao kho', value: st?.producedKg ?? 0 },

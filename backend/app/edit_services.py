@@ -124,7 +124,7 @@ def edit_weighing(db: Session, pid: str, data: dict) -> tuple[Weighing, dict]:
     return p, _outcome(changed, f"Đã lưu {p.id}" + (f" — {msg}" if msg else ""), action, mid)
 
 
-# ---------------------------------------------------------------- phiếu tiếp nhận
+# ---------------------------------------------------------------- phiếu chuẩn bị hàng
 def edit_receipt(db: Session, rid: str, data: dict) -> tuple[Receipt, dict]:
     r = svc.get_or_404(db, Receipt, rid)
     reason = (data.get("reason") or "").strip()

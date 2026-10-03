@@ -318,7 +318,7 @@ def lsx_extend(lid: str, body: SC.LsxExtendIn, db: Session = DB):
     return S.lsx(svc.lsx_extend(db, lid, body.to, body.reason))
 
 
-# ---------------------------------------------------------------- phiếu tiếp nhận
+# ---------------------------------------------------------------- phiếu chuẩn bị hàng
 @router.get("/receipts")
 def list_receipts(contract_id: str | None = None, lsx_id: str | None = None, db: Session = DB):
     return _list(db, Receipt, Receipt.date, S.receipt, contract_id=contract_id, lsx_id=lsx_id)
@@ -331,7 +331,8 @@ def get_receipt(rid: str, db: Session = DB):
 
 @router.post("/receipts", dependencies=[Depends(require("tiep-nhan", "edit"))])
 def create_receipt(body: SC.ReceiptCreate, db: Session = DB):
-    return S.receipt(svc.create_receipt(db, body.lsx_id, body.qty, body.kg, body.note))
+    items = [i.model_dump() for i in body.items] if body.items else None
+    return S.receipt(svc.create_receipt(db, body.lsx_id, body.qty, body.kg, body.note, items))
 
 
 # ---------------------------------------------------------------- phiếu cân

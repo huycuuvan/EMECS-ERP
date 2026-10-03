@@ -76,7 +76,15 @@ def daily_info(x: Lsx) -> dict:
 
 def receipt(r: Receipt) -> dict:
     return {"id": r.id, "lsxId": r.lsx_id, "contractId": r.contract_id, "date": iso(r.date), "qty": r.qty,
-            "kg": r.kg, "by": r.by, "note": r.note}
+            "kg": r.kg, "by": r.by, "note": r.note, "items": _json_list(r.items)}
+
+
+def _json_list(v) -> list:
+    import json
+    try:
+        return json.loads(v) if v else []
+    except ValueError:
+        return []
 
 
 def weighing(p: Weighing, photo: bool = True) -> dict:

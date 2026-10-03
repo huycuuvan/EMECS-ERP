@@ -9,7 +9,7 @@ import {
 import type { Contract, Lsx, Task, Weighing } from '@/api/types'
 import { fmtD, fmtDT, fmtKg } from '@/lib/format'
 import { fmtN, num, signed, useMob } from './core'
-import { useContractGoods } from '../receipts/ContractGoods'
+import { perUnit, useContractGoods } from '../receipts/ContractGoods'
 import { Btn, NumInput, PhotoPicker, ReasonBox, ReasonSelect } from './kit'
 
 const toIsoEndOfDay = (d: string) => new Date(d + 'T17:00:00').toISOString()
@@ -151,7 +151,7 @@ export function PcFillForm({ p }: { p: Weighing }) {
   )
 }
 
-/* ---------------------------------------------------------------- lập phiếu tiếp nhận (Thủ kho) */
+/* ---------------------------------------------------------------- lập phiếu chuẩn bị hàng (Thủ kho) */
 export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
   const m = useMob()
   const { message } = App.useApp()
@@ -164,17 +164,21 @@ export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
   const cids = [...new Set(options.map((o) => o.contractId))]
   const ofC = options.filter((o) => o.contractId === cid)
   const goods = useContractGoods(cid || undefined)
+  const [qtys, setQtys] = useState<Record<number, string>>({})
+  const qLines = (goods.order?.items ?? []).filter((i) => num(qtys[i.id!] ?? '') > 0)
+  const autoKg = Math.round(qLines.reduce((s, i) => s + num(qtys[i.id!]) * perUnit(i), 0) * 1000) / 1000
   const pickC = (c: string) => { setCid(c); const l = options.filter((o) => o.contractId === c); setLsxId(l.length === 1 ? l[0].id : '') }
   const [kg, setKg] = useState('')
   const [note, setNote] = useState('')
   const x = options.find((o) => o.id === lsxId)
   const recv = useMemo(() => rcs.filter((r) => r.lsxId === lsxId).reduce((s, r) => ({ qty: s.qty + r.qty, kg: s.kg + r.kg }), { qty: 0, kg: 0 }), [rcs, lsxId])
   const remainKg = x ? x.kgDone - recv.kg : 0
-  const over = !!x && num(kg) > remainKg + 0.5
+  const over = !!x && (autoKg || num(kg)) > remainKg + 0.5
   const submit = async () => {
     if (!lsxId) { message.error('Chọn lệnh sản xuất bàn giao.'); return }
-    if (!(num(kg) > 0)) { message.error('Khối lượng phải lớn hơn 0.'); return }
-    try { await create.mutateAsync({ lsxId, kg: num(kg), note: note.trim() }); m.pop() } catch { /* đã báo */ }
+    const items = qLines.map((i) => ({ itemId: i.id!, qty: num(qtys[i.id!]) }))
+    if (!items.length && !(num(kg) > 0)) { message.error('Nhập số lượng từng mặt hàng (hoặc khối lượng).'); return }
+    try { await create.mutateAsync({ lsxId, note: note.trim(), ...(items.length ? { items } : { kg: num(kg) }) }); m.pop() } catch { /* đã báo */ }
   }
   return (
     <div className="m-form flat">
@@ -183,12 +187,6 @@ export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
         <option value="">— Chọn hợp đồng —</option>
         {cids.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
-      {goods.order && (
-        <div className="f-hint" style={{ marginTop: 4 }}>
-          {goods.order.items.map((i, k) => <div key={i.id ?? k}>• {i.name}: <b>{fmtN(i.qty)} {i.unit}</b> · {fmtN(i.kg)} kg</div>)}
-          <div>Kho đã nhận <b>{fmtN(goods.received)}</b> / {fmtN(goods.order.totalKg)} kg</div>
-        </div>
-      )}
       <label className="f-lbl">Lệnh sản xuất bàn giao</label>
       <select className="inp" value={lsxId} onChange={(e) => setLsxId(e.target.value)} disabled={!cid}>
         <option value="">— Chọn lệnh SX —</option>
@@ -200,12 +198,22 @@ export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
           → còn <b className={remainKg > 0.5 ? '' : 'moss-txt'}>{fmtN(Math.max(0, remainKg))} kg</b> chưa bàn giao.
         </div>
       )}
-      <label className="f-lbl">Khối lượng (kg)</label>
-      <NumInput big value={kg} onChange={setKg} bad={over} />
+      {goods.order && <>
+        <label className="f-lbl">Số lượng chuẩn bị từng mặt hàng</label>
+        {goods.order.items.map((i, k) => (
+          <div key={i.id ?? k} style={{ marginBottom: 8 }}>
+            <div className="f-hint" style={{ margin: '0 0 3px' }}><b>{i.name}</b> — đơn {fmtN(i.qty)} {i.unit} · đã chuẩn bị {fmtN(goods.doneQty[i.id!] ?? 0)} · {fmtN(perUnit(i))} kg/{i.unit}</div>
+            <NumInput value={qtys[i.id!] ?? ''} onChange={(v) => setQtys((p) => ({ ...p, [i.id!]: v }))} />
+          </div>
+        ))}
+        <div className="f-hint">Đã chuẩn bị lũy kế <b>{fmtN(goods.received)}</b> / {fmtN(goods.order.totalKg)} kg</div>
+      </>}
+      <label className="f-lbl">{autoKg ? 'Tổng khối lượng (tự cộng)' : 'Khối lượng (kg)'}</label>
+      {autoKg ? <div className="mc-kg" style={{ fontSize: 22 }}>{fmtN(autoKg)} <small>kg</small></div> : <NumInput big value={kg} onChange={setKg} bad={over} />}
       {over && <div className="f-hint red-txt">Vượt số SX báo xong chưa bàn giao ({fmtN(remainKg)} kg) — kiểm tra lại.</div>}
       <label className="f-lbl">Ghi chú</label>
       <textarea className="inp" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: đợt 2 — 30 cấu kiện dầm chính" />
-      <div className="btn-row"><Btn variant="primary" icon={PackageCheck} loading={create.isPending} onClick={submit}>Lập phiếu tiếp nhận</Btn></div>
+      <div className="btn-row"><Btn variant="primary" icon={PackageCheck} loading={create.isPending} onClick={submit}>Lập phiếu chuẩn bị hàng</Btn></div>
     </div>
   )
 }

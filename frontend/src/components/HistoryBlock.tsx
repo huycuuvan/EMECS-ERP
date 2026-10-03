@@ -13,7 +13,7 @@ const LABEL: Record<string, string> = {
   // phiếu cân
   kgExpected: 'KL theo lệnh xuất', kgActual: 'KL cân thực tế', 'signers.bocXep': 'Bốc xếp ký', 'signers.kho': 'Thủ kho ký',
   'signers.laiXe': 'Lái xe ký', mismatchId: 'Biên bản sai lệch', status: 'Trạng thái',
-  // phiếu tiếp nhận
+  // phiếu chuẩn bị hàng
   qty: 'Số lượng SP', kg: 'Khối lượng', note: 'Ghi chú',
   // thẻ lái xe
   driver: 'Tài xế', kgRequired: 'KG yêu cầu', refId: 'Chứng từ gốc', kgAtGalv: 'Số cân bên mạ', kgPicked: 'KG ký với mạ',

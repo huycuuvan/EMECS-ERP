@@ -87,10 +87,16 @@ class LsxExtendIn(In):
     reason: str = Field(min_length=1)
 
 
+class ReceiptItemIn(In):
+    item_id: int
+    qty: float = Field(ge=0)
+
+
 class ReceiptCreate(In):
     lsx_id: str
-    qty: float | None = Field(default=None, ge=0)  # bỏ số lượng SP — chỉ khối lượng (giữ để tương thích)
-    kg: float = Field(gt=0)
+    qty: float | None = Field(default=None, ge=0)
+    kg: float | None = Field(default=None, ge=0)  # có items → tự tính = Σ SL × KL/1 bộ
+    items: list[ReceiptItemIn] | None = None
     note: str = ""
 
 

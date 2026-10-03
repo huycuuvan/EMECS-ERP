@@ -245,7 +245,7 @@ SHEETS: dict[str, Sheet] = {
         ("Gia hạn đến", "date"), ("SL kế hoạch", "num"), ("KL kế hoạch (kg)", "kg"), ("SL đã xong", "num"),
         ("KL đã xong (kg)", "kg"), ("% hoàn thành", "pct"), ("Trạng thái", "text"), ("Nhận lệnh lúc", "dt"),
         ("Người nhận lệnh", "text"), ("Lý do từ chối", "text")], _lsx),
-    "receipts": Sheet("Sổ phiếu tiếp nhận thành phẩm", "tiep-nhan", "phieu-tiep-nhan", [
+    "receipts": Sheet("Sổ chuẩn bị hàng", "tiep-nhan", "phieu-tiep-nhan", [
         ("Mã phiếu", "text"), ("Lệnh SX", "text"), ("Hợp đồng", "text"), ("Ngày giờ", "dt"), ("SL SP", "num"),
         ("Khối lượng (kg)", "kg"), ("Người lập", "text"), ("Ghi chú", "text")], _receipts),
     "weighings": Sheet("Sổ phiếu cân xuất hàng — ký 3 bên", "phieu-can", "phieu-can", [

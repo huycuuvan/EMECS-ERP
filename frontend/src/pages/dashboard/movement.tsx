@@ -10,7 +10,7 @@ import RecordLink from '@/peek/RecordLink'
 import { usePeek } from '@/peek/context'
 import { KindBadge } from './common'
 
-export const KINDS = ['Tiếp nhận TP', 'Cân xuất đi mạ', 'Nhập xưởng mạ', 'Giao khách'] as const
+export const KINDS = ['Chuẩn bị hàng', 'Cân xuất đi mạ', 'Nhập xưởng mạ', 'Giao khách'] as const
 
 export interface MovementFilter { range: [Dayjs | null, Dayjs | null] | null; contractId?: string; kind?: string }
 
@@ -57,7 +57,7 @@ export function tierTotals(rows: MovementRow[]) {
   const t = { ptn: 0, pc: 0, ma: 0, giao: 0 }
   rows.forEach((r) => {
     const kg = Number(r.kg) || 0
-    if (r.kind === 'Tiếp nhận TP') t.ptn += kg
+    if (r.kind === 'Chuẩn bị hàng') t.ptn += kg
     else if (r.kind === 'Cân xuất đi mạ') t.pc += kg
     else if (r.kind === 'Nhập xưởng mạ') t.ma += kg
     else if (r.kind === 'Giao khách') t.giao += kg

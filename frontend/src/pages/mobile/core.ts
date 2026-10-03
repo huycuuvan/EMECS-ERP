@@ -14,7 +14,7 @@ export type Kind = 'lsx' | 'pc' | 'ptn' | 'vc' | 'hd' | 'sl'
 export const KIND_META: Record<Kind, { icon: LucideIcon; label: string }> = {
   lsx: { icon: ClipboardList, label: 'Lệnh sản xuất' },
   pc: { icon: Scale, label: 'Phiếu cân' },
-  ptn: { icon: PackageCheck, label: 'Phiếu tiếp nhận' },
+  ptn: { icon: PackageCheck, label: 'Phiếu chuẩn bị hàng' },
   vc: { icon: Truck, label: 'Thẻ vận chuyển' },
   hd: { icon: FileSignature, label: 'Hợp đồng' },
   sl: { icon: FileWarning, label: 'Biên bản sai lệch' },
@@ -91,7 +91,7 @@ export const ROLES: Record<MRole, { label: string; sub: string; icon: LucideIcon
   },
   thukho: {
     label: 'Thủ kho', sub: 'Ngô Minh Kho · Kho thành phẩm', icon: Warehouse,
-    tabs: [{ id: 'can', label: 'Phiếu cân', icon: Scale }, { id: 'ptn', label: 'Tiếp nhận', icon: PackageCheck },
+    tabs: [{ id: 'can', label: 'Phiếu cân', icon: Scale }, { id: 'ptn', label: 'Chuẩn bị hàng', icon: PackageCheck },
       { id: 'cb', label: 'Cảnh báo', icon: BellRing }],
   },
   laixe: {

@@ -523,7 +523,7 @@ def material_stats(frm: datetime | None = Query(None, alias="from"), to: datetim
         "byMonth": by_month,
         "bySupplier": sorted(group(lambda m: m.supplier), key=lambda g: -g["kg"]),
         "byGrade": sorted(group(lambda m: m.steel_grade), key=lambda g: -g["kg"]),
-        # SX hoàn thành = thành phẩm xưởng bàn giao kho (phiếu tiếp nhận PTN) trong kỳ
+        # SX hoàn thành = thành phẩm xưởng bàn giao kho (phiếu chuẩn bị hàng PTN) trong kỳ
         "producedKg": produced,
         "producedPct": round(produced / total * 100) if total else None,
     }

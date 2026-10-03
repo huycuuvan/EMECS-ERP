@@ -81,3 +81,18 @@ def test_receipt_kg_only_and_task_auto_kg_arrival_delivery(c):
                                    "contactName": "Chị Lan", "contactPhone": "0913000222"}).json()
     assert g["deliver"]["receiverName"] == "Anh Hùng" and g["deliver"]["address"] == "Công trường KCN Yên Phong"
     assert g["kgRequired"] == 0  # không gắn chứng từ → không bắt nhập kg
+
+
+def test_receipt_items_sum_to_kg(c):
+    o = c.post("/api/orders", json={"customer": "Cty Test CBH", "items": [
+        {"name": "Cột", "qty": 40, "unit": "Bộ", "kgPerUnit": 250, "price": 20000},
+        {"name": "Bản mã", "qty": 200, "unit": "Bộ", "kgPerUnit": 10, "price": 20000}]}).json()
+    hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
+    x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 12000}).json()
+    ids = [i["id"] for i in c.get(f"/api/orders/{o['id']}").json()["items"]]
+    login(c, "kho")
+    r = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": ids[0], "qty": 4}, {"itemId": ids[1], "qty": 30}]}).json()
+    assert r["kg"] == 4 * 250 + 30 * 10 and r["qty"] == 34
+    assert [(i["name"], i["qty"], i["kg"]) for i in r["items"]] == [("Cột", 4, 1000), ("Bản mã", 30, 300)]
+    assert c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": 999999, "qty": 1}]}).status_code == 400
+    assert c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": ids[0], "qty": 0}]}).status_code == 400

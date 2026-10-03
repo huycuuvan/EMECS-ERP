@@ -283,10 +283,10 @@ export function KhoView({ tab, setTab, onRoleSheet }: RoleViewProps) {
     const list = [...rcs].sort((a, b) => b.date.localeCompare(a.date))
     body = <>
       <div className="btn-row" style={{ marginTop: 0, marginBottom: 4 }}>
-        <Btn variant="primary" icon={Plus} onClick={() => m.sheet({ icon: PackageCheck, title: 'Lập phiếu tiếp nhận', body: <ReceiptForm /> })}>Lập phiếu tiếp nhận</Btn>
+        <Btn variant="primary" icon={Plus} onClick={() => m.sheet({ icon: PackageCheck, title: 'Lập phiếu chuẩn bị hàng', body: <ReceiptForm /> })}>Lập phiếu chuẩn bị hàng</Btn>
       </div>
-      <SecTitle icon={PackageCheck} count={list.length}>Phiếu tiếp nhận gần nhất</SecTitle>
-      {list.length ? list.map((r) => <ReceiptCard key={r.id} r={r} chip="Đã tiếp nhận" showBy />) : <Empty icon={Inbox}>Chưa có phiếu tiếp nhận.</Empty>}
+      <SecTitle icon={PackageCheck} count={list.length}>Phiếu chuẩn bị hàng gần nhất</SecTitle>
+      {list.length ? list.map((r) => <ReceiptCard key={r.id} r={r} chip="Đã tiếp nhận" showBy />) : <Empty icon={Inbox}>Chưa có phiếu chuẩn bị hàng.</Empty>}
     </>
   } else {
     const rest = ps.filter((p) => p.status !== 'Chờ cân').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8)
@@ -476,7 +476,7 @@ function QlReport({ dash, days, setDays }: { dash: Dash; days: number; setDays: 
   const from = useMemo(() => { const d = new Date(); d.setDate(d.getDate() - days); return d.toISOString() }, [days])
   const { data: logs = [], isLoading } = useMovementLog({ from })
   const sumKind = (kind: string) => logs.filter((l) => l.kind === kind && l.kg != null).reduce((s, l) => s + (l.kg ?? 0), 0)
-  const kgSX = sumKind('Tiếp nhận TP'), kgCan = sumKind('Cân xuất đi mạ'), kgMa = sumKind('Nhập xưởng mạ'), kgGiao = sumKind('Giao khách')
+  const kgSX = sumKind('Chuẩn bị hàng'), kgCan = sumKind('Cân xuất đi mạ'), kgMa = sumKind('Nhập xưởng mạ'), kgGiao = sumKind('Giao khách')
   const chenh = kgCan - kgMa
   const tile = (Icon: LucideIcon, k: string, v: number) => (
     <div className="rpt-tile"><div className="rt-k"><Icon />{k}</div><div className="rt-v">{fmtN(v)} <small>kg</small></div></div>

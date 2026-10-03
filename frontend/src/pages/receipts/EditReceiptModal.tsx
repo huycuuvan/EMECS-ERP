@@ -1,4 +1,4 @@
-/* Sửa phiếu tiếp nhận thành phẩm (lưu lịch sử): số lượng, khối lượng, ghi chú. Đổi số lượng / kg bắt buộc lý do sửa. */
+/* Sửa phiếu chuẩn bị hàng (lưu lịch sử): số lượng, khối lượng, ghi chú. Đổi số lượng / kg bắt buộc lý do sửa. */
 import { Form, Input, InputNumber, Modal } from 'antd'
 import { useEditReceipt } from '@/api/hooksEdit'
 import type { Receipt } from '@/api/types'
@@ -22,7 +22,7 @@ export default function EditReceiptModal({ r, onClose }: { r: Receipt; onClose: 
   }
 
   return (
-    <Modal open zIndex={MODAL_Z} title={`Sửa phiếu tiếp nhận ${r.id}`} okText="Lưu thay đổi" cancelText="Hủy"
+    <Modal open zIndex={MODAL_Z} title={`Sửa phiếu chuẩn bị hàng ${r.id}`} okText="Lưu thay đổi" cancelText="Hủy"
       confirmLoading={edit.isPending} onCancel={onClose} onOk={submit} destroyOnHidden>
       <div style={{ marginTop: 12 }}>
         <InfoBox>Lệnh <b>{r.lsxId}</b> · HĐ <b>{r.contractId}</b>. Mọi thay đổi được lưu vào lịch sử chỉnh sửa. Kho không được nhận vượt số kg xưởng đã báo hoàn thành.</InfoBox>

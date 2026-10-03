@@ -1,13 +1,13 @@
-/* Lập phiếu tiếp nhận thành phẩm (kho nhận từ sản xuất): chọn HỢP ĐỒNG → lệnh SX của hợp đồng đó; chỉ khối lượng (kg).
+/* Lập phiếu chuẩn bị hàng (kho nhận từ sản xuất): chọn HỢP ĐỒNG → lệnh SX của hợp đồng đó; chỉ khối lượng (kg).
    Chặn nhận vượt số kg xưởng đã báo hoàn thành. */
 import { Form, Input, InputNumber, Modal, Select } from 'antd'
 import { AlertOctagon, Factory } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useContracts, useCreateReceipt, useLsxList, useReceipts } from '@/api/hooks'
 import type { ID, Receipt } from '@/api/types'
 import { fmtD, fmtKg, fmtNum } from '@/lib/format'
 import { InfoBox, WarnBox } from '../lsx/boxes'
-import ContractGoods from './ContractGoods'
+import ContractGoods, { perUnit, useContractGoods } from './ContractGoods'
 
 export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxId?: ID; onClose: () => void; onCreated?: (r: Receipt) => void }) {
   const create = useCreateReceipt()
@@ -23,6 +23,11 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
   const cid = Form.useWatch('contractId', form)
   const cOpts = useMemo(() => contracts.filter((c) => lsxs.some((l) => l.contractId === c.id)), [contracts, lsxs])
   const lsxOfC = lsxs.filter((l) => l.contractId === cid)
+  const [qtys, setQtys] = useState<Record<number, number | null>>({})
+  const { order } = useContractGoods(cid)
+  const lines = (order?.items ?? []).filter((i) => (qtys[i.id!] || 0) > 0)
+  const autoKg = Math.round(lines.reduce((s, i) => s + (qtys[i.id!] || 0) * perUnit(i), 0) * 1000) / 1000
+  useEffect(() => { if (lines.length) form.setFieldValue('kg', autoKg) }, [autoKg, lines.length, form])
   const kg = Form.useWatch('kg', form)
   const x = lsxs.find((l) => l.id === sel)
   const rec = sel ? recOf(sel) : 0
@@ -37,15 +42,17 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
   const pickContract = (c: ID) => {
     const ls = lsxs.filter((l) => l.contractId === c)
     form.setFieldsValue({ lsxId: ls.length === 1 ? ls[0].id : undefined })
+    setQtys({})
   }
 
   return (
-    <Modal open title="Lập phiếu tiếp nhận thành phẩm" okText="Lập phiếu tiếp nhận" cancelText="Hủy" onCancel={onClose} width={720}
+    <Modal open title="Lập phiếu chuẩn bị hàng" okText="Lập phiếu chuẩn bị hàng" cancelText="Hủy" onCancel={onClose} width={860}
       confirmLoading={create.isPending} onOk={() => form.submit()} okButtonProps={{ disabled: !lsxs.length }}>
       {!lsxs.length && all.length ? <p className="caption" style={{ marginTop: 12 }}>Chưa có lệnh SX nào đang sản xuất / hoàn thành để tiếp nhận.</p> : (
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}
           onFinish={async (v) => {
-            const r = await create.mutateAsync({ lsxId: v.lsxId, kg: v.kg, note: v.note })
+            const items = lines.map((i) => ({ itemId: i.id!, qty: qtys[i.id!] || 0 }))
+            const r = await create.mutateAsync({ lsxId: v.lsxId, note: v.note, ...(items.length ? { items } : { kg: v.kg }) })
             onClose()
             onCreated?.(r)
           }}>
@@ -53,7 +60,7 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
             <Select showSearch={{ optionFilterProp: 'label' }} onChange={pickContract}
               options={cOpts.map((c) => ({ value: c.id, label: `${c.id} · số ${c.number || c.orderId} — ${c.customer}` }))} />
           </Form.Item>
-          <ContractGoods contractId={cid} />
+          <ContractGoods contractId={cid} qtys={qtys} onQty={(id, val) => setQtys((p) => ({ ...p, [id]: val }))} />
           <Form.Item name="lsxId" label="Lệnh sản xuất của hợp đồng (đang SX / hoàn thành)" rules={[{ required: true, message: 'Chọn lệnh SX' }]}>
             <Select placeholder={cid ? 'Chọn lệnh SX' : 'Chọn hợp đồng trước'}
               options={lsxOfC.map((l) => ({ value: l.id, label: `${l.id} · ${l.name} — còn nhận được ${fmtNum(Math.max(0, (l.kgDone || 0) - recOf(l.id)))} kg` }))} />
@@ -65,11 +72,11 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
             </InfoBox>
           )}
           <div>
-            <Form.Item name="kg" label="Khối lượng (kg)" rules={[
+            <Form.Item name="kg" label={lines.length ? 'Tổng khối lượng (kg) — tự cộng từ số lượng từng mặt hàng' : 'Khối lượng (kg)'} rules={[
               { required: true, type: 'number', min: 0.0001, message: 'Nhập khối lượng kg hợp lệ' },
               { validator: () => (over > 0 ? Promise.reject(new Error(`Vượt số SX đã báo ${fmtNum(over)} kg — kiểm tra lại với xưởng`)) : Promise.resolve()) },
             ]}>
-              <InputNumber min={0} placeholder="VD: 10000" style={{ width: '100%' }} />
+              <InputNumber min={0} placeholder="Nhập số lượng ở bảng trên — hoặc gõ thẳng kg" style={{ width: '100%' }} disabled={lines.length > 0} />
             </Form.Item>
           </div>
           {over > 0 && <WarnBox title={<><AlertOctagon size={13} /> Vượt số SX đã báo {fmtNum(over)} kg — kiểm tra lại với xưởng</>} />}

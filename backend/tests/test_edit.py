@@ -204,8 +204,8 @@ def test_export_xlsx(c):
     assert [ws.cell(row=i, column=1).value for i in range(4, ws.max_row + 1)] == ["PC-0202", "PC-0201"]
     ws = _wb(c.get("/api/export/contracts.xlsx", params={"ids": "HD-2609-01,HD-2609-02"})).active
     assert ws.max_row == 5 and '"₫"' in ws["I4"].number_format
-    ws = _wb(c.get("/api/export/movement-log.xlsx", params={"kind": "Tiếp nhận TP"})).active
-    assert {ws.cell(row=i, column=2).value for i in range(4, ws.max_row + 1)} == {"Tiếp nhận TP"}
+    ws = _wb(c.get("/api/export/movement-log.xlsx", params={"kind": "Chuẩn bị hàng"})).active
+    assert {ws.cell(row=i, column=2).value for i in range(4, ws.max_row + 1)} == {"Chuẩn bị hàng"}
     for kind in ("orders", "lsx", "receipts", "tasks", "mismatches", "vloss"):
         _wb(c.get(f"/api/export/{kind}.xlsx"))
     assert c.get("/api/export/khong-co.xlsx").status_code == 404

@@ -57,7 +57,8 @@ export interface Lsx {
   daily: LsxDay[]; lastUpdateAt: string | null; today: { kg: number; at: string | null; edited: boolean } | null
 }
 
-export interface Receipt { id: ID; lsxId: ID; contractId: ID; date: string; qty: number; kg: number; by: string; note: string }
+export interface ReceiptLine { itemId: number; name: string; unit: string; qty: number; kgPerUnit: number; kg: number }
+export interface Receipt { id: ID; lsxId: ID; contractId: ID; date: string; qty: number; kg: number; by: string; note: string; items: ReceiptLine[] }
 
 export type WeighingStatus = 'Chờ cân' | 'Đã cân' | 'Lệch — chờ ký'
 export interface Weighing {

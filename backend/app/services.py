@@ -171,7 +171,7 @@ def movement_log(db: Session, cid: str | None, frm: datetime | None, to: datetim
     out = []
     q = lambda m: select(m).where(m.contract_id == cid) if cid else select(m)
     for r in db.scalars(q(Receipt)):
-        out.append({"kind": "Tiếp nhận TP", "type": "ptn", "id": r.id, "contractId": r.contract_id, "date": r.date,
+        out.append({"kind": "Chuẩn bị hàng", "type": "ptn", "id": r.id, "contractId": r.contract_id, "date": r.date,
                     "kg": r.kg, "desc": f"SX bàn giao {r.qty:g} SP", "who": r.by})
     for p in db.scalars(q(Weighing)):
         out.append({"kind": "Cân xuất đi mạ", "type": "pc", "id": p.id, "contractId": p.contract_id, "date": p.date,
@@ -608,10 +608,33 @@ def lsx_extend(db: Session, lid: str, to: datetime, reason: str) -> Lsx:
 
 
 # ---------------------------------------------------------------- kho & trạm cân
-def create_receipt(db: Session, lsx_id: str, qty: float, kg: float, note: str) -> Receipt:
+def create_receipt(db: Session, lsx_id: str, qty: float | None, kg: float | None, note: str,
+                   items: list[dict] | None = None) -> Receipt:
+    """Phiếu chuẩn bị hàng. Có `items` (SL từng mặt hàng của đơn) → tổng KL = Σ SL × KL/1 bộ, tổng SL = Σ SL."""
+    import json
     x = get_or_404(db, Lsx, lsx_id)
+    lines = []
+    if items:
+        c = db.get(Contract, x.contract_id)
+        o = db.get(Order, c.order_id) if c else None
+        by_id = {i.id: i for i in (o.items if o else [])}
+        for it in items:
+            if not it.get("qty"):
+                continue
+            oi = by_id.get(it["item_id"])
+            if not oi:
+                raise HTTPException(400, f"Mặt hàng #{it['item_id']} không thuộc đơn hàng của hợp đồng {x.contract_id}")
+            per = oi.kg_per_unit if oi.kg_per_unit else (oi.kg / oi.qty if oi.qty else 0)
+            lines.append({"itemId": oi.id, "name": oi.name, "unit": oi.unit, "qty": it["qty"], "kgPerUnit": per,
+                          "kg": round(it["qty"] * per, 3)})
+        if lines:
+            qty = sum(l["qty"] for l in lines)
+            kg = round(sum(l["kg"] for l in lines), 3)
+    if not kg or kg <= 0:
+        raise HTTPException(400, "Nhập số lượng từng mặt hàng (hoặc khối lượng) lớn hơn 0")
     r = Receipt(id=next_id(db, "PTN", "ptn"), lsx_id=lsx_id, contract_id=x.contract_id, date=utcnow(),
-                qty=qty or 0, kg=kg or 0, by=actor(KHO), note=note or "")
+                qty=qty or 0, kg=kg, by=actor(KHO), note=note or "",
+                items=json.dumps(lines, ensure_ascii=False) if lines else None)
     db.add(r)
     db.commit()
     return r

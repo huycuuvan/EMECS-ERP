@@ -1,4 +1,4 @@
-/* Thao tác phiếu cân (dùng chung trang Trạm cân, drawer phiếu cân, trang/drawer phiếu tiếp nhận):
+/* Thao tác phiếu cân (dùng chung trang Trạm cân, drawer phiếu cân, trang/drawer phiếu chuẩn bị hàng):
    tạo phiếu cân xuất từ PTN/LSX · nhập kết quả cân (kg + ảnh ký 3 bên + lý do khi lệch) · điều xe đi mạ. */
 import { DatePicker, Form, InputNumber, Input, Modal, Select } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
@@ -65,7 +65,7 @@ export function CreateWeighingModal({ lsxId, receiptId, onClose }: { lsxId?: ID;
           {x && (
             <InfoBox>
               HĐ <b>{x.contractId}</b> · tồn kho chờ cân <b>{fmtKg(st)}</b> · đề xuất chuyến này <b>{fmtKg(Math.max(0, Math.min(st, MAX_TRUCK)))}</b> (xe 10 tấn)
-              {receiptId && <> · từ phiếu tiếp nhận <b>{receiptId}</b></>}
+              {receiptId && <> · từ phiếu chuẩn bị hàng <b>{receiptId}</b></>}
             </InfoBox>
           )}
           <Form.Item name="kg" label="Khối lượng theo lệnh xuất (kg) — xe tối đa 10 tấn/chuyến" rules={[

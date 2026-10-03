@@ -18,7 +18,7 @@ export default function FlowTab({ g, L }: { g: ContractAgg; L?: Ledger }) {
         <div className="hdbs-box">
           <div className="hdbs-t">Nguồn hàng (SX bàn giao vào kho)</div>
           <div className="hdbs-big">{fmtNum(L.totalIn)} kg</div>
-          <div style={{ fontSize: 11.5, color: 'var(--ash)', marginTop: 4 }}>{g.receipts.length} phiếu tiếp nhận từ {g.lsxs.length} lệnh SX</div>
+          <div style={{ fontSize: 11.5, color: 'var(--ash)', marginTop: 4 }}>{g.receipts.length} phiếu chuẩn bị hàng từ {g.lsxs.length} lệnh SX</div>
         </div>
         <div className="hdbs-eq">=</div>
         <div className="hdbs-box">

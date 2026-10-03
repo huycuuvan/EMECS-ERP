@@ -17,7 +17,7 @@ export const NAV: { section: string; items: NavItem[] }[] = [
     { id: 'lsx', label: 'Lệnh sản xuất', icon: Factory, path: '/lsx' },
   ] },
   { section: 'Kho & Trạm cân', items: [
-    { id: 'tiep-nhan', label: 'Phiếu tiếp nhận TP', icon: PackageCheck, path: '/tiep-nhan' },
+    { id: 'tiep-nhan', label: 'Chuẩn bị hàng', icon: PackageCheck, path: '/tiep-nhan' },
     { id: 'phieu-can', label: 'Trạm cân · Phiếu cân', icon: Scale, path: '/phieu-can' },
     { id: 'kho-ao', label: 'Kho ảo chênh lệch', icon: Archive, path: '/kho-ao' },
     { id: 'nguyen-lieu', label: 'Nguyên liệu mua vào', icon: Boxes, path: '/nguyen-lieu' },

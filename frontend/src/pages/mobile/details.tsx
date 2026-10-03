@@ -123,7 +123,7 @@ function DetailPc({ id }: { id: string }) {
   )
 }
 
-/* ---------------------------------------------------------------- PHIẾU TIẾP NHẬN */
+/* ---------------------------------------------------------------- PHIẾU CHUẨN BỊ HÀNG */
 function DetailPtn({ id }: { id: string }) {
   const { data: r, isLoading } = useReceipt(id)
   if (isLoading) return <Loading />

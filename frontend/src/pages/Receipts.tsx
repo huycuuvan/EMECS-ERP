@@ -1,4 +1,4 @@
-/* Phiếu tiếp nhận thành phẩm — port pages/05-tiep-nhan.html:
+/* Chuẩn bị hàng — port pages/05-tiep-nhan.html:
    KPI · danh sách phiếu (lọc HĐ, tìm kiếm) · lập phiếu từ LSX (chặn vượt số SX báo) · gợi ý tạo phiếu cân xuất đi mạ. */
 import { App, Button, Card, Input, Select, Table, type TableColumnsType } from 'antd'
 import { Info, PackagePlus, Search } from 'lucide-react'
@@ -77,16 +77,16 @@ export default function Receipts() {
 
   return (
     <div>
-      <PageHeader title="Phiếu tiếp nhận thành phẩm"
+      <PageHeader title="Chuẩn bị hàng"
         desc="Kho lập phiếu nhận thành phẩm từ sản xuất theo lệnh SX — đối chiếu với số kg xưởng đã báo hoàn thành"
         extra={<>
           <ExportButton kind="receipts" params={{ contract_id: fh }} ids={rows.map((r) => r.id)} total={all.length} />
-          {canEdit && <Button type="primary" icon={<PackagePlus size={14} />} onClick={() => setCreating(true)}>+ Phiếu tiếp nhận</Button>}
+          {canEdit && <Button type="primary" icon={<PackagePlus size={14} />} onClick={() => setCreating(true)}>+ Phiếu chuẩn bị hàng</Button>}
         </>} />
 
       <KpiGrid>
-        <Kpi tone="steel" label="Phiếu trong tháng" value={inMonth.length} sub="phiếu tiếp nhận kho đã lập" />
-        <Kpi tone="moss" label="KG tiếp nhận tháng" value={fmtT(kgMonth)} sub="thành phẩm nhập kho từ sản xuất" />
+        <Kpi tone="steel" label="Phiếu trong tháng" value={inMonth.length} sub="phiếu chuẩn bị hàng kho đã lập" />
+        <Kpi tone="moss" label="KG chuẩn bị tháng" value={fmtT(kgMonth)} sub="thành phẩm nhập kho từ sản xuất" />
         <Kpi tone="amber" label="Tồn kho chờ cân" value={fmtKg(stockAll)} sub="toàn công ty: kho nhận − đã cân xuất" />
         <Kpi tone="signal" label="Hợp đồng có tồn" value={<span className="text-signal">{withStock.length}</span>}
           sub={withStock.length
@@ -102,12 +102,12 @@ export default function Receipts() {
         </div>
         <Table<Receipt> rowKey="id" size="middle" loading={isLoading} dataSource={rows} columns={columns}
           pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false} scroll={{ x: 1000 }}
-          locale={{ emptyText: 'Chưa có phiếu tiếp nhận phù hợp bộ lọc.' }}
+          locale={{ emptyText: 'Chưa có phiếu chuẩn bị hàng phù hợp bộ lọc.' }}
           rowClassName="clickable-row" onRow={(r) => ({ onClick: () => open('ptn', r.id) })} />
       </Card>
 
       <p className="caption" style={{ marginTop: 12 }}>
-        <Info size={12} style={{ verticalAlign: -2 }} /> Bấm vào dòng để mở <b>phiếu tiếp nhận</b> (trượt từ phải). Kho không được nhận vượt số kg sản xuất đã báo hoàn thành trên lệnh SX.
+        <Info size={12} style={{ verticalAlign: -2 }} /> Bấm vào dòng để mở <b>phiếu chuẩn bị hàng</b> (trượt từ phải). Kho không được nhận vượt số kg sản xuất đã báo hoàn thành trên lệnh SX.
       </p>
 
       {creating && <CreateReceiptModal onClose={() => setCreating(false)} onCreated={onCreated} />}

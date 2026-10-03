@@ -1,4 +1,4 @@
-/* Drawer Phiếu tiếp nhận thành phẩm — port ERPPeek.register('ptn') trong steel-data.js:
+/* Drawer Chuẩn bị hàng — port ERPPeek.register('ptn') trong steel-data.js:
    thông tin phiếu · đối chiếu với số SX báo trên lệnh · phiếu cân xuất từ cùng lệnh · tạo phiếu cân xuất (kho). */
 import { Button } from 'antd'
 import { Info, Link2, Pencil, Scale, Factory } from 'lucide-react'
@@ -41,14 +41,25 @@ export default function ReceiptDrawer({ id }: { id: string }) {
       </>}>
       <Sec icon={<Info />}>Thông tin phiếu</Sec>
       <CellGrid>
-        <Cell label="Ngày tiếp nhận">{fmtDT(r.date)}</Cell>
+        <Cell label="Ngày chuẩn bị">{fmtDT(r.date)}</Cell>
         <Cell label="Người lập">{r.by}<div className="caption" style={{ fontWeight: 400 }}>Kho</div></Cell>
-        {r.qty > 0 && <Cell label="Số lượng">{fmtNum(r.qty)} SP</Cell>}
+        {r.qty > 0 && !r.items?.length && <Cell label="Số lượng">{fmtNum(r.qty)} SP</Cell>}
         <Cell label="Khối lượng" big>{fmtKg(r.kg)}</Cell>
         <Cell label="Lệnh SX"><RecordLink id={r.lsxId} style={{ color: C.rust }} />{x && <div className="caption" style={{ fontWeight: 400 }}>{x.name}</div>}</Cell>
         <Cell label="Hợp đồng"><RecordLink id={r.contractId} style={{ color: C.rust }} /></Cell>
         <Cell label="Ghi chú" wide>{r.note || '—'}</Cell>
       </CellGrid>
+      {!!r.items?.length && (
+        <table className="pk-items" style={{ marginTop: 10 }}>
+          <thead><tr><th>Mặt hàng</th><th className="r">Số lượng</th><th className="r">KL/1 bộ</th><th className="r">Khối lượng</th></tr></thead>
+          <tbody>
+            {r.items.map((l) => (
+              <tr key={l.itemId}><td>{l.name}</td><td className="r">{fmtNum(l.qty)} {l.unit}</td><td className="r">{fmtNum(l.kgPerUnit)}</td><td className="r"><b>{fmtKg(l.kg)}</b></td></tr>
+            ))}
+            <tr><td><b>Tổng</b></td><td className="r"><b>{fmtNum(r.qty)}</b></td><td /><td className="r"><b>{fmtKg(r.kg)}</b></td></tr>
+          </tbody>
+        </table>
+      )}
 
       {x && <>
         <Sec icon={<Factory />}>Đối chiếu với lệnh sản xuất</Sec>
@@ -58,7 +69,7 @@ export default function ReceiptDrawer({ id }: { id: string }) {
             {overSx > 0.5
               ? <RecordLink id={x.id} danger>{fmtKg(recKg)} — VƯỢT {fmtKg(overSx)}</RecordLink>
               : fmtKg(recKg)}
-            <div className="caption" style={{ fontWeight: 400 }}>{lsxRcs.length} phiếu tiếp nhận</div>
+            <div className="caption" style={{ fontWeight: 400 }}>{lsxRcs.length} phiếu chuẩn bị hàng</div>
           </Cell>
           <Cell label="Tồn kho chờ cân (theo lệnh)" wide>
             <span style={{ color: stock > 0 ? C.amber : C.moss }}>{stock > 0 ? fmtKg(stock) : 'Đã cân xuất hết ✓'}</span>
