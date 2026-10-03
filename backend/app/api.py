@@ -62,7 +62,7 @@ def meta(db: Session = DB):
         or C.DRIVERS, "roles": C.ROLES, "permissions": C.PERMISSIONS,
         "reasonsCan": C.REASONS_CAN, "reasonsTuChoiSx": C.REASONS_TU_CHOI_SX,
         "reasonsTuChoiLx": C.REASONS_TU_CHOI_LX, "vlossResolutions": C.VLOSS_RESOLUTIONS,
-        "toleranceKg": C.TOLERANCE_KG, "fillHours": C.FILL_HOURS, "contractDays": C.CONTRACT_DAYS,
+        "toleranceKg": C.TOLERANCE_KG, "pcTolerancePct": C.PC_TOLERANCE_PCT, "fillHours": C.FILL_HOURS, "contractDays": C.CONTRACT_DAYS,
         "pcFillHours": C.PC_FILL_HOURS,
     }
 
@@ -188,6 +188,7 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
         d["customerId"] = cust_of.get(c.order_id)
         d["due"], d["adv"] = svc.contract_due_info(c), svc.advance_info(c)
         d["complete"] = svc.complete_info(c, delivered.get(c.id, 0))
+        d["billedKg"], d["billPendingKg"] = svc.billed_kg(db, c.id)  # công nợ theo cân xuất đã duyệt
         out.append(d)
     return out
 
@@ -354,7 +355,9 @@ def create_weighing(body: SC.WeighingCreate, db: Session = DB):
 @router.post("/weighings/{pid}/fill", dependencies=[Depends(require("phieu-can", "edit"))])
 def fill_weighing(pid: str, body: SC.WeighingFill, db: Session = DB):
     return S.weighing(svc.fill_weighing(db, pid, body.kg_actual, body.photo, body.reason, body.reason_note,
-                                        body.signer_lai_xe))
+                                        body.signer_lai_xe, gross=body.gross_kg, tare=body.tare_kg,
+                                        weigh_in=body.weigh_in_at, weigh_out=body.weigh_out_at,
+                                        plate=body.vehicle_plate))
 
 
 @router.put("/weighings/{pid}/photo", dependencies=[Depends(require("phieu-can", "edit"))])

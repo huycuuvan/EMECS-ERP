@@ -96,3 +96,28 @@ def test_receipt_items_sum_to_kg(c):
     assert [(i["name"], i["qty"], i["kg"]) for i in r["items"]] == [("Cột", 4, 1000), ("Bản mã", 30, 300)]
     assert c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": 999999, "qty": 1}]}).status_code == 400
     assert c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": ids[0], "qty": 0}]}).status_code == 400
+
+
+def test_prepare_goods_to_warehouse_weigh_5pct_and_billing(c):
+    o = c.post("/api/orders", json={"customer": "Cty Test Cân", "items": [
+        {"name": "Cột", "qty": 40, "unit": "Bộ", "kgPerUnit": 250, "price": 20000}]}).json()
+    hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
+    x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 10000}).json()
+    item = c.get(f"/api/orders/{o['id']}").json()["items"][0]["id"]
+    r = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": item, "qty": 8}]}).json()  # QL giao 2.000 kg
+    pcs = [p for p in c.get("/api/weighings").json() if p["receiptId"] == r["id"]]
+    assert len(pcs) == 1 and pcs[0]["status"] == "Chờ cân" and pcs[0]["kgExpected"] == 2000  # kho thấy phiếu chờ cân
+    pid = pcs[0]["id"]
+    login(c, "kho")
+    assert c.post(f"/api/weighings/{pid}/fill", json={"grossKg": 9000, "tareKg": 9500}).status_code == 400
+    body = {"grossKg": 9200, "tareKg": 7000, "weighInAt": "2099-01-01T08:00:00+07:00",
+            "weighOutAt": "2099-01-01T08:40:00+07:00", "vehiclePlate": "29c-12345"}  # hàng 2.200 kg = +10%
+    assert c.post(f"/api/weighings/{pid}/fill", json=body).status_code == 400  # thiếu lý do
+    p = c.post(f"/api/weighings/{pid}/fill", json={**body, "reason": "Bổ sung bản mã"}).json()
+    assert p["kgActual"] == 2200 and p["status"] == "Lệch — chờ ký" and not p["approved"] and p["vehiclePlate"] == "29C-12345"
+    login(c, "ql")
+    g = c.get(f"/api/contracts/{hd['id']}").json()
+    assert g["billedKg"] == 0 and g["billPendingKg"] == 2200 and g["deliveredValue"] == 0  # chưa duyệt → chưa tính nợ
+    c.post(f"/api/mismatches/{p['mismatchId']}/sign")
+    g = c.get(f"/api/contracts/{hd['id']}").json()
+    assert g["billedKg"] == 2200 and g["deliveredValue"] == round(2200 * g["contract"]["unitPrice"])

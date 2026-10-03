@@ -10,6 +10,7 @@ import type { Contract, Lsx, Task, Weighing } from '@/api/types'
 import { fmtD, fmtDT, fmtKg } from '@/lib/format'
 import { fmtN, num, signed, useMob } from './core'
 import { perUnit, useContractGoods } from '../receipts/ContractGoods'
+import AssignedGoods from '../weighings/AssignedGoods'
 import { Btn, NumInput, PhotoPicker, ReasonBox, ReasonSelect } from './kit'
 
 const toIsoEndOfDay = (d: string) => new Date(d + 'T17:00:00').toISOString()
@@ -115,36 +116,57 @@ export function PcFillForm({ p }: { p: Weighing }) {
   const m = useMob()
   const { message } = App.useApp()
   const fill = useFillWeighing()
-  const [kg, setKg] = useState('')
+  const pct = m.meta?.pcTolerancePct ?? 5
+  const nowLocal = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  const [gross, setGross] = useState('')
+  const [tare, setTare] = useState('')
+  const [inAt, setInAt] = useState(nowLocal(new Date(Date.now() - 30 * 60000)))
+  const [outAt, setOutAt] = useState(nowLocal())
+  const [plate, setPlate] = useState(p.vehiclePlate ?? '')
   const [photo, setPhoto] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
   const [laiXe, setLaiXe] = useState(p.signers.laiXe || '')
-  const v = num(kg)
-  const d = v - p.kgExpected
-  const lech = v > 0 && Math.abs(d) > m.tol
+  const v = gross !== '' && tare !== '' ? Math.round((num(gross) - num(tare)) * 1000) / 1000 : 0
+  const dev = v > 0 && p.kgExpected ? ((v - p.kgExpected) / p.kgExpected) * 100 : 0
+  const lech = v > 0 && Math.abs(dev) > pct
   const submit = async () => {
-    if (!(v > 0)) { message.error('Nhập số kg cân thực tế.'); return }
-    if (!photo) { message.error('Bắt buộc ảnh phiếu cân ký 3 bên.'); return }
-    if (lech && !reason) { message.error(`Lệch quá ${m.tol} kg — bắt buộc chọn lý do.`); return }
+    if (!(num(gross) > 0) || tare === '') { message.error('Nhập trọng lượng xe + hàng và trọng lượng xe.'); return }
+    if (num(tare) > num(gross)) { message.error('Trọng lượng xe lớn hơn tổng xe + hàng — kiểm tra lại.'); return }
+    if (!inAt || !outAt || outAt < inAt) { message.error('Giờ cân ra phải sau giờ cân vào.'); return }
+    if (!photo) { message.error('Bắt buộc chụp ảnh phiếu cân.'); return }
+    if (lech && !reason) { message.error(`Lệch quá ±${pct}% — bắt buộc chọn lý do.`); return }
     try {
-      await fill.mutateAsync({ id: p.id, kgActual: v, photo, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined, signerLaiXe: laiXe || undefined })
+      await fill.mutateAsync({
+        id: p.id, grossKg: num(gross), tareKg: num(tare), weighInAt: new Date(inAt).toISOString(), weighOutAt: new Date(outAt).toISOString(),
+        vehiclePlate: plate || undefined, photo, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined, signerLaiXe: laiXe || undefined,
+      })
       m.pop()
     } catch { /* đã báo */ }
   }
   return (
     <div className="m-form flat">
-      <div className="f-hint" style={{ marginTop: 0, marginBottom: 8 }}>HĐ {p.contractId} · {p.lsxId} — lệnh xuất <b>{fmtKg(p.kgExpected)}</b> (dung sai ±{m.tol} kg).</div>
-      <label className="f-lbl">Số kg cân thực tế</label>
-      <NumInput big value={kg} onChange={setKg} bad={lech} />
-      {v > 0 && !lech && <div className="f-hint moss-txt">Khớp lệnh xuất {Math.abs(d) > 0.5 ? `(${signed(d)} kg, trong dung sai)` : '✓'}</div>}
-      <label className="f-lbl">Lái xe ký phiếu</label>
+      <div className="f-hint" style={{ marginTop: 0, marginBottom: 8 }}>HĐ {p.contractId} · {p.lsxId} — Quản lý giao <b>{fmtKg(p.kgExpected)}</b> (lệch quá ±{pct}% phải nhập lý do, chờ duyệt).</div>
+      <AssignedGoods receiptId={p.receiptId} compact />
+      <label className="f-lbl">Trọng lượng xe + hàng (kg)</label>
+      <NumInput big value={gross} onChange={setGross} />
+      <label className="f-lbl">Trọng lượng xe (kg)</label>
+      <NumInput big value={tare} onChange={setTare} bad={tare !== '' && num(tare) > num(gross)} />
+      <div className="f-hint" style={{ fontSize: 15 }}>Trọng lượng hàng: <b className={lech ? 'red-txt' : 'moss-txt'}>{v > 0 ? `${fmtN(v)} kg` : '—'}</b>
+        {v > 0 && p.kgExpected > 0 && <> ({dev > 0 ? '+' : ''}{dev.toFixed(1)}% so với giao)</>}</div>
+      <label className="f-lbl">Giờ cân vào</label>
+      <input type="datetime-local" className="inp" value={inAt} onChange={(e) => setInAt(e.target.value)} />
+      <label className="f-lbl">Giờ cân ra</label>
+      <input type="datetime-local" className="inp" value={outAt} onChange={(e) => setOutAt(e.target.value)} />
+      <label className="f-lbl">Biển số xe</label>
+      <input className="inp" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="VD: 29C-123.45" />
+      <label className="f-lbl">Lái xe</label>
       <select className="inp" value={laiXe} onChange={(e) => setLaiXe(e.target.value)}>
         <option value="">— Chọn lái xe —</option>
         {(m.meta?.drivers ?? []).map((n) => <option key={n} value={n}>{n}</option>)}
       </select>
-      <PhotoPicker label="Ảnh phiếu cân ký 3 bên (bắt buộc)" value={photo} onChange={setPhoto} demo={{ label: `${p.id} · phiếu cân trạm`, kg: v || p.kgExpected }} />
-      <ReasonBox show={lech} msg={`Lệch ${signed(d)} kg so với lệnh xuất — bắt buộc chọn lý do`} reasons={m.meta?.reasonsCan ?? []}
+      <PhotoPicker label="Ảnh phiếu cân (bắt buộc)" value={photo} onChange={setPhoto} demo={{ label: `${p.id} · phiếu cân`, kg: v || p.kgExpected }} />
+      <ReasonBox show={lech} msg={`Lệch ${dev > 0 ? '+' : ''}${dev.toFixed(1)}% (${signed(v - p.kgExpected)} kg) so với Quản lý giao — chọn lý do, chờ Quản lý duyệt`} reasons={m.meta?.reasonsCan ?? []}
         reason={reason} setReason={setReason} note={note} setNote={setNote} />
       <div className="btn-row"><Btn variant="primary" icon={SendHorizontal} loading={fill.isPending} onClick={submit}>Lưu kết quả cân</Btn></div>
     </div>

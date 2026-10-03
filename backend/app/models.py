@@ -213,6 +213,13 @@ class Weighing(Base):
     mismatch_id: Mapped[str | None] = mapped_column(String(32))
     status: Mapped[str] = mapped_column(String(32))  # Chờ cân | Đã cân | Lệch — chờ ký
     loss_accepted: Mapped[bool] = mapped_column(Boolean, default=False)
+    # cân xe: tổng (xe + hàng) − xe = hàng (kg_actual); giờ cân vào / ra; phiếu chuẩn bị hàng QL giao xuống
+    receipt_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    gross_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    tare_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    weigh_in_at = mapped_column(UTCDateTime, nullable=True)
+    weigh_out_at = mapped_column(UTCDateTime, nullable=True)
+    vehicle_plate: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
 
 class Task(Base):

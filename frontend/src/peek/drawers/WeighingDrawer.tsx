@@ -23,13 +23,14 @@ export default function WeighingDrawer({ id }: { id: string }) {
   const canEdit = can('phieu-can', 'edit')
   const setPhoto = useWeighingPhoto()
   const act = useWeighingActions()
-  const tol = meta?.toleranceKg ?? 30
+  const pct = meta?.pcTolerancePct ?? 5
   const [editing, setEditing] = useState(false)
 
   if (!p) return <PeekShell type="pc" id={id} loading={isLoading} notFound={!isLoading && (isError || !p)} />
 
   const delta = p.kgActual != null ? p.kgActual - p.kgExpected : null
-  const bad = delta != null && Math.abs(delta) > tol
+  const bad = !!p.mismatchId
+  const devPct = delta != null && p.kgExpected ? (delta / p.kgExpected) * 100 : 0
   const vc = tasks.find((t) => t.refId === p.id)
   const overdue = isOverdue(p)
   const deltaTxt = delta != null ? `${delta > 0 ? '+' : delta < 0 ? '−' : ''}${fmtNum(Math.abs(delta))} kg` : ''
@@ -51,14 +52,19 @@ export default function WeighingDrawer({ id }: { id: string }) {
           {overdue && <div style={{ fontSize: 11.5 }}>QUÁ HẠN — chờ {hoursOver(p.date)}h (hạn {PC_FILL_HOURS}h)</div>}
         </Cell>
         <Cell label="Người lập">{p.by}</Cell>
-        <Cell label="KL theo lệnh xuất">{fmtKg(p.kgExpected)}</Cell>
+        <Cell label="Quản lý giao">{fmtKg(p.kgExpected)}{p.receiptId && <div className="caption" style={{ fontWeight: 400 }}>phiếu chuẩn bị <RecordLink id={p.receiptId} /></div>}</Cell>
+        {p.grossKg != null && <Cell label="Xe + hàng">{fmtKg(p.grossKg)}</Cell>}
+        {p.tareKg != null && <Cell label="Trọng lượng xe">{fmtKg(p.tareKg)}{p.vehiclePlate && <div className="caption mono" style={{ fontWeight: 400 }}>{p.vehiclePlate}</div>}</Cell>}
+        {(p.weighInAt || p.weighOutAt) && <Cell label="Cân vào → cân ra">{p.weighInAt ? fmtDT(p.weighInAt) : '—'} → {p.weighOutAt ? fmtDT(p.weighOutAt) : '—'}</Cell>}
         {p.kgActual != null
-          ? <Cell label="KL cân thực tế" big alert={bad}>{fmtKg(p.kgActual)}</Cell>
+          ? <Cell label="Trọng lượng hàng" big alert={bad}>{fmtKg(p.kgActual)}
+              <div className="caption" style={{ fontWeight: 600, color: p.approved ? 'var(--moss)' : 'var(--amber)' }}>
+                {p.approved ? 'Đã tính vào công nợ' : p.status === 'Lệch — chờ ký' ? 'Chờ Quản lý duyệt mới tính công nợ' : ''}</div></Cell>
           : <Cell label="KL cân thực tế" alert>
             {canEdit ? <a className="text-signal" onClick={() => act.fill(p)}>CHƯA NHẬP</a> : 'CHƯA NHẬP'}
           </Cell>}
         {delta != null && delta !== 0 && (
-          <Cell label="Chênh lệch" alert={bad} extra={bad ? <span className="caption">Vượt dung sai ±{tol} kg{p.lossAccepted ? ' · đã chuyển kho ảo' : ''}</span> : undefined}>
+          <Cell label="Chênh lệch" alert={bad} extra={bad ? <span className="caption">Lệch {devPct > 0 ? '+' : ''}{devPct.toFixed(1)}% — vượt ±{pct}%{p.lossAccepted ? ' · đã chuyển kho ảo' : ''}</span> : <span className="caption">{devPct > 0 ? '+' : ''}{devPct.toFixed(1)}% · trong ±{pct}%</span>}>
             {bad && p.mismatchId ? <RecordLink id={p.mismatchId} danger>{deltaTxt} — {p.mismatchId}</RecordLink> : deltaTxt}
           </Cell>
         )}

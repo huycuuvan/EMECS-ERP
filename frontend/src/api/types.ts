@@ -40,7 +40,7 @@ export interface CompleteInfo { state: 'none' | 'ok' | 'fine' | 'soon' | 'overdu
 export interface DueInfo { state: 'ok' | 'fine' | 'due' | 'overdue'; label: string; days: number }
 export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label: string }
 /** GET /contracts trả kèm due/adv */
-export interface ContractRow extends Contract { due: DueInfo; adv: AdvanceInfo; complete: CompleteInfo }
+export interface ContractRow extends Contract { due: DueInfo; adv: AdvanceInfo; complete: CompleteInfo; billedKg: number; billPendingKg: number }
 
 export type LsxStatus = 'Chờ nhận' | 'Đang SX' | 'Từ chối' | 'Hoàn thành'
 /** Sản lượng 1 ngày xưởng báo (kg; không làm = 0) + giờ nhập / sửa. */
@@ -67,6 +67,9 @@ export interface Weighing {
   photo: string | null; hasPhoto: boolean
   signers: { bocXep: string; kho: string; laiXe: string }
   by: string; mismatchId: ID | null; status: WeighingStatus; lossAccepted: boolean
+  /** phiếu chuẩn bị hàng QL giao xuống kho; cân xe: tổng (xe + hàng), xe, giờ vào / ra */
+  receiptId: ID | null; grossKg: number | null; tareKg: number | null; weighInAt: string | null; weighOutAt: string | null
+  vehiclePlate: string | null; approved: boolean
 }
 
 export type TaskType = 'di_ma' | 'giao_khach'
@@ -113,6 +116,8 @@ export interface ContractAgg {
   producedKg: number; producedQty: number; receivedKg: number; weighedKg: number; sentGalvKg: number
   inTransitToGalvKg: number; atGalvKg: number; pickedKg: number; deliveredKg: number; stockKg: number
   deliveredValue: number; paidTotal: number; debt: number; pendingPayment: number; complete: CompleteInfo
+  /** công nợ tính theo kg cân xuất đã đạt / đã duyệt; kg đang chờ QL duyệt */
+  billedKg: number; billPendingKg: number
   pctProduced: number; pctDelivered: number; pctPaid: number
   checks: Check[]; mismatches: Mismatch[]; due: DueInfo; adv: AdvanceInfo
 }
@@ -155,7 +160,7 @@ export interface Meta {
   drivers: string[]; roles: { id: RoleId; label: string }[]
   permissions: Partial<Record<RoleId, Record<string, AccessLevel>>>
   reasonsCan: string[]; reasonsTuChoiSx: string[]; reasonsTuChoiLx: string[]; vlossResolutions: string[]
-  toleranceKg: number; fillHours: number; contractDays: number
+  toleranceKg: number; pcTolerancePct?: number; fillHours: number; contractDays: number
   /** phiếu cân chưa có số/ảnh sau N giờ → quá hạn */
   pcFillHours: number
 }

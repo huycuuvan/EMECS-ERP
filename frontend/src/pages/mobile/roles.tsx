@@ -15,6 +15,7 @@ import type { Lsx, Mismatch, OverdueDoc, Receipt, Task, Weighing } from '@/api/t
 import { fmtD, fmtDT, fmtKg, fmtT, hoursOver, moneyShort, relTime } from '@/lib/format'
 import { TaskRoute } from './route'
 import { useSignFlow } from './sign'
+import AssignedGoods from '../weighings/AssignedGoods'
 import { DelivForm, GalvForm, LsxProgressForm, PcFillForm, ReceiptForm, RejectForm } from './forms'
 import {
   fmtN, hoursLeftOf, isOverdueTask, lsxDeadline, type MAlert, type MRole, ROLES, signed, typeLabel, useMob,
@@ -307,15 +308,18 @@ export function KhoView({ tab, setTab, onRoleSheet }: RoleViewProps) {
 function PcCard({ p }: { p: Weighing }) {
   const m = useMob()
   const delta = p.kgActual != null ? p.kgActual - p.kgExpected : null
-  const bad = delta != null && Math.abs(delta) > m.tol
+  const bad = !!p.mismatchId
   return (
     <Card open={['pc', p.id]}>
       <div className="mc-top"><span className="mc-id">{p.id}</span><span className="mc-status"><StatusChip status={p.status} /></span></div>
       <Line k={`${p.contractId} · ${p.lsxId}`} vClass="light">{fmtDT(p.date)}</Line>
-      <Line k="Khối lượng theo lệnh xuất"><Kg value={p.kgExpected} /></Line>
+      <Line k="Quản lý giao"><Kg value={p.kgExpected} /></Line>
+      {p.status === 'Chờ cân' && <AssignedGoods receiptId={p.receiptId} compact />}
       {p.kgActual != null && (
-        <Line k="Cân thực tế" vClass={bad ? 'red-txt' : 'moss-txt'}>{fmtN(p.kgActual)} kg{delta ? ` (${signed(delta)})` : ' · khớp'}</Line>
+        <Line k="Cân thực tế (hàng)" vClass={bad ? 'red-txt' : 'moss-txt'}>{fmtN(p.kgActual)} kg{delta ? ` (${signed(delta)})` : ' · khớp'}
+          {p.grossKg != null && <small> · tổng {fmtN(p.grossKg)} − xe {fmtN(p.tareKg)}</small>}</Line>
       )}
+      {p.status === 'Lệch — chờ ký' && <Line k="Công nợ" vClass="red-txt sm">Chờ Quản lý duyệt mới tính</Line>}
       {p.kgActual != null && (
         <Line k="Ảnh phiếu ký 3 bên">
           {p.hasPhoto ? <button type="button" className="m-chip ok" onClick={() => m.open('pc', p.id)}><CheckCheck />Đã có · xem</button>

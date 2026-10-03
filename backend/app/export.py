@@ -122,7 +122,7 @@ def _contracts(db: Session, f: Filters, _u: User) -> list[Row]:
         if f.due and due["state"] != f.due:
             continue
         delivered = sum(giao[c.id])
-        dval = round(delivered * (c.unit_price or 0))
+        dval = round(svc.billed_kg(db, c.id)[0] * (c.unit_price or 0))  # công nợ theo cân xuất đã duyệt
         paid = sum(p.amount for p in svc.approved(c.payments))  # chỉ tiền về đã được Quản lý duyệt
         out.append((c.id, [c.id, c.order_id, c.code, c.customer, c.total_qty, c.unit, c.total_kg, c.unit_price,
                            c.value, c.sent_to_kt_at, c.due_at, due["label"], c.sign_date or "Chưa nhận về", c.advance_pct,

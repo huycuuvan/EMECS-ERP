@@ -106,7 +106,12 @@ class WeighingCreate(In):
 
 
 class WeighingFill(In):
-    kg_actual: float = Field(ge=0)
+    kg_actual: float | None = Field(default=None, ge=0)  # bỏ trống khi nhập tổng + xe (hàng = tổng − xe)
+    gross_kg: float | None = Field(default=None, ge=0)  # trọng lượng xe + hàng
+    tare_kg: float | None = Field(default=None, ge=0)  # trọng lượng xe
+    weigh_in_at: datetime | None = None
+    weigh_out_at: datetime | None = None
+    vehicle_plate: str | None = None
     photo: str | None = None
     reason: str | None = None
     reason_note: str | None = None

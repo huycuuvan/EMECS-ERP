@@ -7,11 +7,12 @@ import RecordLink from '../../RecordLink'
 
 export default function MoneyTab({ g }: { g: ContractAgg }) {
   const c = g.contract
-  const deliv = g.tasksGiao.filter((t) => t.kgDelivered != null)
-    .sort((a, b) => (a.filledAt || '').localeCompare(b.filledAt || ''))
+  // vế nợ = phiếu cân xuất đã đạt (±5%) / đã được Quản lý duyệt
+  const deliv = g.weighings.filter((p) => p.kgActual != null && p.status === 'Đã cân')
+    .sort((a, b) => (a.weighOutAt || a.date || '').localeCompare(b.weighOutAt || b.date || ''))
   const noRows = deliv.map((t, i) => {
-    const v = Math.round((t.kgDelivered || 0) * c.unitPrice)
-    const luy = deliv.slice(0, i + 1).reduce((s, x) => s + Math.round((x.kgDelivered || 0) * c.unitPrice), 0)
+    const v = Math.round((t.kgActual || 0) * c.unitPrice)
+    const luy = deliv.slice(0, i + 1).reduce((s, x) => s + Math.round((x.kgActual || 0) * c.unitPrice), 0)
     return { t, v, luy }
   })
   const pays = (c.payments || []).filter((p) => p.status === 'Đã duyệt')  // chờ duyệt / từ chối: xem khối Tiền về chờ duyệt
@@ -24,18 +25,18 @@ export default function MoneyTab({ g }: { g: ContractAgg }) {
       <Sec icon={<ArrowLeftRight />}>Đối ứng hàng giao ⇄ tiền về — ghi theo 2 vế như sổ kế toán</Sec>
       <div className="hdta">
         <div className="hdta-box">
-          <div className="hdta-h no"><PackageOpen size={13} />VẾ NỢ — HÀNG ĐÃ GIAO (ghi tăng công nợ)</div>
+          <div className="hdta-h no"><PackageOpen size={13} />VẾ NỢ — CÂN XUẤT ĐÃ DUYỆT (ghi tăng công nợ)</div>
           <table><tbody>
             {noRows.length ? noRows.map(({ t, v, luy }) => (
               <tr key={t.id}>
-                <td className="num">{fmtD(t.filledAt)}</td>
-                <td><RecordLink id={t.id} type="vc" style={{ color: 'var(--rust)' }} /></td>
-                <td className="num">{fmtKg(t.kgDelivered)}</td>
+                <td className="num">{fmtD(t.weighOutAt || t.date)}</td>
+                <td><RecordLink id={t.id} type="pc" style={{ color: 'var(--rust)' }} /></td>
+                <td className="num">{fmtKg(t.kgActual)}</td>
                 <td><b className="num">{money(v)}</b><div className="hdta-luy">lũy kế {money(luy)}</div></td>
               </tr>
-            )) : <tr><td colSpan={4} style={{ color: 'var(--ash)', textAlign: 'center', padding: 14 }}>Chưa có chuyến giao nào.</td></tr>}
+            )) : <tr><td colSpan={4} style={{ color: 'var(--ash)', textAlign: 'center', padding: 14 }}>Chưa có phiếu cân xuất nào được tính công nợ.</td></tr>}
             <tr className="hdta-tot">
-              <td colSpan={2}>TỔNG {deliv.length} chuyến · {fmtKg(g.deliveredKg)}</td>
+              <td colSpan={2}>TỔNG {deliv.length} phiếu · {fmtKg(g.billedKg)}{g.billPendingKg > 0 && <> · <span style={{ color: 'var(--amber)' }}>+{fmtKg(g.billPendingKg)} chờ duyệt</span></>}</td>
               <td colSpan={2} className="num">{money(g.deliveredValue)}</td>
             </tr>
           </tbody></table>
@@ -60,12 +61,12 @@ export default function MoneyTab({ g }: { g: ContractAgg }) {
 
       {g.debt > 0 ? (
         <div className="hddebt no"><AlertCircle size={17} />SỐ DƯ CÔNG NỢ: khách còn nợ {money(g.debt)}
-          <small>(hàng đã giao {money(g.deliveredValue)} − tiền về {money(g.paidTotal)})</small></div>
+          <small>(cân xuất đã duyệt {money(g.deliveredValue)} − tiền về {money(g.paidTotal)})</small></div>
       ) : g.debt < 0 ? (
         <div className="hddebt co"><ShieldCheck size={17} />TIỀN VỀ TRƯỚC HÀNG {money(-g.debt)}
-          <small>(tiền về {money(g.paidTotal)} − hàng đã giao {money(g.deliveredValue)})</small></div>
+          <small>(tiền về {money(g.paidTotal)} − cân xuất đã duyệt {money(g.deliveredValue)})</small></div>
       ) : (
-        <div className="hddebt co"><CheckCircle2 size={17} />CÂN BẰNG TUYỆT ĐỐI: hàng đã giao = tiền đã về = {money(g.paidTotal)} ✓</div>
+        <div className="hddebt co"><CheckCircle2 size={17} />CÂN BẰNG TUYỆT ĐỐI: hàng xuất (đã duyệt) = tiền đã về = {money(g.paidTotal)} ✓</div>
       )}
 
       <CellGrid>

@@ -110,7 +110,7 @@ export const useCreateReceipt = () => useAction((v: { lsxId: ID; qty?: number; k
 
 /** sourceId: PTN-… hoặc LSX-… */
 export const useCreateWeighing = () => useAction((v: { sourceId: ID; kgExpected: number }) => post<Weighing>('/weighings', v), (p) => `Đã tạo phiếu cân ${p.id}`)
-export const useFillWeighing = () => useAction(({ id, ...v }: { id: ID; kgActual: number; photo?: string | null; reason?: string; reasonNote?: string; signerLaiXe?: string }) => post<Weighing>(`/weighings/${id}/fill`, v),
+export const useFillWeighing = () => useAction(({ id, ...v }: { id: ID; kgActual?: number; grossKg?: number; tareKg?: number; weighInAt?: string; weighOutAt?: string; vehiclePlate?: string; photo?: string | null; reason?: string; reasonNote?: string; signerLaiXe?: string }) => post<Weighing>(`/weighings/${id}/fill`, v),
   (p) => p.mismatchId ? `${p.id}: LỆCH vượt dung sai — đã tạo ${p.mismatchId} chờ Quản lý ký` : `${p.id}: đã cân`)
 export const useWeighingPhoto = () => useAction(({ id, photo }: { id: ID; photo: string | null }) => api.put<Weighing>(`/weighings/${id}/photo`, { photo }).then((r) => r.data), 'Đã cập nhật ảnh phiếu')
 

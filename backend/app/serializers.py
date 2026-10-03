@@ -94,6 +94,9 @@ def weighing(p: Weighing, photo: bool = True) -> dict:
         "hasPhoto": bool(p.photo),
         "signers": {"bocXep": p.signer_boc_xep, "kho": p.signer_kho, "laiXe": p.signer_lai_xe},
         "by": p.by, "mismatchId": p.mismatch_id, "status": p.status, "lossAccepted": p.loss_accepted,
+        "receiptId": p.receipt_id, "grossKg": p.gross_kg, "tareKg": p.tare_kg, "weighInAt": iso(p.weigh_in_at),
+        "weighOutAt": iso(p.weigh_out_at), "vehiclePlate": p.vehicle_plate,
+        "approved": p.kg_actual is not None and p.status == "Đã cân",  # tính vào công nợ
     }
 
 

@@ -46,7 +46,7 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
   }
 
   return (
-    <Modal open title="Lập phiếu chuẩn bị hàng" okText="Lập phiếu chuẩn bị hàng" cancelText="Hủy" onCancel={onClose} width={860}
+    <Modal open title="Chuẩn bị hàng — giao xuống kho" okText="Giao xuống kho" cancelText="Hủy" onCancel={onClose} width={860}
       confirmLoading={create.isPending} onOk={() => form.submit()} okButtonProps={{ disabled: !lsxs.length }}>
       {!lsxs.length && all.length ? <p className="caption" style={{ marginTop: 12 }}>Chưa có lệnh SX nào đang sản xuất / hoàn thành để tiếp nhận.</p> : (
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}
@@ -80,6 +80,8 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
             </Form.Item>
           </div>
           {over > 0 && <WarnBox title={<><AlertOctagon size={13} /> Vượt số SX đã báo {fmtNum(over)} kg — kiểm tra lại với xưởng</>} />}
+          <p className="caption" style={{ margin: '0 0 10px' }}>Bấm <b>Giao xuống kho</b> → kho nhận phiếu cân <b>Chờ cân</b> với số lượng này; kho cân xe, chụp phiếu.
+            Lệch quá ±5% so với số giao → kho nhập lý do, Quản lý duyệt mới tính công nợ.</p>
           <Form.Item name="note" label="Ghi chú">
             <Input placeholder="VD: Đợt 5 — cấu kiện số 069–078" />
           </Form.Item>

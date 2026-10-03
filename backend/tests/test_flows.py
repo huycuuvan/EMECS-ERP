@@ -61,7 +61,8 @@ def test_order_to_contract(c):
 
 def test_weighing_over_tolerance_creates_mismatch_and_sign_clears(c):
     p = c.post("/api/weighings", json={"sourceId": "LSX-SD06", "kgExpected": 5000}).json()
-    p = c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 4950, "reason": "Sai số thiết bị cân"}).json()
+    assert c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 4700}).status_code == 400  # lệch 6% → bắt lý do
+    p = c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 4700, "reason": "Sai số thiết bị cân"}).json()
     assert p["status"] == "Lệch — chờ ký" and p["mismatchId"]
     m = c.post(f"/api/mismatches/{p['mismatchId']}/sign").json()
     assert m["status"] == "Đã ký xác nhận"
