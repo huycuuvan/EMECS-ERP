@@ -303,7 +303,7 @@ function Editor({ doc }: { doc: ContractDocument }) {
             <ol className="steps">
               <li className={doc.draftedAt ? 'done' : 'cur'}>Soạn thảo &amp; lưu (màn này)</li>
               <li className={['Đã gửi khách hàng', 'Đã nhận về', 'Đã hoàn thành'].includes(doc.status) ? 'done' : doc.draftedAt ? 'cur' : ''}>Tải Word, gửi khách → bấm <b>Đã gửi khách hàng</b> (báo Quản lý)</li>
-              <li className={['Đã nhận về', 'Đã hoàn thành'].includes(doc.status) ? 'done' : ''}>Khách ký gửi lại → <b>Đã nhận về</b> (được phát lệnh SX)</li>
+              <li className={['Đã nhận về', 'Đã hoàn thành'].includes(doc.status) ? 'done' : ''}>Khách ký gửi lại → <b>Đã nhận về</b></li>
               <li className={doc.status === 'Đã hoàn thành' ? 'done' : ''}><b>Đã hoàn thành</b></li>
             </ol>
           </div>

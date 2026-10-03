@@ -446,7 +446,7 @@ def mark_contract_returned(db: Session, cid: str) -> Contract:
 
 
 def mark_contract_signed(db: Session, cid: str) -> Contract:
-    """Bước 3 — đã nhận về hợp đồng khách ký → được phát lệnh sản xuất."""
+    """Bước 3 — đã nhận về hợp đồng khách ký (phát lệnh SX không phụ thuộc bước này)."""
     c = get_or_404(db, Contract, cid)
     if c.status not in (CT_SENT,) and not c.returned_at:
         raise HTTPException(400, "Hợp đồng chưa gửi khách hàng")
@@ -458,7 +458,7 @@ def mark_contract_signed(db: Session, cid: str) -> Contract:
     o = db.get(Order, c.order_id)
     if o:
         o.status = "Đã có hợp đồng"
-    notify(db, f"HĐ {c.id} đã nhận về (khách đã ký)", f"{c.customer} — có thể phát lệnh sản xuất", "success", roles="admin,kt")
+    notify(db, f"HĐ {c.id} đã nhận về (khách đã ký)", f"{c.customer} — hợp đồng khách đã ký", "success", roles="admin,kt")
     db.commit()
     return c
 

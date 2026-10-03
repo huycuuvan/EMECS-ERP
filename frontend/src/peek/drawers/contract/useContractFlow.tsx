@@ -25,7 +25,7 @@ export function useContractFlow() {
     }),
     askSigned: (c: Contract) => modal.confirm({
       title: `Đã nhận về hợp đồng ${c.number || c.id} (khách đã ký)`,
-      content: <p>Ghi nhận hôm nay. Sau bước này Quản lý <b>phát được lệnh sản xuất</b>, hệ thống theo dõi <b>tạm ứng {fmtNum(c.advance.pct)}% = {money(c.advance.required)}</b>; bản soạn thảo bị khóa.</p>,
+      content: <p>Ghi nhận hôm nay. Sau bước này hệ thống theo dõi <b>tạm ứng {fmtNum(c.advance.pct)}% = {money(c.advance.required)}</b>; bản soạn thảo bị khóa.</p>,
       zIndex: MODAL_Z, okText: 'Đã nhận về', cancelText: 'Hủy',
       onOk: () => signed.mutateAsync(c.id).catch(() => undefined),
     }),

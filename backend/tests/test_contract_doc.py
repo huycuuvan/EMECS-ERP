@@ -109,3 +109,10 @@ def test_payment_needs_manager_approval(c):
     login(c, "ql")
     hd = c.post(f"/api/payments/{pid2}/reject", json={"reason": "Sai số tiền"}).json()
     assert hd["payments"][-1]["status"] == "Từ chối" and c.get("/api/contracts/HD-2609-04").json()["paidTotal"] == 480_000_000
+
+
+def test_lsx_independent_of_contract_step(c):
+    _, hd = _contract(c)
+    assert hd["status"] == "Chờ soạn thảo"
+    x = c.post("/api/lsx", json={"contractId": hd["id"], "qty": 5, "kg": 500, "leadDays": 5})
+    assert x.status_code == 200 and x.json()["contractId"] == hd["id"]

@@ -50,7 +50,7 @@ export default function ContractDrawer({ id }: { id: string }) {
   const showReturned = !!c && canEdit && c.status === 'Đã soạn thảo'
   const showSigned = !!c && canEdit && c.status === 'Đã gửi khách hàng'
   const showDone = !!c && canEdit && c.status === 'Đã nhận về'
-  const showLsx = !!c && canLsx && !!c.signDate && c.status !== 'Đã hoàn thành' && lsxRemain > 0
+  const showLsx = !!c && canLsx && lsxRemain > 0  // phát lệnh SX độc lập với bước hợp đồng
   const step = c ? CONTRACT_STEPS.indexOf(c.status) : -1
   const word = () => c && downloadFile(`/contracts/${c.id}/document.docx`, `Hop-dong_${c.id}.docx`).catch(async (e) => message.error(await blobError(e)))
 

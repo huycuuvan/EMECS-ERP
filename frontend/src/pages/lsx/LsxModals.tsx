@@ -3,7 +3,7 @@
 import { App, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { OctagonAlert } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   useContracts, useCreateLsx, useLsxAccept, useLsxExtend, useLsxList, useLsxProgress, useLsxReject, useMeta, useReceipts,
 } from '@/api/hooks'
@@ -12,7 +12,6 @@ import { daysLeft, fmtD, fmtKg, fmtNum } from '@/lib/format'
 import { C } from '@/theme'
 import { ErrBox, WarnBox } from './boxes'
 import { effDeadline } from './lsxUtil'
-import RecordLink from '@/peek/RecordLink'
 
 const OTHER = 'Khác (ghi rõ)'
 
@@ -140,8 +139,8 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
   const create = useCreateLsx()
   const { data: contracts = [] } = useContracts()
   const { data: lsxs = [] } = useLsxList()
-  const signed = useMemo(() => contracts.filter((c) => c.signDate != null && c.status !== 'Đã hoàn thành'), [contracts])
-  const waiting = useMemo(() => contracts.filter((c) => c.signDate == null), [contracts])
+  // phát lệnh độc lập với bước hợp đồng (không cần chờ khách ký) — chỉ giới hạn theo khối lượng còn lại
+  const signed = contracts
   /* kg đã phát lệnh của 1 HĐ (không tính lệnh bị từ chối — lệnh đó sẽ phát lại) */
   const remainOf = (cid: ID) => {
     const c = contracts.find((z) => z.id === cid)
@@ -164,17 +163,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
     <Modal open title="Phát lệnh sản xuất (Quản lý)" okText="Phát lệnh" cancelText="Hủy" onCancel={onClose}
       confirmLoading={create.isPending} onOk={() => form.submit()} width={600}>
       {!signed.length ? (
-        <div style={{ marginTop: 12 }}>
-          <p style={{ margin: '0 0 8px' }}>Chưa có hợp đồng <b>đã ký</b> để phát lệnh — lệnh sản xuất chỉ phát cho hợp đồng khách đã ký.</p>
-          {waiting.length > 0 && (
-            <>
-              <p className="caption" style={{ margin: '0 0 6px' }}>Hợp đồng đang chờ — kế toán soạn thảo, bấm <b>Đã gửi khách hàng</b> rồi <b>Đã nhận về</b> khi khách ký gửi lại (Hợp đồng &amp; Tạm ứng):</p>
-              <ul style={{ margin: 0, paddingLeft: 18 }}>
-                {waiting.map((c) => <li key={c.id}><RecordLink id={c.id} type="hd" /> — {c.customer} · <b>{c.status}</b></li>)}
-              </ul>
-            </>
-          )}
-        </div>
+        <p style={{ marginTop: 12 }}>Chưa có hợp đồng nào — Quản lý tạo đơn hàng và <b>Chuyển kế toán</b> trước, sau đó phát lệnh được ngay.</p>
       ) : (
         <Form form={form} layout="vertical" style={{ marginTop: 12 }} initialValues={{ leadDays: 7 }}
           onFinish={async (v) => {
@@ -182,12 +171,12 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
             onCreated?.(x.id)
             onClose()
           }}>
-          <Form.Item name="contractId" label="Hợp đồng (chỉ HĐ đã ký)" rules={[{ required: true, message: 'Chọn hợp đồng.' }]}
+          <Form.Item name="contractId" label="Hợp đồng" rules={[{ required: true, message: 'Chọn hợp đồng.' }]}
             extra={cid ? (rem > 0
               ? <span>Còn <b>{fmtNum(rem)} kg</b> của hợp đồng này chưa phát lệnh (không tính lệnh bị từ chối).</span>
               : <span className="text-signal" style={{ fontWeight: 600 }}>Hợp đồng đã phát lệnh đủ khối lượng — không còn phần để phát thêm.</span>) : undefined}>
             <Select placeholder="Chọn hợp đồng" onChange={sync}
-              options={signed.map((c) => ({ value: c.id, label: `${c.id} — ${c.customer} · còn ${fmtNum(remainOf(c.id))} kg chưa phát lệnh` }))} />
+              options={signed.map((c) => ({ value: c.id, label: `${c.id} — ${c.customer} · ${c.status} · còn ${fmtNum(remainOf(c.id))} kg chưa phát lệnh` }))} />
           </Form.Item>
           <Form.Item name="name" label="Tên lệnh" rules={[{ required: true, whitespace: true, message: 'Nhập tên lệnh sản xuất.' }]}>
             <Input />
