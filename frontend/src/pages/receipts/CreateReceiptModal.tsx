@@ -7,6 +7,7 @@ import { useContracts, useCreateReceipt, useLsxList, useReceipts } from '@/api/h
 import type { ID, Receipt } from '@/api/types'
 import { fmtD, fmtKg, fmtNum } from '@/lib/format'
 import { InfoBox, WarnBox } from '../lsx/boxes'
+import ContractGoods from './ContractGoods'
 
 export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxId?: ID; onClose: () => void; onCreated?: (r: Receipt) => void }) {
   const create = useCreateReceipt()
@@ -39,7 +40,7 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
   }
 
   return (
-    <Modal open title="Lập phiếu tiếp nhận thành phẩm" okText="Lập phiếu tiếp nhận" cancelText="Hủy" onCancel={onClose} width={640}
+    <Modal open title="Lập phiếu tiếp nhận thành phẩm" okText="Lập phiếu tiếp nhận" cancelText="Hủy" onCancel={onClose} width={720}
       confirmLoading={create.isPending} onOk={() => form.submit()} okButtonProps={{ disabled: !lsxs.length }}>
       {!lsxs.length && all.length ? <p className="caption" style={{ marginTop: 12 }}>Chưa có lệnh SX nào đang sản xuất / hoàn thành để tiếp nhận.</p> : (
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}
@@ -52,6 +53,7 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
             <Select showSearch={{ optionFilterProp: 'label' }} onChange={pickContract}
               options={cOpts.map((c) => ({ value: c.id, label: `${c.id} · số ${c.number || c.orderId} — ${c.customer}` }))} />
           </Form.Item>
+          <ContractGoods contractId={cid} />
           <Form.Item name="lsxId" label="Lệnh sản xuất của hợp đồng (đang SX / hoàn thành)" rules={[{ required: true, message: 'Chọn lệnh SX' }]}>
             <Select placeholder={cid ? 'Chọn lệnh SX' : 'Chọn hợp đồng trước'}
               options={lsxOfC.map((l) => ({ value: l.id, label: `${l.id} · ${l.name} — còn nhận được ${fmtNum(Math.max(0, (l.kgDone || 0) - recOf(l.id)))} kg` }))} />

@@ -9,6 +9,7 @@ import {
 import type { Contract, Lsx, Task, Weighing } from '@/api/types'
 import { fmtD, fmtDT, fmtKg } from '@/lib/format'
 import { fmtN, num, signed, useMob } from './core'
+import { useContractGoods } from '../receipts/ContractGoods'
 import { Btn, NumInput, PhotoPicker, ReasonBox, ReasonSelect } from './kit'
 
 const toIsoEndOfDay = (d: string) => new Date(d + 'T17:00:00').toISOString()
@@ -162,6 +163,7 @@ export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
   const [cid, setCid] = useState(options.find((o) => o.id === initial)?.contractId ?? '')
   const cids = [...new Set(options.map((o) => o.contractId))]
   const ofC = options.filter((o) => o.contractId === cid)
+  const goods = useContractGoods(cid || undefined)
   const pickC = (c: string) => { setCid(c); const l = options.filter((o) => o.contractId === c); setLsxId(l.length === 1 ? l[0].id : '') }
   const [kg, setKg] = useState('')
   const [note, setNote] = useState('')
@@ -181,6 +183,12 @@ export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
         <option value="">— Chọn hợp đồng —</option>
         {cids.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
+      {goods.order && (
+        <div className="f-hint" style={{ marginTop: 4 }}>
+          {goods.order.items.map((i, k) => <div key={i.id ?? k}>• {i.name}: <b>{fmtN(i.qty)} {i.unit}</b> · {fmtN(i.kg)} kg</div>)}
+          <div>Kho đã nhận <b>{fmtN(goods.received)}</b> / {fmtN(goods.order.totalKg)} kg</div>
+        </div>
+      )}
       <label className="f-lbl">Lệnh sản xuất bàn giao</label>
       <select className="inp" value={lsxId} onChange={(e) => setLsxId(e.target.value)} disabled={!cid}>
         <option value="">— Chọn lệnh SX —</option>

@@ -43,7 +43,7 @@ export default function ReceiptDrawer({ id }: { id: string }) {
       <CellGrid>
         <Cell label="Ngày tiếp nhận">{fmtDT(r.date)}</Cell>
         <Cell label="Người lập">{r.by}<div className="caption" style={{ fontWeight: 400 }}>Kho</div></Cell>
-        <Cell label="Số lượng">{fmtNum(r.qty)} SP</Cell>
+        {r.qty > 0 && <Cell label="Số lượng">{fmtNum(r.qty)} SP</Cell>}
         <Cell label="Khối lượng" big>{fmtKg(r.kg)}</Cell>
         <Cell label="Lệnh SX"><RecordLink id={r.lsxId} style={{ color: C.rust }} />{x && <div className="caption" style={{ fontWeight: 400 }}>{x.name}</div>}</Cell>
         <Cell label="Hợp đồng"><RecordLink id={r.contractId} style={{ color: C.rust }} /></Cell>

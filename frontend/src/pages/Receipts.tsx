@@ -70,7 +70,6 @@ export default function Receipts() {
     { title: 'Lệnh SX', key: 'lsx', render: (_, r) => <RecordLink id={r.lsxId} style={{ color: C.rust, fontSize: 12 }} /> },
     { title: 'Hợp đồng', key: 'hd', render: (_, r) => <RecordLink id={r.contractId} style={{ color: C.rust, fontSize: 12 }} /> },
     { title: 'Ngày giờ', key: 'date', render: (_, r) => <div><span className="num">{fmtDT(r.date)}</span><div style={sub}>{relTime(r.date)}</div></div> },
-    { title: 'SL SP', key: 'qty', align: 'right', render: (_, r) => <span className="num">{fmtNum(r.qty)}</span> },
     { title: 'Khối lượng', key: 'kg', align: 'right', render: (_, r) => <span className="mono num" style={{ fontWeight: 700 }}>{fmtKg(r.kg)}</span> },
     { title: 'Người lập', key: 'by', render: (_, r) => <div>{r.by || '—'}<div style={sub}>Kho</div></div> },
     { title: 'Ghi chú', key: 'note', render: (_, r) => <span style={{ color: C.ash, fontSize: 12, maxWidth: 260, display: 'inline-block' }}>{r.note || '—'}</span> },
