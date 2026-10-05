@@ -18,12 +18,12 @@ export const NAV: { section: string; items: NavItem[] }[] = [
   ] },
   { section: 'Kho & Trạm cân', items: [
     { id: 'tiep-nhan', label: 'Chuẩn bị hàng', icon: PackageCheck, path: '/tiep-nhan' },
+    { id: 'van-chuyen', label: 'Thẻ công việc lái xe', icon: Truck, path: '/van-chuyen' },
     { id: 'phieu-can', label: 'Trạm cân · Phiếu cân', icon: Scale, path: '/phieu-can' },
     { id: 'kho-ao', label: 'Kho ảo chênh lệch', icon: Archive, path: '/kho-ao' },
     { id: 'nguyen-lieu', label: 'Nguyên liệu mua vào', icon: Boxes, path: '/nguyen-lieu' },
   ] },
   { section: 'Vận chuyển & Mạ', items: [
-    { id: 'van-chuyen', label: 'Thẻ công việc lái xe', icon: Truck, path: '/van-chuyen' },
     { id: 'doi-ung-ma', label: 'Đối ứng gửi/nhận mạ', icon: ArrowLeftRight, path: '/doi-ung-ma' },
   ] },
   { section: 'Giám sát & Báo cáo', items: [

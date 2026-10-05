@@ -16,7 +16,8 @@ import RecordLink from '@/peek/RecordLink'
 import { SrcChip } from './vloss/SrcChip'
 
 const panel = { background: 'var(--canvas)', border: '1px solid var(--rule)', borderRadius: 12, padding: 18 }
-const SOURCES = ['Trạm cân công ty', 'Cân tại xưởng mạ', 'Giao khách']
+const PREP = 'Cân xuất (chuẩn bị hàng)'
+const SOURCES = [PREP, 'Cân tại xưởng mạ', 'Giao khách', 'Trạm cân công ty']
 const sumKg = (arr: VLoss[]) => arr.reduce((s, e) => s + Math.abs(Number(e.kg) || 0), 0)
 /** Công thức trên thẻ: Σ số gốc − Σ số cân sau = chênh (cộng từ công thức từng khoản). */
 function CardFormula({ arr, a, b }: { arr: VLoss[]; a: string; b: string }) {
@@ -74,7 +75,7 @@ export default function VirtualLoss() {
   return (
     <div>
       <PageHeader title="Kho ảo chênh lệch"
-        desc="Thống kê các khoản lệch kg Quản lý đã chấp nhận ở màn lái xe — ghi tự động, không cần thao tác"
+        desc="Thống kê MỌI chênh lệch kg (chuẩn bị hàng, xưởng mạ, giao khách) — trong dung sai ghi tự động, vượt dung sai ghi khi Quản lý chấp nhận"
         extra={<>
           <ExportButton kind="vloss" params={{ source: src, status: st }} ids={rows.map((e) => e.id)} total={all.length} />
           {can('bao-cao') && <Button icon={<BarChart3 size={14} />} onClick={() => nav('/bao-cao')}>Báo cáo đối ứng</Button>}
@@ -83,6 +84,7 @@ export default function VirtualLoss() {
       <KpiGrid>
         <Kpi tone="amber" label="Tổng lệch lũy kế" value={fmtKg(sumKg(all))} sub={<CardFormula arr={all} a="Σ số gốc" b="Σ số cân sau" />} onClick={() => { setSrc(undefined); setSt(undefined) }} />
         <Kpi tone="steel" label="Trong tháng này" value={fmtKg(sumKg(month))} sub={<CardFormula arr={month} a="Σ số gốc" b="Σ số cân sau" />} />
+        <Kpi tone="steel" label="Chuẩn bị hàng (cân xuất)" value={fmtKg(sumKg(bySrc(PREP)))} sub={<CardFormula arr={bySrc(PREP)} a="QL giao" b="Cân thực" />} onClick={() => setSrc(PREP)} />
         <Kpi tone="rust" label="Cân tại xưởng mạ" value={fmtKg(sumKg(bySrc('Cân tại xưởng mạ')))} sub={<CardFormula arr={bySrc('Cân tại xưởng mạ')} a="Cân xuất" b="Mạ cân nhận" />} onClick={() => setSrc('Cân tại xưởng mạ')} />
         <Kpi tone="moss" label="Giao khách" value={fmtKg(sumKg(bySrc('Giao khách')))} sub={<CardFormula arr={bySrc('Giao khách')} a="Lấy từ mạ" b="Khách ký nhận" />} onClick={() => setSrc('Giao khách')} />
       </KpiGrid>
@@ -102,7 +104,8 @@ export default function VirtualLoss() {
 
       <p className="caption" style={{ marginTop: 12, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
         <Info size={13} style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>Lái xe gửi phiếu lệch kèm lý do → Quản lý <b>chấp nhận</b> ở màn Thẻ công việc lái xe → khoản lệch tự ghi vào đây để thống kê.</span>
+        <span>Kho ảo tổng hợp tất cả chênh lệch: <b>chuẩn bị hàng</b> (QL giao − cân thực), <b>xưởng mạ</b> (cân xuất − mạ cân nhận), <b>giao khách</b> (lấy từ mạ − khách ký).
+          Trong dung sai ghi tự động; vượt dung sai ghi khi Quản lý duyệt ở màn Chuẩn bị hàng / Thẻ lái xe. Chỉ để thống kê.</span>
       </p>
 
     </div>

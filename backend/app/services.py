@@ -746,8 +746,23 @@ def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | N
     else:
         p.mismatch_id, p.status, p.reason, p.reason_note, p.reject_reason = None, "Đã cân", None, None, None
         _billed_notify(db, p)
+        if p.receipt_id:
+            record_vloss(db, "pc", p, exp - p.kg_actual, PREP_SOURCE, f"Trong dung sai {PC_TOLERANCE_PCT:g}% — tự động",
+                         "Tự động (trong dung sai)")
     db.commit()
     return p
+
+
+PREP_SOURCE = "Cân xuất (chuẩn bị hàng)"
+
+
+def record_vloss(db: Session, ref_type: str, rec, kg: float, source: str, note: str, by: str) -> None:
+    """Kho ảo = thống kê MỌI chênh lệch đã chốt (trong dung sai tự động, hoặc Quản lý đã chấp nhận). Không thao tác xử lý."""
+    if abs(kg or 0) < 0.001 or rec.loss_accepted:
+        return
+    db.add(VLoss(id=next_id(db, "VK", "vk"), date=utcnow(), ref_type=ref_type, ref_id=rec.id, contract_id=rec.contract_id,
+                 source=source, kg=kg, approved_by=by, status="Đã ghi nhận", note=note or ""))
+    rec.loss_accepted = True
 
 
 def approve_weighing(db: Session, pid: str) -> Weighing:
@@ -757,6 +772,8 @@ def approve_weighing(db: Session, pid: str) -> Weighing:
         raise HTTPException(400, f"Phiếu {pid} không ở trạng thái chờ duyệt")
     p.status, p.approved_by, p.approved_at = "Đã cân", actor(QL), utcnow()
     _billed_notify(db, p)
+    record_vloss(db, "pc", p, (p.kg_expected or 0) - (p.kg_actual or 0), PREP_SOURCE,
+                 (p.reason or "") + (f" — {p.reason_note}" if p.reason_note else ""), actor(QL))
     notify(db, f"Quản lý đã duyệt phiếu cân {pid}", f"{fmt_kg(p.kg_actual)} — {p.reason}", "success", roles="kho,admin")
     db.commit()
     return p
@@ -876,6 +893,15 @@ def task_depart(db: Session, tid: str) -> Task:
     return t
 
 
+def _task_delta(t: Task) -> tuple[float, str]:
+    """(kg chênh = số gốc − số sau, nguồn) của thẻ lái xe đã điền."""
+    if t.type == "di_ma":
+        return ((t.kg_required or 0) - (t.kg_at_galv or 0) if t.kg_required else 0), "Cân tại xưởng mạ"
+    if abs((t.kg_delivered or 0) - (t.kg_picked or 0)) > 0.5:
+        return (t.kg_picked or 0) - (t.kg_delivered or 0), "Giao khách"
+    return ((t.kg_required or 0) - (t.kg_picked or 0) if t.kg_required else 0), "Giao khách"
+
+
 def _task_result(db: Session, t: Task, off: bool, what: str, reason: str | None, reason_note: str | None) -> None:
     """Có lệch → bắt lý do, thẻ chờ Quản lý duyệt (không tạo biên bản sai lệch; kho ảo chỉ thống kê). Không lệch → xong."""
     t.filled_at = utcnow()
@@ -888,6 +914,8 @@ def _task_result(db: Session, t: Task, off: bool, what: str, reason: str | None,
                "warning", roles="admin")
     else:
         t.status, t.reason, t.reason_note, t.reject_reason_ql = "Hoàn thành", None, None, None
+        kg, source = _task_delta(t)
+        record_vloss(db, "vc", t, kg, source, "Trong dung sai — tự động", "Tự động (trong dung sai)")
 
 
 def task_fill_galv(db: Session, tid: str, kg: float, photo: str | None, reason: str | None,
@@ -934,17 +962,8 @@ def approve_task(db: Session, tid: str) -> Task:
         raise HTTPException(400, f"Thẻ {tid} không ở trạng thái chờ duyệt")
     t.status, t.approved_by, t.approved_at = "Hoàn thành", actor(QL), utcnow()
     # kho ảo chỉ để thống kê: khoản lệch Quản lý đã chấp nhận ghi luôn vào kho ảo
-    if t.type == "di_ma":
-        kg, source = (t.kg_required or 0) - (t.kg_at_galv or 0), "Cân tại xưởng mạ"
-    elif abs((t.kg_delivered or 0) - (t.kg_picked or 0)) > 0.5:
-        kg, source = (t.kg_picked or 0) - (t.kg_delivered or 0), "Giao khách"
-    else:
-        kg, source = (t.kg_required or 0) - (t.kg_picked or 0), "Giao khách"
-    if abs(kg) > 0.001 and not t.loss_accepted:
-        db.add(VLoss(id=next_id(db, "VK", "vk"), date=utcnow(), ref_type="vc", ref_id=t.id, contract_id=t.contract_id,
-                     source=source, kg=kg, approved_by=actor(QL), status="Đã ghi nhận",
-                     note=(t.reason or "") + (f" — {t.reason_note}" if t.reason_note else "")))
-        t.loss_accepted = True
+    kg, source = _task_delta(t)
+    record_vloss(db, "vc", t, kg, source, (t.reason or "") + (f" — {t.reason_note}" if t.reason_note else ""), actor(QL))
     notify(db, f"Quản lý chấp nhận phiếu {tid}", f"{t.driver} · {t.reason}", "success", roles="lx,admin")
     db.commit()
     return t
@@ -1023,7 +1042,8 @@ def vloss_detail(db: Session, e: VLoss) -> dict:
     else:
         p = db.get(Weighing, e.ref_id)
         if p:
-            a, b = ("KG theo lệnh xuất / Quản lý giao", p.kg_expected), ("Cân thực tại trạm", p.kg_actual)
+            a, b = (("KG Quản lý giao (chuẩn bị hàng)" if p.receipt_id else "KG theo lệnh xuất"), p.kg_expected), \
+                ("Cân thực (hàng)" if p.receipt_id else "Cân thực tại trạm", p.kg_actual)
             if p.reason:
                 reason = p.reason + (f" — {p.reason_note}" if p.reason_note else "")
             elif p.mismatch_id and (m := db.get(Mismatch, p.mismatch_id)):
