@@ -99,21 +99,21 @@ def test_master_permissions(c):
     assert c.get("/api/customers").status_code == 200  # đơn hàng: xem
     assert c.get("/api/tags").status_code == 200
     assert c.post("/api/customers", json={"name": "X"}).status_code == 200  # kế toán: bổ sung khách (Bên A) khi soạn HĐ
-    assert c.get("/api/material-receipts").status_code == 200  # đọc: mọi người đăng nhập
+    assert c.get("/api/material-receipts").status_code == 403  # đọc: theo màn của vai trò (kế toán không có màn NVL)
     assert c.post("/api/material-receipts", json={"supplier": "X", "kg": 1}).status_code == 403  # kế toán không ghi nguyên liệu
-    assert c.get("/api/vehicles").status_code == 200  # đọc: mọi người đăng nhập
+    assert c.get("/api/vehicles").status_code == 403  # kế toán không có màn xe / vận chuyển
     assert c.post("/api/alerts/run-end-of-day").status_code == 403
     login(c, "lx1")
-    assert c.get("/api/customers").status_code == 200  # đọc: mọi người đăng nhập
+    assert c.get("/api/customers").status_code == 403  # lái xe không đọc danh mục khách
     assert c.post("/api/customers", json={"name": "Y"}).status_code == 403  # lái xe không sửa danh mục khách
     assert c.post("/api/tags", json={"name": "Y"}).status_code == 403
     me = c.get("/api/auth/me").json()
     assert set(me["permissions"]) == {"van-chuyen"}  # lái xe chỉ thấy màn Thẻ công việc
     assert c.get("/api/vehicles").status_code == 200 and c.get("/api/galvanizers").status_code == 200
     assert c.post("/api/vehicles", json={"plate": "30A-000.00"}).status_code == 403
-    assert c.get("/api/reports/vehicle-tonnage").status_code == 200  # đọc: mọi người đăng nhập
+    assert c.get("/api/reports/vehicle-tonnage").status_code == 403  # báo cáo: Quản lý
     login(c, "sx")
-    assert c.get("/api/material-receipts").status_code == 200
+    assert c.get("/api/material-receipts").status_code == 403
     assert c.post("/api/material-receipts", json={"supplier": "A", "kg": 100}).status_code == 403
     login(c, "kho")
     u = c.get("/api/auth/me").json()
@@ -261,5 +261,32 @@ def test_material_receipt_supplier_vs_actual_notifies_manager(c):
     assert "= 50 kg thiếu" in vk["formula"]["text"]
     login(c, "kho")
     c.patch(f"/api/material-receipts/{m['id']}", json={"kg": 10020})  # sửa thành thừa 20 kg → kho ảo cập nhật theo
+    login(c, "ql")
     vk = next(e for e in c.get("/api/vloss").json() if e["refId"] == m["id"])
     assert vk["kg"] == -20 and "= 20 kg thừa" in vk["formula"]["text"]
+
+
+def test_read_permissions_per_role(c):
+    """Mỗi vai trò chỉ đọc được dữ liệu phục vụ màn của mình; kho/lx/sx không thấy tiền hợp đồng/đơn."""
+    oid = c.get("/api/orders").json()[0]["id"]
+    expect = {
+        "kt": {"/api/orders": 200, "/api/customers": 200, "/api/contracts": 200, "/api/dashboard": 403,
+               "/api/material-receipts": 403, "/api/vehicles": 403, "/api/galvanizers": 403},
+        "sx": {"/api/lsx": 200, "/api/receipts": 200, "/api/orders": 403, "/api/customers": 403,
+               "/api/payments/pending": 403, "/api/vehicles": 403, "/api/dashboard": 403},
+        "kho": {"/api/receipts": 200, "/api/weighings": 200, "/api/material-receipts": 200, f"/api/orders/{oid}": 200,
+                "/api/orders": 403, "/api/customers": 403, "/api/dashboard": 403},
+        "lx1": {"/api/tasks": 200, "/api/galvanizers": 200, "/api/orders": 403, "/api/customers": 403,
+                "/api/lsx": 403, "/api/material-receipts": 403, "/api/dashboard": 403},
+    }
+    for who, paths in expect.items():
+        login(c, who)
+        for path, code in paths.items():
+            assert c.get(path).status_code == code, (who, path)
+        if who != "kt":
+            cts = c.get("/api/contracts").json()
+            assert cts and all("value" not in x and "payments" not in x for x in cts), who
+            assert "debt" not in c.get(f"/api/contracts/{cts[0]['id']}").json()
+    login(c, "kho")
+    o = c.get(f"/api/orders/{oid}").json()
+    assert "value" not in o and all("price" not in i for i in o["items"]) and o["items"][0]["kg"] > 0

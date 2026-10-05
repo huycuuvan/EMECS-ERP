@@ -66,7 +66,9 @@ def test_weighing_kg_edit_creates_mismatch_and_history(c):
     assert p["editOutcome"]["mismatchAction"] == "updated" and p["mismatchId"] == mid
     m = c.get(f"/api/mismatches/{mid}").json()
     assert m["actual"] == 9940 and m["delta"] == -60
+    login(c, "ql")  # lịch sử biên bản sai lệch: màn Sai lệch (Quản lý)
     assert any(x["field"] == "actual" for x in hist(c, "sl", mid))
+    login(c, "kho")
 
     # về trong dung sai → giữ biên bản, ghi chú; phiếu vẫn chờ ký
     p = c.patch("/api/weighings/PC-0201", json={"kgActual": 9990, "reason": "Cân lại lần 3"}).json()
@@ -95,7 +97,7 @@ def test_weighing_edit_rules(c):
 def test_edit_permissions(c):
     login(c, "kt")
     assert c.patch("/api/weighings/PC-0201", json={"kgActual": 9000, "reason": "x"}).status_code == 403
-    assert c.get("/api/history/pc/PC-0201").status_code == 200  # đọc lịch sử: mọi người đăng nhập
+    assert c.get("/api/history/pc/PC-0201").status_code == 403  # lịch sử: chỉ ai xem được màn của bản ghi
     assert c.get("/api/history/hd/HD-2609-01").status_code == 200
     login(c, "lx1")
     assert c.post("/api/tasks/VC-0007/reassign", json={"driver": "Phạm Văn Tài"}).status_code == 403
@@ -172,7 +174,9 @@ def test_receipt_mismatch_order_contract_history(c):
     assert m["reason"] == "Sai số thiết bị cân"
     assert c.patch("/api/mismatches/SL-0001", json={"reasonNote": "x"}).status_code == 400  # đã ký
     assert c.patch("/api/mismatches/SL-0002", json={"reason": "Lý do bịa"}).status_code == 400
+    login(c, "ql")
     assert hist(c, "sl", "SL-0002")[0]["userName"] == "Ngô Minh Kho"
+    login(c, "kho")
 
     login(c, "ql")
     c.patch("/api/orders/DH-2609-02", json={"note": "Ghi chú mới"})

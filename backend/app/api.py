@@ -16,7 +16,8 @@ from . import contract_doc as CD
 from . import services as svc
 from .db import get_db
 from .history import contract_snapshot, order_snapshot, track
-from .security import can, get_current_user, require, require_roles
+from .security import (R_CONTRACT_FULL, R_CONTRACTS, R_CUSTOMERS, R_LSX, R_MISMATCHES, R_ORDERS, R_OVERDUE,
+                       R_RECEIPTS, R_REPORTS, R_TASKS, R_VLOSS, R_WEIGHINGS, can, get_current_user, require, require_any, require_roles)
 from .models import (Contract, Lsx, Mismatch, Notification, Order, Receipt, Task, User, VLoss, Weighing)
 from .alerts import visible_to
 from .seed import reset_db
@@ -75,7 +76,7 @@ def admin_reset(db: Session = DB):
     return {"ok": True}
 
 
-@router.get("/dashboard")
+@router.get("/dashboard", dependencies=[Depends(require_any("dashboard",))])
 def dashboard(tag: int | None = None, segment: str | None = None, db: Session = DB):
     return svc.dashboard(db, tag, segment)
 
@@ -100,7 +101,7 @@ async def upload(file: UploadFile = File(...)):
 
 
 # ---------------------------------------------------------------- đơn hàng
-@router.get("/orders")
+@router.get("/orders", dependencies=[Depends(require_any(*R_CUSTOMERS))])
 def list_orders(tag: int | None = None, segment: str | None = None, db: Session = DB):
     rows = _list(db, Order, Order.date, S.order)
     if tag:  # lọc theo thẻ khách hàng
@@ -133,20 +134,27 @@ async def import_order_excel(file: UploadFile = File(...), db: Session = DB):
     return out
 
 
-@router.get("/orders/excel-template")
+@router.get("/orders/excel-template", dependencies=[Depends(require_any("don-hang",))])
 def order_excel_template():
     return _xlsx(order_excel(), "Mau-don-hang.xlsx")
 
 
-@router.get("/orders/{oid}/excel")
+@router.get("/orders/{oid}/excel", dependencies=[Depends(require_any("don-hang",))])
 def order_excel_file(oid: str, db: Session = DB):
     o = svc.get_or_404(db, Order, oid)
     return _xlsx(order_excel(o), f"Don-hang_{o.id}.xlsx")
 
 
-@router.get("/orders/{oid}")
-def get_order(oid: str, db: Session = DB):
-    return S.order(svc.get_or_404(db, Order, oid))
+ORDER_MONEY_KEYS = ("value", "vatPct", "vatAmount", "valueAfterVat")
+
+
+@router.get("/orders/{oid}", dependencies=[Depends(require_any(*R_ORDERS))])
+def get_order(oid: str, user: User = Depends(get_current_user), db: Session = DB):
+    d = S.order(svc.get_or_404(db, Order, oid))
+    if not any(can(user, p) for p in R_CUSTOMERS):  # kho chỉ cần hàng hóa + kg, không thấy giá tiền
+        d = {k: v for k, v in d.items() if k not in ORDER_MONEY_KEYS}
+        d["items"] = [{k: v for k, v in i.items() if k not in ("price", "amount")} for i in d["items"]]
+    return d
 
 
 @router.post("/orders", dependencies=[Depends(require("don-hang", "full"))])
@@ -170,8 +178,19 @@ def send_to_kt(oid: str, body: SC.SendToKtIn, db: Session = DB):
 
 
 # ---------------------------------------------------------------- hợp đồng
-@router.get("/contracts")
-def list_contracts(tag: int | None = None, segment: str | None = None, db: Session = DB):
+# Hợp đồng bản rút gọn cho vai trò không có màn Hợp đồng (kho, xưởng, lái xe…): đủ để chọn / hiển thị, KHÔNG có tiền
+LITE_KEYS = ("id", "orderId", "code", "number", "customer", "customerId", "status", "totalQty", "unit", "totalKg",
+             "completeBy", "signDate", "sentToKtAt")
+MONEY_AGG_KEYS = ("deliveredValue", "paidTotal", "debt", "pendingPayment", "pctPaid", "billedKg", "billPendingKg")
+
+
+def contract_lite(d: dict) -> dict:
+    return {k: d.get(k) for k in LITE_KEYS}
+
+
+@router.get("/contracts", dependencies=[Depends(require_any(*R_CONTRACTS))])
+def list_contracts(tag: int | None = None, segment: str | None = None, db: Session = DB,
+                   user: User = Depends(get_current_user)):
     out = []
     cust_of = {o.id: o.customer_id for o in db.scalars(select(Order))}
     keep = svc.contract_ids_for_tag(db, tag) if tag else None
@@ -190,15 +209,18 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
         d["complete"] = svc.complete_info(c, delivered.get(c.id, 0))
         d["billedKg"], d["billPendingKg"] = svc.billed_kg(db, c.id)  # công nợ theo cân xuất đã duyệt
         out.append(d)
-    return out
+    return out if can(user, "hop-dong") else [contract_lite(d) for d in out]
 
 
-@router.get("/contracts/{cid}")
-def get_contract(cid: str, db: Session = DB):
-    return svc.contract_agg(db, cid)
+@router.get("/contracts/{cid}", dependencies=[Depends(require_any(*R_CONTRACTS))])
+def get_contract(cid: str, db: Session = DB, user: User = Depends(get_current_user)):
+    g = svc.contract_agg(db, cid)
+    if can(user, "hop-dong"):
+        return g
+    return {**{k: v for k, v in g.items() if k not in MONEY_AGG_KEYS}, "contract": contract_lite(g["contract"])}
 
 
-@router.get("/contracts/{cid}/ledger")
+@router.get("/contracts/{cid}/ledger", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
 def contract_ledger(cid: str, db: Session = DB):
     return svc.contract_flow_ledger(db, cid)
 
@@ -229,7 +251,7 @@ def contract_completed(cid: str, db: Session = DB):
 
 
 # ---------------------------------------------------------------- soạn thảo hợp đồng theo mẫu
-@router.get("/contracts/{cid}/document")
+@router.get("/contracts/{cid}/document", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
 def contract_document(cid: str, db: Session = DB):
     return CD.document(db, svc.get_or_404(db, Contract, cid))
 
@@ -241,7 +263,7 @@ def save_contract_document(cid: str, body: dict, db: Session = DB):
         return CD.save_draft(db, c, body)
 
 
-@router.get("/contracts/{cid}/document.docx")
+@router.get("/contracts/{cid}/document.docx", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
 def contract_docx(cid: str, db: Session = DB):
     doc = CD.document(db, svc.get_or_404(db, Contract, cid))
     data = CD.render_docx(doc)
@@ -262,7 +284,7 @@ def put_seller(body: dict, db: Session = DB):
 
 
 # ---------------------------------------------------------------- tiền về: Quản lý duyệt
-@router.get("/payments/pending")
+@router.get("/payments/pending", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
 def pending_payments(db: Session = DB):
     return svc.pending_payments(db)
 
@@ -283,12 +305,12 @@ def contract_payment(cid: str, body: SC.PaymentIn, db: Session = DB):
 
 
 # ---------------------------------------------------------------- lệnh sản xuất
-@router.get("/lsx")
+@router.get("/lsx", dependencies=[Depends(require_any(*R_LSX))])
 def list_lsx(contract_id: str | None = None, db: Session = DB):
     return _list(db, Lsx, Lsx.assigned_at, S.lsx, contract_id=contract_id)
 
 
-@router.get("/lsx/{lid}")
+@router.get("/lsx/{lid}", dependencies=[Depends(require_any(*R_LSX))])
 def get_lsx(lid: str, db: Session = DB):
     return S.lsx(svc.get_or_404(db, Lsx, lid))
 
@@ -320,14 +342,14 @@ def lsx_extend(lid: str, body: SC.LsxExtendIn, db: Session = DB):
 
 
 # ---------------------------------------------------------------- phiếu chuẩn bị hàng
-@router.get("/receipts")
+@router.get("/receipts", dependencies=[Depends(require_any(*R_RECEIPTS))])
 def list_receipts(contract_id: str | None = None, lsx_id: str | None = None, db: Session = DB):
     rows = _list(db, Receipt, Receipt.date, S.receipt, contract_id=contract_id, lsx_id=lsx_id)
     eff = svc.stock_kg_of_receipts(db, [db.get(Receipt, r["id"]) for r in rows])
     return [{**r, "kgStock": eff[r["id"]]} for r in rows]
 
 
-@router.get("/receipts/{rid}")
+@router.get("/receipts/{rid}", dependencies=[Depends(require_any(*R_RECEIPTS))])
 def get_receipt(rid: str, db: Session = DB):
     r = svc.get_or_404(db, Receipt, rid)
     return {**S.receipt(r), "kgStock": svc.stock_kg_of_receipts(db, [r])[r.id]}
@@ -342,12 +364,12 @@ def create_receipt(body: SC.ReceiptCreate, db: Session = DB):
 
 
 # ---------------------------------------------------------------- phiếu cân
-@router.get("/weighings")
+@router.get("/weighings", dependencies=[Depends(require_any(*R_WEIGHINGS))])
 def list_weighings(contract_id: str | None = None, db: Session = DB):
     return _list(db, Weighing, Weighing.date, lambda p: S.weighing(p, photo=False), contract_id=contract_id)
 
 
-@router.get("/weighings/{pid}")
+@router.get("/weighings/{pid}", dependencies=[Depends(require_any(*R_WEIGHINGS))])
 def get_weighing(pid: str, db: Session = DB):
     return S.weighing(svc.get_or_404(db, Weighing, pid))
 
@@ -384,7 +406,7 @@ def weighing_photo(pid: str, body: SC.PhotoIn, db: Session = DB):
 
 
 # ---------------------------------------------------------------- thẻ công việc lái xe
-@router.get("/tasks")
+@router.get("/tasks", dependencies=[Depends(require_any(*R_TASKS))])
 def list_tasks(contract_id: str | None = None, type: str | None = None, driver: str | None = None,
                db: Session = DB, user: User = Depends(get_current_user)):
     if user.role_list == ["lx"]:  # lái xe thuần: chỉ thấy thẻ của mình
@@ -393,7 +415,7 @@ def list_tasks(contract_id: str | None = None, type: str | None = None, driver: 
                  driver=driver)
 
 
-@router.get("/tasks/{tid}")
+@router.get("/tasks/{tid}", dependencies=[Depends(require_any(*R_TASKS))])
 def get_task(tid: str, db: Session = DB):
     return S.task(svc.get_or_404(db, Task, tid))
 
@@ -453,12 +475,12 @@ def task_photo(tid: str, body: SC.PhotoIn, db: Session = DB):
 
 
 # ---------------------------------------------------------------- sai lệch
-@router.get("/mismatches")
+@router.get("/mismatches", dependencies=[Depends(require_any(*R_MISMATCHES))])
 def list_mismatches(contract_id: str | None = None, status: str | None = None, db: Session = DB):
     return _list(db, Mismatch, Mismatch.date, S.mismatch, contract_id=contract_id, status=status)
 
 
-@router.get("/mismatches/{mid}")
+@router.get("/mismatches/{mid}", dependencies=[Depends(require_any(*R_MISMATCHES))])
 def get_mismatch(mid: str, db: Session = DB):
     return S.mismatch(svc.get_or_404(db, Mismatch, mid))
 
@@ -469,17 +491,17 @@ def sign_mismatch(mid: str, db: Session = DB):
 
 
 # ---------------------------------------------------------------- kho ảo
-@router.get("/vloss")
+@router.get("/vloss", dependencies=[Depends(require_any(*R_VLOSS))])
 def list_vloss(db: Session = DB):
     return [svc.vloss_detail(db, e) for e in db.scalars(select(VLoss).order_by(VLoss.date.desc()))]
 
 
-@router.get("/vloss/pending-deltas")
+@router.get("/vloss/pending-deltas", dependencies=[Depends(require_any(*R_VLOSS))])
 def vloss_pending(db: Session = DB):
     return svc.pending_deltas(db)
 
 
-@router.get("/vloss/{vid}")
+@router.get("/vloss/{vid}", dependencies=[Depends(require_any(*R_VLOSS))])
 def get_vloss(vid: str, db: Session = DB):
     return svc.vloss_detail(db, svc.get_or_404(db, VLoss, vid))
 
@@ -495,13 +517,13 @@ def resolve_vloss(vid: str, body: SC.ResolveVlossIn, db: Session = DB):
 
 
 # ---------------------------------------------------------------- báo cáo
-@router.get("/reports/movement-log")
+@router.get("/reports/movement-log", dependencies=[Depends(require_any(*R_REPORTS))])
 def movement_log(contract_id: str | None = None, date_from: datetime | None = None, date_to: datetime | None = None,
                  db: Session = DB):
     return svc.movement_log(db, contract_id, date_from, date_to)
 
 
-@router.get("/reports/overdue-docs")
+@router.get("/reports/overdue-docs", dependencies=[Depends(require_any(*R_OVERDUE))])
 def overdue_docs(db: Session = DB):
     return svc.overdue_docs(db)
 

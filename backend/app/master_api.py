@@ -15,7 +15,8 @@ from .db import get_db, utcnow
 from .models import (Contract, Customer, Galvanizer, MaterialReceipt, Order, Receipt, Tag, Task, Vehicle,
                      customer_tags)
 from .schemas import In
-from .security import actor, get_current_user, require, require_roles
+from .security import (R_CUSTOMERS, R_FLEET, R_MATERIALS, R_TONNAGE, actor, get_current_user, require, require_any,
+                       require_roles)
 from .utils import VN_TZ, iso
 
 router = APIRouter(prefix="/api", dependencies=[Depends(get_current_user)])
@@ -73,7 +74,7 @@ def _tag_name_free(db: Session, name: str, except_id: int | None = None) -> str:
     return name
 
 
-@router.get("/tags")
+@router.get("/tags", dependencies=[Depends(require_any(*R_CUSTOMERS))])
 def list_tags(db: Session = DB):
     """Mọi người dùng đăng nhập đọc được (dùng cho bộ lọc Khách thân thiết / Khách lẻ)."""
     counts = defaultdict(int)
@@ -193,7 +194,7 @@ def _tags(db: Session, ids: list[int]) -> list[Tag]:
     return tags
 
 
-@router.get("/customers")
+@router.get("/customers", dependencies=[Depends(require_any(*R_CUSTOMERS))])
 def list_customers(tag: int | None = None, q: str | None = None, segment: str | None = None, db: Session = DB):
     by_cust = _orders_by_customer(db)
     s = _clean(q).lower()
@@ -210,7 +211,7 @@ def list_customers(tag: int | None = None, q: str | None = None, segment: str | 
     return out
 
 
-@router.get("/customers/{cid}")
+@router.get("/customers/{cid}", dependencies=[Depends(require_any(*R_CUSTOMERS))])
 def get_customer(cid: int, db: Session = DB):
     c = db.get(Customer, cid) or _404("khách hàng")
     return customer_out(c, _orders_by_customer(db).get(cid, []))
@@ -321,7 +322,7 @@ def _kind(k: str) -> str:
     return k
 
 
-@router.get("/vehicles")
+@router.get("/vehicles", dependencies=[Depends(require_any(*R_FLEET))])
 def list_vehicles(db: Session = DB):
     return [vehicle_out(v) for v in db.scalars(select(Vehicle).order_by(Vehicle.plate))]
 
@@ -395,7 +396,7 @@ def _galv_name(db: Session, name: str, except_id: int | None = None) -> str:
     return n
 
 
-@router.get("/galvanizers")
+@router.get("/galvanizers", dependencies=[Depends(require_any(*R_FLEET))])
 def list_galvanizers(db: Session = DB):
     return [galvanizer_out(g) for g in db.scalars(select(Galvanizer).order_by(Galvanizer.name))]
 
@@ -507,7 +508,7 @@ def _materials(db: Session, frm, to) -> list[MaterialReceipt]:
             if (not frm and not to) or _in(m.date, frm, to)]
 
 
-@router.get("/material-receipts")
+@router.get("/material-receipts", dependencies=[Depends(require_any(*R_MATERIALS))])
 def list_materials(frm: datetime | None = Query(None, alias="from"), to: datetime | None = None, db: Session = DB):
     return [material_out(m) for m in _materials(db, frm, to)]
 
@@ -543,7 +544,7 @@ def update_material(mid: str, body: MaterialPatch, db: Session = DB):
     return material_out(m)
 
 
-@router.get("/reports/material-stats")
+@router.get("/reports/material-stats", dependencies=[Depends(require_any(*R_MATERIALS))])
 def material_stats(frm: datetime | None = Query(None, alias="from"), to: datetime | None = None, db: Session = DB):
     rows = _materials(db, frm, to)
     pfrm, pto = _period(frm, to)
@@ -573,7 +574,7 @@ def material_stats(frm: datetime | None = Query(None, alias="from"), to: datetim
 
 
 # ================================================================ giám sát số tấn theo từng xe
-@router.get("/reports/vehicle-tonnage")
+@router.get("/reports/vehicle-tonnage", dependencies=[Depends(require_any(*R_TONNAGE))])
 def vehicle_tonnage(frm: datetime | None = Query(None, alias="from"), to: datetime | None = None, db: Session = DB):
     frm, to = _period(frm, to)
     rows: dict[str, dict] = {}

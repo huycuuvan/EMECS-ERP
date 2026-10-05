@@ -100,6 +100,33 @@ def require(page: str, need: str = "view"):
     return dep
 
 
+def require_any(*pages: str):
+    """Dependency ĐỌC dữ liệu: người dùng phải xem được ít nhất một màn trong `pages` (Quản lý luôn qua)."""
+    def dep(user: User = Depends(get_current_user)) -> User:
+        if any(can(user, p) for p in pages):
+            return user
+        raise HTTPException(403, "Vai trò của bạn không được xem dữ liệu này")
+    return dep
+
+
+# Ai được ĐỌC dữ liệu gì — theo màn của vai trò cần tới dữ liệu đó (mỗi vai trò chỉ thấy dữ liệu màn của mình)
+R_ORDERS = ("don-hang", "hop-dong", "khach-hang", "tiep-nhan")
+R_CONTRACTS = ("hop-dong", "don-hang", "khach-hang", "tiep-nhan", "phieu-can", "van-chuyen", "lsx")  # ngoài hop-dong: bản rút gọn, không tiền
+R_CONTRACT_FULL = ("hop-dong",)
+R_LSX = ("lsx", "tiep-nhan", "phieu-can", "hop-dong")
+R_RECEIPTS = ("tiep-nhan", "phieu-can", "lsx", "hop-dong")
+R_WEIGHINGS = ("phieu-can", "tiep-nhan", "lsx", "hop-dong", "van-chuyen")
+R_TASKS = ("van-chuyen", "phieu-can", "hop-dong", "lsx", "tiep-nhan")
+R_MISMATCHES = ("sai-lech", "phieu-can", "van-chuyen")
+R_VLOSS = ("kho-ao", "bao-cao")
+R_REPORTS = ("dashboard", "bao-cao")
+R_OVERDUE = ("dashboard", "bao-cao", "phieu-can", "van-chuyen", "lsx", "tiep-nhan")
+R_CUSTOMERS = ("don-hang", "hop-dong", "khach-hang")
+R_FLEET = ("van-chuyen", "xe", "xuong-ma", "tiep-nhan", "phieu-can", "doi-ung-ma")
+R_MATERIALS = ("nguyen-lieu", "bao-cao")
+R_TONNAGE = ("xe", "bao-cao", "dashboard")
+
+
 def require_roles(*roles: str):
     """Dependency: người dùng phải giữ ít nhất một vai trò trong `roles` (admin luôn qua)."""
     def dep(user: User = Depends(get_current_user)) -> User:
