@@ -93,6 +93,7 @@ class Contract(Base):
     number: Mapped[str] = mapped_column(String(64), default="", server_default="")  # Số HĐ in trên văn bản
     complete_by = mapped_column(UTCDateTime, nullable=True)  # ngày hoàn thành đơn (từ đơn hàng)
     draft: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON bản soạn thảo (ô vàng KT nhập)
+    signed_file: Mapped[str | None] = mapped_column(String(255), nullable=True)  # bản scan HĐ đã ký: /uploads/<tên>
     drafted_at = mapped_column(UTCDateTime, nullable=True)
     completed_at = mapped_column(UTCDateTime, nullable=True)
     owner: Mapped[str] = mapped_column(String(120))

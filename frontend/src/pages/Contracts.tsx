@@ -1,4 +1,4 @@
-/* Hợp đồng & Tạm ứng (màn kế toán): KPI tạm ứng / tiền về chờ duyệt / công nợ · danh sách (bước hợp đồng, hạn gửi HĐ,
+/* Hợp đồng & Tạm ứng (màn kế toán): KPI tạm ứng / tiền về chờ duyệt / công nợ · danh sách (bước hợp đồng, ngày hoàn thành,
    ngày hoàn thành, tạm ứng, lũy kế giao — tiền) · thao tác theo 4 bước: Soạn thảo → Đã gửi khách hàng → Đã nhận về →
    Đã hoàn thành · + Tiền về (chờ Quản lý duyệt) · Xuất Excel · Đơn hàng chờ làm HĐ. */
 import { Button, Input, Select, Table, Tag, type TableColumnsType } from 'antd'
@@ -9,7 +9,7 @@ import { useTasks } from '@/api/hooks'
 import { useContractsByTag } from '@/api/hooksMaster'
 import { type Contract, type ContractRow, type ContractStatus } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
-import { AdvChip, CompleteChip, DueChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
+import { AdvChip, CompleteChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtNum, fmtT, moneyShort } from '@/lib/format'
 import { usePeek } from '@/peek/context'
@@ -51,7 +51,7 @@ export default function Contracts() {
     return contracts.filter((c) => {
       if (s && !(c.id + c.customer + c.code + c.orderId).toLowerCase().includes(s)) return false
       if (fs && c.status !== fs) return false
-      if (fd && c.due.state !== fd) return false
+      if (fd && c.complete.state !== fd) return false
       if (quick === 'pay' && !(c.pendingPayment > 0)) return false
       if (quick === 'late' && c.complete.state !== 'soon' && c.complete.state !== 'overdue') return false
       if (quick === 'adv' && c.adv.state !== 'missing') return false
@@ -106,10 +106,6 @@ export default function Contracts() {
       render: (_, c) => <span className="num"><b>{moneyShort(c.value)}</b><div className="sub-soft">{fmtNum(c.unitPrice)}₫/kg</div></span>,
     },
     {
-      title: 'Hạn gửi HĐ (05 ngày)', key: 'due', sorter: (a, b) => (a.returnedAt ? 1e6 : a.due.days) - (b.returnedAt ? 1e6 : b.due.days),
-      render: (_, c) => <DueChip due={c.due} />,
-    },
-    {
       title: 'Ngày hoàn thành', key: 'complete', width: 170,
       sorter: (a, b) => (a.completeBy ? new Date(a.completeBy).getTime() : 9e15) - (b.completeBy ? new Date(b.completeBy).getTime() : 9e15),
       render: (_, c) => <CompleteChip info={c.complete} />,
@@ -149,7 +145,7 @@ export default function Contracts() {
   return (
     <>
       <PageHeader title="Hợp đồng & Tạm ứng"
-        desc="Kế toán soạn hợp đồng theo mẫu & gửi khách trong 05 ngày · tiền về nhập tay, Quản lý duyệt · theo dõi lũy kế hàng — tiền"
+        desc="Kế toán soạn hợp đồng theo mẫu & gửi khách trước ngày hoàn thành · tiền về nhập tay, Quản lý duyệt · theo dõi lũy kế hàng — tiền"
         extra={<>
           <ExportButton kind="contracts" params={{ status: fs, due: fd }} ids={rows.map((c) => c.id)} total={contracts.length} />
           <Button type="primary" icon={<ShoppingCart size={14} />} onClick={() => navigate('/don-hang?status=' + encodeURIComponent('Chốt đơn'))}>Đơn hàng chờ làm HĐ</Button>
@@ -179,15 +175,15 @@ export default function Contracts() {
             options={[{ value: '', label: 'Tất cả trạng thái' }, ...STATUSES.map((s) => ({ value: s, label: s }))]} />
           <Select value={fd} onChange={setFd} style={{ minWidth: 190 }}
             options={[
-              { value: '', label: 'Hạn gửi HĐ: tất cả' }, { value: 'overdue', label: 'Quá hạn gửi' },
-              { value: 'due', label: 'Đến hạn (≤1 ngày)' }, { value: 'ok', label: 'Đã gửi khách' },
+              { value: '', label: 'Ngày hoàn thành: tất cả' }, { value: 'overdue', label: 'Quá ngày hoàn thành' },
+              { value: 'soon', label: 'Sắp tới hạn' }, { value: 'ok', label: 'Đã hoàn thành' },
             ]} />
           <TagFilter value={tag} onChange={setTag} />
           {quick && <Tag closable onClose={() => setQuick('')} color="volcano" style={{ margin: 0 }}>{QUICK_LABEL[quick]}</Tag>}
         </div>
         <Table<ContractRow> rowKey="id" size="middle" loading={isLoading} columns={columns} dataSource={rows}
           scroll={{ x: 1480 }} pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false}
-          rowClassName={(c) => 'clickable-row' + (c.due.state === 'overdue' || c.complete.state === 'overdue' ? ' row-alert' : '')}
+          rowClassName={(c) => 'clickable-row' + (c.complete.state === 'overdue' ? ' row-alert' : '')}
           onRow={(r) => ({ onClick: () => open('hd', r.id) })}
           locale={{ emptyText: 'Không có hợp đồng phù hợp bộ lọc.' }} />
       </div>

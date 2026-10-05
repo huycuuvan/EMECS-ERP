@@ -8,10 +8,10 @@ from pydantic.alias_generators import to_camel
 class In(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    @field_validator("photo", mode="before", check_fields=False)
+    @field_validator("photo", "file", "signed_file", mode="before", check_fields=False)
     @classmethod
     def _strip_photo_signature(cls, v):
-        # client gửi lại link ảnh đã ký → lưu đường dẫn gốc /uploads/<tên>
+        # client gửi lại link ảnh / file đã ký → lưu đường dẫn gốc /uploads/<tên>
         from .files import normalize_photo
         return normalize_photo(v) if isinstance(v, str) else v
 
@@ -52,7 +52,8 @@ class SendToKtIn(In):
 
 class ContractUpdate(In):
     owner: str | None = None
-    due_at: datetime | None = None
+    complete_by: datetime | None = None
+    signed_file: str | None = None  # "" = gỡ file
     unit_price: float | None = Field(default=None, ge=0)
     advance_pct: float | None = Field(default=None, ge=0, le=100)
     note: str | None = None

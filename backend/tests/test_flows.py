@@ -37,7 +37,7 @@ def test_seed_dashboard_matches_demo(c):
     d = c.get("/api/dashboard").json()
     assert d["activeContracts"] == 4
     assert d["deliveredKgTotal"] == 103880
-    assert len(d["contractAlerts"]) == 5
+    assert len(d["contractAlerts"]) == 3  # chỉ theo ngày hoàn thành + tạm ứng (bỏ hạn gửi 05 ngày)
     sd06 = next(a for a in d["contractAlerts"] if a["contract"]["id"] == "HD-2609-06")
     assert sd06["complete"]["state"] == "soon"  # còn ≤ 7 ngày tới ngày hoàn thành mà chưa giao đủ
     assert [x["id"] for x in d["overdueDocs"]] == ["VC-0006"]
@@ -215,3 +215,40 @@ def test_uploaded_photo_requires_signed_link(c):
     from app.models import Weighing
     with SessionLocal() as db:
         assert db.get(Weighing, "PC-0202").photo == raw
+
+
+def test_completion_date_is_single_contract_deadline(c):
+    """Bỏ hạn gửi 05 ngày: hạn hợp đồng = ngày hoàn thành QL nhập; chỉ Quản lý được đổi ngày này."""
+    o = c.post("/api/orders", json={"customer": "Cty Hạn", "items": [
+        {"name": "Dầm", "qty": 1, "unit": "bộ", "kg": 1000, "price": 20000}]}).json()
+    ct = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-20T12:00:00Z"}).json()
+    row = next(x for x in c.get("/api/contracts").json() if x["id"] == ct["id"])
+    assert "due" not in row and row["dueAt"].startswith("2099-01-20") and row["completeBy"].startswith("2099-01-20")
+    r = c.patch(f"/api/contracts/{ct['id']}", json={"completeBy": "2099-02-01T12:00:00Z"})
+    assert r.status_code == 200 and c.get(f"/api/orders/{o['id']}").json()["completeBy"].startswith("2099-02-01")
+    login(c, "kt")
+    assert c.patch(f"/api/contracts/{ct['id']}", json={"completeBy": "2099-03-01T12:00:00Z"}).status_code == 403
+    assert c.patch(f"/api/contracts/{ct['id']}", json={"note": "ok"}).status_code == 200
+
+
+def test_attach_signed_documents(c):
+    """Đơn hàng đính kèm file ký chốt (PDF thật); hợp đồng đính kèm bản scan đã ký — link ký, mở được."""
+    pdf = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
+    r = c.post("/api/uploads/doc", files={"file": ("Hợp đồng ký chốt Đơn 01.pdf", pdf, "application/pdf")})
+    assert r.status_code == 200
+    url = r.json()["url"]
+    assert url.startswith("/uploads/") and "Hop-dong-ky-chot-Don-01.pdf?" in url
+    assert c.get(url).content == pdf
+    assert c.post("/api/uploads/doc", files={"file": ("x.exe", b"MZ", "application/octet-stream")}).status_code == 400
+    o = c.post("/api/orders", json={"customer": "Cty File", "file": url, "items": [
+        {"name": "Dầm", "qty": 1, "unit": "bộ", "kg": 100, "price": 1000}]}).json()
+    assert o["file"].startswith("/uploads/") and "?exp=" in o["file"]  # lưu đường dẫn gốc, trả link ký
+    ct = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-20T12:00:00Z"}).json()
+    login(c, "kt")
+    up = c.post("/api/uploads/doc", files={"file": ("scan.pdf", pdf, "application/pdf")}).json()["url"]
+    assert c.patch(f"/api/contracts/{ct['id']}", json={"signedFile": up}).status_code == 200
+    got = c.get(f"/api/contracts/{ct['id']}").json()["contract"]["signedFile"]
+    assert c.get(got).content == pdf
+    assert c.patch(f"/api/contracts/{ct['id']}", json={"signedFile": ""}).json()["signedFile"] is None
+    login(c, "kho")
+    assert c.post("/api/uploads/doc", files={"file": ("a.pdf", pdf, "application/pdf")}).status_code == 403

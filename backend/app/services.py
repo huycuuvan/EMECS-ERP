@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import serializers as S
-from .config import (PC_TOLERANCE_PCT, COMPLETE_WARN_DAYS, CONTRACT_DAYS, CT_DONE, CT_RECEIVED, CT_SENT, CT_WAIT, FILL_HOURS, PAY_OK,
+from .config import (PC_TOLERANCE_PCT, COMPLETE_WARN_DAYS, CT_DONE, CT_RECEIVED, CT_SENT, CT_WAIT, FILL_HOURS, PAY_OK,
                      PAY_PENDING, PAY_REJECTED, PC_FILL_HOURS, PEOPLE, TOLERANCE_KG)
 from .db import utcnow
 from .security import actor
@@ -123,7 +123,7 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
         "pctPaid": round(paid_total / c.value * 100) if c.value else 0,
         "checks": checks_out,
         "mismatches": [S.mismatch(m) for m in db.scalars(select(Mismatch).where(Mismatch.contract_id == cid))],
-        "due": contract_due_info(c), "adv": advance_info(c),
+        "adv": advance_info(c),
     }
 
 
@@ -217,15 +217,6 @@ def movement_log(db: Session, cid: str | None, frm: datetime | None, to: datetim
 
 
 # ---------------------------------------------------------------- cảnh báo
-def contract_due_info(c: Contract) -> dict:
-    if c.returned_at:
-        return {"state": "ok", "label": f"Đã trả {fmt_d(c.returned_at)}", "days": 0}
-    dl = _days_left(c.due_at)
-    if dl < 0:
-        return {"state": "overdue", "label": f"QUÁ HẠN {abs(dl)} ngày", "days": dl}
-    return {"state": "due" if dl <= 1 else "fine", "label": f"Còn {dl} ngày", "days": dl}
-
-
 def complete_info(c: Contract, delivered_kg: float | None = None) -> dict:
     """Cảnh báo theo NGÀY HOÀN THÀNH đơn (QL nhập khi chuyển kế toán): quá hạn / sắp tới hạn mà chưa giao đủ."""
     if not c.complete_by:
@@ -281,12 +272,12 @@ def overdue_docs(db: Session) -> list[dict]:
 def contract_alerts(db: Session) -> list[dict]:
     out = []
     for c in db.scalars(select(Contract)):
-        due, adv = contract_due_info(c), advance_info(c)
+        adv = advance_info(c)
         delivered = _sum(db.scalars(select(Task).where(Task.contract_id == c.id, Task.type == "giao_khach")).all(),
                          lambda t: t.kg_delivered)
         comp = complete_info(c, delivered)
-        if due["state"] in ("overdue", "due") or adv["state"] == "missing" or comp["state"] in ("overdue", "soon"):
-            out.append({"contract": S.contract(c), "due": due, "adv": adv, "complete": comp})
+        if adv["state"] == "missing" or comp["state"] in ("overdue", "soon"):
+            out.append({"contract": S.contract(c), "adv": adv, "complete": comp})
     return out
 
 
@@ -376,7 +367,7 @@ def create_order(db: Session, customer: str, items: list[dict], file: str | None
     cu = ensure_customer(db, customer, customer_id)
     customer = cu.name
     o = Order(id=next_id(db, "DH", "dh", month_code=True), customer=customer, code=code or "MOI", date=utcnow(),
-              file=file or "don-hang-ky-chot.pdf", status="Chốt đơn", vat_pct=vat_pct,
+              file=file or None, status="Chốt đơn", vat_pct=vat_pct,
               contract_id=None, note=note or "", customer_id=cu.id)
     _set_items(o, items)
     db.add(o)
@@ -414,7 +405,7 @@ def send_order_to_kt(db: Session, oid: str, complete_by: datetime | None) -> Con
     o.complete_by = complete_by
     first = o.items[0] if o.items else None
     c = Contract(id=next_id(db, "HD", "hd", month_code=True), order_id=o.id, code=o.code, customer=o.customer,
-                 sent_to_kt_at=now, due_at=add_days(now, CONTRACT_DAYS), status=CT_WAIT, owner=KT,
+                 sent_to_kt_at=now, due_at=complete_by, status=CT_WAIT, owner=KT,
                  number=o.id, complete_by=complete_by,
                  total_qty=sum(i.qty for i in o.items), unit=first.unit if first else "cấu kiện",
                  total_kg=o.total_kg, unit_price=round(o.value / o.total_kg) if o.total_kg else 0, value=o.value,
@@ -423,7 +414,7 @@ def send_order_to_kt(db: Session, oid: str, complete_by: datetime | None) -> Con
     db.add(c)
     o.contract_id, o.status = c.id, "Đã chuyển kế toán"
     notify(db, f"Đơn {o.id} đã chuyển kế toán — soạn hợp đồng {c.id}",
-           f"Hạn gửi hợp đồng cho khách: {fmt_d(c.due_at)} (05 ngày) · ngày hoàn thành đơn {fmt_d(complete_by)}", "info",
+           f"Ngày hoàn thành: {fmt_d(complete_by)}", "info",
            roles="kt,admin")
     db.commit()
     return c
@@ -435,8 +426,17 @@ def update_contract(db: Session, cid: str, data: dict) -> Contract:
         c.owner = data["owner"]
     if data.get("note") is not None:
         c.note = data["note"]
-    if data.get("dueAt") is not None:
-        c.due_at = data["dueAt"]
+    if data.get("signedFile") is not None:
+        c.signed_file = data["signedFile"] or None
+    if data.get("completeBy") is not None:  # ngày hoàn thành (= hạn hợp đồng, không còn hạn gửi 05 ngày riêng)
+        cb = data["completeBy"]
+        if cb.tzinfo is None:
+            from .utils import VN_TZ
+            cb = cb.replace(tzinfo=VN_TZ)
+        c.complete_by = c.due_at = cb
+        o = db.get(Order, c.order_id)
+        if o:
+            o.complete_by = cb
     if data.get("unitPrice") is not None:
         c.unit_price = data["unitPrice"]
         c.value = round(c.unit_price * c.total_kg)

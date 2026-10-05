@@ -373,8 +373,8 @@ export function QlView({ tab, setTab, onRoleSheet }: RoleViewProps) {
     dash.overdueDocs.forEach((d) => out.push({ ic: AlarmClock, t: `${d.kind} ${d.id} QUÁ HẠN ${d.hoursOver}h`, s: `${d.person} (${d.dept}) còn thiếu: ${d.missing}`, red: true, open: [d.type, d.id] }))
     dash.pendingMismatches.forEach((mm) => out.push({ ic: FileWarning, t: `${mm.id} lệch ${signed(mm.delta)} kg chờ ký`, s: `${mm.source} · ${mm.refId} · ${mm.reason}`, red: true, open: ['sl', mm.id] }))
     dash.contractAlerts.forEach((a) => {
-      if (a.due.state === 'overdue') out.push({ ic: FileClock, t: `${a.contract.id} ${a.due.label} chưa trả khách`, s: a.contract.customer, red: true, open: ['hd', a.contract.id] })
-      else if (a.due.state === 'due') out.push({ ic: FileClock, t: `${a.contract.id} hạn trả: ${a.due.label}`, s: a.contract.customer, open: ['hd', a.contract.id] })
+      if (a.complete.state === 'overdue' || a.complete.state === 'soon')
+        out.push({ ic: FileClock, t: `${a.contract.id} — ${a.complete.label}`, s: a.contract.customer, red: a.complete.state === 'overdue', open: ['hd', a.contract.id] })
       if (a.adv.state === 'missing') out.push({ ic: Banknote, t: `${a.contract.id} tạm ứng ${a.adv.label}`, s: a.contract.customer, red: true, open: ['hd', a.contract.id] })
     })
     dash.pendingLSX.forEach((x) => out.push({ ic: Factory, t: x.id + (x.status === 'Từ chối' ? ' bị xưởng TỪ CHỐI' : ' chờ xưởng nhận'), s: x.rejectReason || x.name, red: x.status === 'Từ chối', open: ['lsx', x.id] }))
@@ -411,8 +411,8 @@ function QlHome({ dash }: { dash: Dash }) {
       {ods.map((d) => <AlertRow key={d.id} a={{ ic: AlarmClock, t: `${d.kind} ${d.id} — QUÁ HẠN ${d.hoursOver}h`, s: `${d.person} (${d.dept}) còn thiếu: ${d.missing} · HĐ ${d.contractId}`, red: true, open: [d.type, d.id] }} />)}
       {als.map((a) => (
         <div key={a.contract.id}>
-          {(a.due.state === 'overdue' || a.due.state === 'due') && (
-            <AlertRow a={{ ic: FileClock, t: `${a.contract.id} — hạn trả HĐ: ${a.due.label}`, s: `${a.contract.customer} · phụ trách ${a.contract.owner}`, red: a.due.state === 'overdue', open: ['hd', a.contract.id] }} />
+          {(a.complete.state === 'overdue' || a.complete.state === 'soon') && (
+            <AlertRow a={{ ic: FileClock, t: `${a.contract.id} — ${a.complete.label}`, s: `${a.contract.customer} · phụ trách ${a.contract.owner}`, red: a.complete.state === 'overdue', open: ['hd', a.contract.id] }} />
           )}
           {a.adv.state === 'missing' && (
             <AlertRow a={{ ic: Banknote, t: `${a.contract.id} — tạm ứng ${a.adv.label}`, s: `${a.contract.customer} · đã ký ${a.contract.signDate ? fmtD(a.contract.signDate) : '—'} — đòi trước khi phát lệnh SX`, red: true, open: ['hd', a.contract.id] }} />
@@ -480,15 +480,15 @@ function QlContracts({ dash }: { dash: Dash }) {
     <>
       <SecTitle icon={FileSignature} count={cs.length}>Hợp đồng đang theo dõi</SecTitle>
       {cs.map((g) => {
-        const c = g.contract, due = g.due, adv = g.adv
-        const dueBad = due.state === 'overdue', dueWarn = due.state === 'due'
+        const c = g.contract, comp = g.complete, adv = g.adv
+        const dueBad = comp.state === 'overdue', dueWarn = comp.state === 'soon'
         return (
           <Card key={c.id} open={['hd', c.id]} overdue={dueBad}>
-            {dueBad && <div className="overdue-banner"><Siren />{due.label} — kế toán chưa trả HĐ!</div>}
+            {dueBad && <div className="overdue-banner"><Siren />{comp.label}</div>}
             <div className="mc-top"><span className="mc-id">{c.id}</span><span className="mc-status"><StatusChip status={c.status} /></span></div>
             <Line vClass="left">{c.customer}</Line>
             <Line k={`${fmtN(c.totalQty)} ${c.unit} · ${fmtT(c.totalKg)}`}>{moneyShort(c.value)}</Line>
-            {!c.returnedAt && <Line k="Hạn trả HĐ" vClass={dueBad ? 'red-txt' : dueWarn ? 'amber-txt' : ''}>{due.label}</Line>}
+            <Line k="Ngày hoàn thành" vClass={'sm ' + (dueBad ? 'red-txt' : dueWarn ? 'amber-txt' : '')}>{comp.label}</Line>
             <Line k="Tạm ứng" vClass={'sm ' + (adv.state === 'missing' ? 'red-txt' : '')}>{adv.label}</Line>
             <PgRow label="Sản xuất" done={g.producedKg} plan={c.totalKg} unit="kg" />
             <PgRow label="Giao khách" done={g.deliveredKg} plan={c.totalKg} unit="kg" tone="success" />

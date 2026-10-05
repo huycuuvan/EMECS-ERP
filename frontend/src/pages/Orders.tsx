@@ -1,6 +1,7 @@
 /* Đơn hàng khách (port pages/02-don-hang.html): KPI, danh sách + tìm kiếm/lọc, Đơn hàng mới, Chuyển kế toán làm HĐ. */
-import { App, Button, Input, Select, Table, type TableColumnsType } from 'antd'
+import { Button, Input, Select, Table, type TableColumnsType } from 'antd'
 import { FileSignature, Info, Paperclip, Plus, Search, Send } from 'lucide-react'
+import { docName } from '@/components/DocAttach'
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useOrdersByTag } from '@/api/hooksMaster'
@@ -24,7 +25,6 @@ export default function Orders() {
   const { data: orders = [], isLoading } = useOrdersByTag(tag)
   const { open } = usePeek()
   const { can } = useAuth()
-  const { message } = App.useApp()
   const navigate = useNavigate()
   const askSend = useAskSendKT()
   const [params] = useSearchParams()
@@ -59,12 +59,11 @@ export default function Orders() {
     },
     {
       title: 'File ký chốt', key: 'file',
-      render: (_, o) => o.file ? (
-        <button type="button" className="file-link" title={o.file}
-          onClick={(e) => { e.stopPropagation(); message.info(`Demo: mở file đính kèm ${o.file} (bản ký chốt của khách)`) }}>
-          <Paperclip size={11} style={{ flex: 'none' }} /><span>{o.file}</span>
-        </button>
-      ) : <span className="text-ash">—</span>,
+      render: (_, o) => o.file?.startsWith('/uploads/') ? (
+        <a className="file-link" href={o.file} target="_blank" rel="noreferrer" title={docName(o.file)} onClick={(e) => e.stopPropagation()}>
+          <Paperclip size={11} style={{ flex: 'none' }} /><span>{docName(o.file)}</span>
+        </a>
+      ) : <span className="text-ash" title={o.file ? `${o.file} — chưa tải bản thật lên` : undefined}>{o.file ? 'Chưa có file' : '—'}</span>,
     },
     {
       title: 'Hàng hóa', key: 'items',
@@ -100,7 +99,7 @@ export default function Orders() {
   return (
     <>
       <PageHeader title="Đơn hàng khách"
-        desc="Khách ký chốt đơn kèm file — Quản lý chuyển kế toán làm hợp đồng trong 05 ngày, giá theo giá thị trường ngày chốt"
+        desc="Khách ký chốt đơn kèm file — Quản lý chuyển kế toán làm hợp đồng (nhập ngày hoàn thành), giá theo giá thị trường ngày chốt"
         extra={<>
           <ExportButton kind="orders" params={{ status: fs }} ids={rows.map((o) => o.id)} total={orders.length} />
           <Button icon={<FileSignature size={14} />} onClick={() => navigate('/hop-dong')}>Sổ hợp đồng</Button>
@@ -136,7 +135,7 @@ export default function Orders() {
       <p className="list-foot">
         <Info size={13} style={{ marginTop: 2, flex: 'none' }} />
         <span>Bấm vào dòng để mở <b>hồ sơ đơn hàng</b> (trượt từ phải). Đơn mới chốt phải được chuyển kế toán —
-          kế toán có <b>05 ngày</b> để trả hợp đồng cho khách.</span>
+          Quản lý nhập <b>ngày hoàn thành</b> — đó là hạn duy nhất để theo dõi hợp đồng.</span>
       </p>
 
       {creating && <OrderFormModal onClose={() => setCreating(false)} />}

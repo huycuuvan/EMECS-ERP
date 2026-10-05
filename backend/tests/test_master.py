@@ -193,12 +193,12 @@ def test_end_of_day_alerts_role_targeted_once_per_day(c):
     assert sum(t.startswith("Cuối ngày") for t in titles_ql) == 3
     login(c, "kt")
     titles = [n["title"] for n in c.get("/api/notifications").json()]
-    assert any("hợp đồng đến hạn" in t for t in titles)
+    assert any("hợp đồng sắp tới / quá ngày hoàn thành" in t for t in titles)
     assert not any("lệnh SX" in t or "thẻ lái xe" in t for t in titles)
     assert "Đơn hàng mới DH-2609-05" in titles  # thông báo chung (roles rỗng) vẫn thấy
     login(c, "sx")
     titles = [n["title"] for n in c.get("/api/notifications").json()]
-    assert any("lệnh SX chưa nhập sản lượng" in t for t in titles) and not any("hợp đồng đến hạn" in t for t in titles)
+    assert any("lệnh SX chưa nhập sản lượng" in t for t in titles) and not any("hợp đồng sắp tới / quá ngày hoàn thành" in t for t in titles)
     login(c, "lx1")
     assert any("thẻ lái xe" in n["title"] for n in c.get("/api/notifications").json())
     # đánh dấu đã đọc chỉ tác động thông báo người đó thấy
@@ -206,7 +206,7 @@ def test_end_of_day_alerts_role_targeted_once_per_day(c):
     login(c, "ql")
     ns = {n["title"]: n["read"] for n in c.get("/api/notifications").json()}
     assert ns["Cuối ngày: 1 thẻ lái xe quá hạn điền phiếu"] is True
-    assert ns["Cuối ngày: 2 hợp đồng đến hạn / quá hạn trả khách"] is False
+    assert ns["Cuối ngày: 1 hợp đồng sắp tới / quá ngày hoàn thành"] is False
     # force=1 chạy lại trong ngày
     assert c.post("/api/alerts/run-end-of-day", params={"force": 1}).json()["created"] == 3
 

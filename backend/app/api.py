@@ -1,4 +1,6 @@
 """REST API — /api/...  Danh sách → GET collection, chi tiết → GET /{id}, thao tác nghiệp vụ → POST /{id}/<action>."""
+import re
+import unicodedata
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -98,6 +100,32 @@ async def upload(file: UploadFile = File(...)):
     name = f"{uuid.uuid4().hex}{Path(file.filename or '').suffix.lower() or '.jpg'}"
     (C.UPLOAD_DIR / name).write_bytes(data)
     return {"url": sign_photo(f"/uploads/{name}")}  # link ký để xem trước ngay; khi lưu sẽ bỏ phần ký
+
+
+DOC_TYPES = {"application/pdf": ".pdf", "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+
+
+def _safe_name(name: str) -> str:
+    """Tên file gốc → không dấu, chỉ [A-Za-z0-9._-] (giữ để người dùng nhận ra file)."""
+    base = unicodedata.normalize("NFKD", Path(name).stem.replace("đ", "d").replace("Đ", "D"))
+    base = re.sub(r"[^A-Za-z0-9._-]+", "-", base.encode("ascii", "ignore").decode()).strip("-.")
+    return base[:80] or "tai-lieu"
+
+
+@router.post("/uploads/doc")
+async def upload_doc(file: UploadFile = File(...), user: User = Depends(get_current_user)):
+    """Bản scan hợp đồng / file ký chốt (PDF hoặc ảnh) — Quản lý (đơn hàng) và Kế toán (hợp đồng)."""
+    if not (can(user, "don-hang", "edit") or can(user, "hop-dong", "edit")):
+        raise HTTPException(403, "Vai trò của bạn không được tải tài liệu")
+    ext = DOC_TYPES.get(file.content_type or "")
+    if not ext:
+        raise HTTPException(400, "Chỉ nhận file PDF hoặc ảnh (JPG, PNG)")
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(400, "File tối đa 10MB")
+    name = f"{uuid.uuid4().hex[:10]}_{_safe_name(file.filename or '')}{ext}"
+    (C.UPLOAD_DIR / name).write_bytes(data)
+    return {"url": sign_photo(f"/uploads/{name}")}
 
 
 # ---------------------------------------------------------------- đơn hàng
@@ -205,7 +233,7 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
             continue
         d = S.contract(c)
         d["customerId"] = cust_of.get(c.order_id)
-        d["due"], d["adv"] = svc.contract_due_info(c), svc.advance_info(c)
+        d["adv"] = svc.advance_info(c)
         d["complete"] = svc.complete_info(c, delivered.get(c.id, 0))
         d["billedKg"], d["billPendingKg"] = svc.billed_kg(db, c.id)  # công nợ theo cân xuất đã duyệt
         out.append(d)
@@ -226,7 +254,9 @@ def contract_ledger(cid: str, db: Session = DB):
 
 
 @router.patch("/contracts/{cid}", dependencies=[Depends(require("hop-dong", "edit"))])
-def update_contract(cid: str, body: SC.ContractUpdate, db: Session = DB):
+def update_contract(cid: str, body: SC.ContractUpdate, db: Session = DB, user: User = Depends(get_current_user)):
+    if body.complete_by is not None and "admin" not in user.role_list:
+        raise HTTPException(403, "Chỉ Quản lý được đổi ngày hoàn thành")
     with track(db, "hd", cid, lambda: contract_snapshot(svc.get_or_404(db, Contract, cid))):  # lưu lịch sử sửa
         c = svc.update_contract(db, cid, body.model_dump(by_alias=True, exclude_none=True))
     return S.contract(c)

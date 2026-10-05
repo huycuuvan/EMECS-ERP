@@ -33,14 +33,13 @@ export interface Contract {
   totalQty: number; unit: string; totalKg: number; unitPrice: number; value: number; vatPct: number
   advance: { pct: number; required: number; received: number; receivedAt: string | null }
   payments: Payment[]; note: string
-  number: string; completeBy: string | null; draftedAt: string | null; completedAt: string | null; pendingPayment: number
+  number: string; completeBy: string | null; signedFile: string | null; draftedAt: string | null; completedAt: string | null; pendingPayment: number
 }
 /** Cảnh báo theo ngày hoàn thành đơn (QL nhập khi chuyển kế toán). */
 export interface CompleteInfo { state: 'none' | 'ok' | 'fine' | 'soon' | 'overdue'; label: string; days: number | null }
-export interface DueInfo { state: 'ok' | 'fine' | 'due' | 'overdue'; label: string; days: number }
 export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label: string }
-/** GET /contracts trả kèm due/adv */
-export interface ContractRow extends Contract { due: DueInfo; adv: AdvanceInfo; complete: CompleteInfo; billedKg: number; billPendingKg: number }
+/** GET /contracts trả kèm adv/complete (hạn hợp đồng = ngày hoàn thành, không còn hạn gửi 05 ngày) */
+export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; billedKg: number; billPendingKg: number }
 
 export type LsxStatus = 'Chờ nhận' | 'Đang SX' | 'Từ chối' | 'Hoàn thành'
 /** Sản lượng 1 ngày xưởng báo (kg; không làm = 0) + giờ nhập / sửa. */
@@ -127,7 +126,7 @@ export interface ContractAgg {
   /** công nợ tính theo kg cân xuất đã đạt / đã duyệt; kg đang chờ QL duyệt */
   billedKg: number; billPendingKg: number
   pctProduced: number; pctDelivered: number; pctPaid: number
-  checks: Check[]; mismatches: Mismatch[]; due: DueInfo; adv: AdvanceInfo
+  checks: Check[]; mismatches: Mismatch[]; adv: AdvanceInfo
 }
 /** Bản rút gọn trong /dashboard (không có các list con) */
 export type ContractAggLite = Omit<ContractAgg, 'lsxs' | 'receipts' | 'weighings' | 'tasksDiMa' | 'tasksGiao'>
@@ -145,7 +144,7 @@ export interface OverdueDoc { kind: string; type: 'pc' | 'vc'; id: ID; contractI
 
 export interface Dashboard {
   activeContracts: number; deliveredKgTotal: number
-  contractAlerts: { contract: Contract; due: DueInfo; adv: AdvanceInfo; complete: CompleteInfo }[]
+  contractAlerts: { contract: Contract; adv: AdvanceInfo; complete: CompleteInfo }[]
   pendingPayments: (Payment & { contractId: ID; customer: string })[]
   overdueDocs: OverdueDoc[]; pendingMismatches: Mismatch[]; pendingMismatchKg: number
   pendingLSX: Lsx[]; pendingTasks: Task[]; contracts: ContractAggLite[]

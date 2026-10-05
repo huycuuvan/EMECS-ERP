@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from . import services as svc
 from .config import END_OF_DAY_HOUR
 from .db import SessionLocal, utcnow
-from .models import Contract, Lsx, LsxDaily, Notification, Sequence, User
+from .models import Lsx, LsxDaily, Notification, Sequence, User
 from .utils import VN_TZ, fmt_d
 
 log = logging.getLogger("steel.alerts")
@@ -64,13 +64,13 @@ def collect(db: Session, now: datetime | None = None) -> list[dict]:
                     "roles": "sx,admin"})
 
     hd = []
-    for c in db.scalars(select(Contract).order_by(Contract.id)):
-        due = svc.contract_due_info(c)
-        if due["state"] in ("overdue", "due"):
-            hd.append((due["days"], f"{c.id} {due['label'].lower()}"))
+    for a in svc.contract_alerts(db):  # theo ngày hoàn thành (= hạn hợp đồng)
+        comp = a["complete"]
+        if comp["state"] in ("overdue", "soon"):
+            hd.append((comp["days"], f"{a['contract']['id']} {comp['label'].lower()}"))
     if hd:
         hd.sort()
-        out.append({"title": f"Cuối ngày: {len(hd)} hợp đồng đến hạn / quá hạn trả khách",
+        out.append({"title": f"Cuối ngày: {len(hd)} hợp đồng sắp tới / quá ngày hoàn thành",
                     "sub": _ids([t for _, t in hd]), "type": "error" if hd[0][0] < 0 else "warning",
                     "roles": "kt,admin"})
 

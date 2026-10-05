@@ -2,7 +2,7 @@
 import { Progress, Tag, Tooltip } from 'antd'
 import { AlarmClock, CheckCircle2, AlertTriangle } from 'lucide-react'
 import type { CSSProperties, ReactNode } from 'react'
-import type { AdvanceInfo, CompleteInfo, DueInfo } from '@/api/types'
+import type { AdvanceInfo, CompleteInfo } from '@/api/types'
 import { C } from '@/theme'
 import { fmtDelta } from '@/lib/format'
 
@@ -56,22 +56,6 @@ export function StatusTag({ status, style }: { status: string; style?: CSSProper
   return (
     <Tag variant="filled" style={{ background: t.bg, color: t.fg, fontWeight: 700, fontSize: 11, letterSpacing: '.02em', textTransform: 'uppercase', borderRadius: 999, paddingInline: 10, margin: 0, ...style }}>
       {status}
-    </Tag>
-  )
-}
-
-/** Chip hạn trả hợp đồng (dueInfo) — đỏ nhấp nháy khi quá hạn, vàng khi ≤1 ngày. */
-export function DueChip({ due }: { due: DueInfo }) {
-  const map = {
-    ok: { bg: C.mossSoft, fg: C.moss, icon: <CheckCircle2 size={12} /> },
-    fine: { bg: C.paper2, fg: C.ink3, icon: <AlarmClock size={12} /> },
-    due: { bg: C.amberSoft, fg: C.amber, icon: <AlarmClock size={12} /> },
-    overdue: { bg: C.signalSoft, fg: C.signal, icon: <AlertTriangle size={12} /> },
-  }[due.state]
-  return (
-    <Tag variant="filled" className={due.state === 'overdue' ? 'chip-overdue' : ''}
-      style={{ background: map.bg, color: map.fg, fontWeight: 700, borderRadius: 999, margin: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      {map.icon}{due.label}
     </Tag>
   )
 }

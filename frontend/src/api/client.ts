@@ -43,6 +43,14 @@ export async function uploadImage(file: File): Promise<string> {
   return data.url
 }
 
+/** Upload tài liệu (PDF / ảnh) — file ký chốt, bản scan hợp đồng → URL `/uploads/...` (link ký). */
+export async function uploadDoc(file: File): Promise<string> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const { data } = await api.post<{ url: string }>('/uploads/doc', fd)
+  return data.url
+}
+
 /** Ảnh phiếu demo do backend sinh (nút "Ảnh demo"). */
 export async function demoTicket(label: string, kg: number): Promise<string> {
   const { data } = await api.get<{ photo: string }>('/demo-ticket', { params: { label, kg } })

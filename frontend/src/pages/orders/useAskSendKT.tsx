@@ -38,7 +38,7 @@ function SendKTModal({ order: o, onClose }: { order: Order; onClose: () => void 
         </Form.Item>
       </Form>
       <p className="caption" style={{ margin: 0 }}>
-        Kế toán soạn hợp đồng theo mẫu và gửi khách trong <b>05 ngày</b>; khi gửi khách xong, hệ thống báo lại Quản lý.
+        Kế toán soạn hợp đồng theo mẫu và gửi khách; ngày hoàn thành là hạn duy nhất của hợp đồng. Khi gửi khách xong, hệ thống báo lại Quản lý.
       </p>
     </Modal>
   )

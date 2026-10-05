@@ -1,6 +1,9 @@
 /* MÀN 1 — TỔNG QUAN: thông tin HĐ, tạm ứng & dòng tiền, tiến độ, trạng thái 3 điểm cân. */
 import { AlertTriangle, CheckCircle2, CreditCard, Info, Scale, Truck } from 'lucide-react'
+import { useUpdateContract } from '@/api/hooks'
 import type { ContractAgg } from '@/api/types'
+import DocAttach from '@/components/DocAttach'
+import { useAuth } from '@/lib/auth'
 import { Bar, Cell, CellGrid, Sec } from '@/components/ui'
 import { fmtD, fmtKg, fmtNum, fmtT, money } from '@/lib/format'
 import { C } from '@/theme'
@@ -9,9 +12,12 @@ const signed = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmtNum(Math.a
 
 export default function OverviewTab({ g, onGoFlow, onPay }: { g: ContractAgg; onGoFlow: () => void; onPay?: () => void }) {
   const c = g.contract
-  const due = g.due, adv = g.adv
+  const comp = g.complete, adv = g.adv
+  const { can } = useAuth()
+  const upd = useUpdateContract()
+  const canFile = can('hop-dong', 'edit')
   const keyChecks = g.checks.filter((k) => k.key)
-  const dueAlert = due.state === 'overdue' || due.state === 'due'
+  const compAlert = comp.state === 'overdue' || comp.state === 'soon'
   const advMissing = adv.state === 'missing'
   return (
     <>
@@ -20,11 +26,15 @@ export default function OverviewTab({ g, onGoFlow, onPay }: { g: ContractAgg; on
         <Cell label="Khách hàng">{c.customer}</Cell>
         <Cell label="Mã đơn">{c.code}</Cell>
         <Cell label="Chuyển kế toán">{fmtD(c.sentToKtAt)}</Cell>
-        <Cell label="Hạn trả HĐ (5 ngày)" alert={dueAlert}>{fmtD(c.dueAt)} — {due.label}</Cell>
+        <Cell label="Ngày hoàn thành" alert={compAlert}>{comp.label}</Cell>
         <Cell label="Ngày ký">{c.signDate ? fmtD(c.signDate) : 'Chưa ký'}</Cell>
         <Cell label="Phụ trách">{c.owner}</Cell>
         <Cell label="Giá trị hợp đồng">{money(c.value)} · {fmtNum(c.unitPrice)}₫/kg</Cell>
         <Cell label="Khối lượng">{fmtNum(c.totalQty)} {c.unit} · {fmtKg(c.totalKg)}</Cell>
+        <Cell label="Bản scan hợp đồng đã ký" wide>
+          <DocAttach value={c.signedFile} buttonText="Tải bản scan HĐ đã ký"
+            onChange={canFile ? (url) => upd.mutateAsync({ id: c.id, signedFile: url }) : undefined} />
+        </Cell>
         {c.note && <Cell label="Ghi chú" wide>{c.note}</Cell>}
       </CellGrid>
 

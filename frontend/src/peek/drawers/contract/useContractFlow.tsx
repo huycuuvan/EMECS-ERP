@@ -17,7 +17,7 @@ export function useContractFlow() {
       content: (
         <>
           <p>Kế toán đã soạn xong và gửi hợp đồng cho <b>{c.customer}</b>?</p>
-          <p className="caption">Hạn gửi: {fmtD(c.dueAt)}. Sau bước này hệ thống <b>báo Quản lý</b>; bản soạn thảo vẫn sửa được tới khi nhận về.</p>
+          <p className="caption">Ngày hoàn thành: {c.completeBy ? fmtD(c.completeBy) : '—'}. Sau bước này hệ thống <b>báo Quản lý</b>; bản soạn thảo vẫn sửa được tới khi nhận về.</p>
         </>
       ),
       zIndex: MODAL_Z, okText: 'Đã gửi khách hàng', cancelText: 'Hủy',

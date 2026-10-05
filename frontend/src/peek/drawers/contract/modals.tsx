@@ -5,6 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { useMemo } from 'react'
 import { useCreateLsx, useMeta, useRecordPayment, useUpdateContract } from '@/api/hooks'
 import type { Contract, Lsx } from '@/api/types'
+import { useAuth } from '@/lib/auth'
 import { fmtNum, money } from '@/lib/format'
 import { usePeek } from '../../context'
 import { committedKg, MODAL_Z, numFormatter, numParser, PAYMENT_TYPES, positive } from './utils'
@@ -39,11 +40,13 @@ export function PaymentModal({ contract: c, onClose }: { contract: Contract; onC
 }
 
 /* ---------- Sửa hợp đồng ---------- */
-interface EditVals { owner: string; due: Dayjs | null; unitPrice: number; advPct: number; note: string }
+interface EditVals { owner: string; complete: Dayjs | null; unitPrice: number; advPct: number; note: string }
 
 export function ContractEditModal({ contract: c, onClose }: { contract: Contract; onClose: () => void }) {
   const [form] = Form.useForm<EditVals>()
   const upd = useUpdateContract()
+  const { hasRole } = useAuth()
+  const isQl = hasRole('admin')  // chỉ Quản lý đổi ngày hoàn thành
   const { data: meta } = useMeta()
   const unitPrice = Form.useWatch('unitPrice', form) ?? c.unitPrice
   const advPct = Form.useWatch('advPct', form) ?? c.advance.pct
@@ -57,7 +60,7 @@ export function ContractEditModal({ contract: c, onClose }: { contract: Contract
     const v = await form.validateFields()
     await upd.mutateAsync({
       id: c.id, owner: v.owner, unitPrice: v.unitPrice, advancePct: v.advPct, note: v.note ?? '',
-      dueAt: v.due ? `${v.due.format('YYYY-MM-DD')}T12:00:00Z` : undefined,
+      completeBy: isQl && v.complete ? `${v.complete.format('YYYY-MM-DD')}T12:00:00Z` : undefined,
     })
     onClose()
   }
@@ -65,13 +68,13 @@ export function ContractEditModal({ contract: c, onClose }: { contract: Contract
     <Modal open zIndex={MODAL_Z} title={`Chỉnh sửa hợp đồng ${c.id}`} okText="Lưu" cancelText="Hủy" onOk={submit} onCancel={onClose}
       confirmLoading={upd.isPending} destroyOnHidden width={560}>
       <Form form={form} layout="vertical" requiredMark={false}
-        initialValues={{ owner: c.owner, due: c.dueAt ? dayjs(c.dueAt) : null, unitPrice: c.unitPrice, advPct: c.advance.pct, note: c.note }}>
+        initialValues={{ owner: c.owner, complete: c.completeBy ? dayjs(c.completeBy) : null, unitPrice: c.unitPrice, advPct: c.advance.pct, note: c.note }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
           <Form.Item name="owner" label="Kế toán phụ trách" rules={[{ required: true, message: 'Nhập kế toán phụ trách' }]}>
             <AutoComplete options={owners} />
           </Form.Item>
-          <Form.Item name="due" label="Hạn trả hợp đồng">
-            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" allowClear={false} />
+          <Form.Item name="complete" label="Ngày hoàn thành" extra={isQl ? undefined : 'Chỉ Quản lý được đổi'}>
+            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" allowClear={false} disabled={!isQl} />
           </Form.Item>
           <Form.Item name="unitPrice" label="Đơn giá (đ/kg) — theo giá thị trường" rules={[positive('Đơn giá phải lớn hơn 0')]}>
             <InputNumber<number> style={{ width: '100%' }} min={0} formatter={numFormatter} parser={numParser} />

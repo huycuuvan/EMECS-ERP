@@ -9,6 +9,7 @@ import { api, errorMessage } from '@/api/client'
 import { useCreateOrder, useOrders, useUpdateOrder } from '@/api/hooks'
 import { blobError, downloadFile } from '@/api/hooksEdit'
 import { useCustomers } from '@/api/hooksMaster'
+import DocAttach from '@/components/DocAttach'
 import type { Order, OrderExcelImport } from '@/api/types'
 import { fmtNum, money } from '@/lib/format'
 import { MODAL_Z, numFormatter, numParser, positive } from '@/peek/drawers/contract/utils'
@@ -51,7 +52,7 @@ export default function OrderFormModal({ order, onClose, onSaved }: { order?: Or
     const customer = (v.cust === NEW ? v.custNew ?? '' : v.cust).trim()
     const its = v.items.map((i) => ({ name: i.name.trim(), qty: i.qty ?? 0, unit: (i.unit || 'Bộ').trim(), kgPerUnit: i.kgPerUnit,
       kg: kgOf(i), price: i.price ?? 0, note: (i.note ?? '').trim() }))
-    const file = (v.file || '').trim() || 'don-hang-ky-chot.pdf'
+    const file = v.file || ''
     const body = { customer, items: its, file, note: v.note ?? '', vatPct: v.vatPct ?? 10 }
     const o = order
       ? await update.mutateAsync({ id: order.id, ...body, code: v.code?.trim() || undefined })
@@ -90,7 +91,7 @@ export default function OrderFormModal({ order, onClose, onSaved }: { order?: Or
     ? { cust: order.customer, code: order.code, file: order.file ?? '', note: order.note, vatPct: order.vatPct ?? 10,
         items: order.items.map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, kgPerUnit: i.kgPerUnit ?? (i.qty ? i.kg / i.qty : undefined),
           price: i.price, note: i.note ?? '' })) }
-    : { cust: customers[0], file: 'don-hang-ky-chot.pdf', note: '', vatPct: 10, items: [{ ...BLANK }] }
+    : { cust: customers[0], file: '', note: '', vatPct: 10, items: [{ ...BLANK }] }
 
   return (
     <Modal open zIndex={MODAL_Z} width={1120} title={order ? `Chỉnh sửa đơn hàng ${order.id}` : 'Đơn hàng mới (khách đã ký chốt)'}
@@ -222,7 +223,7 @@ export default function OrderFormModal({ order, onClose, onSaved }: { order?: Or
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0 12px', marginTop: 14 }}>
-          <Form.Item name="file" label="File ký chốt đính kèm"><Input placeholder="VD: don-hang-ky-chot.pdf" /></Form.Item>
+          <Form.Item name="file" label="File ký chốt đính kèm (PDF / ảnh scan)"><DocAttach /></Form.Item>
           <Form.Item name="note" label="Ghi chú đơn hàng"><Input.TextArea autoSize={{ minRows: 1, maxRows: 3 }} /></Form.Item>
         </div>
       </Form>

@@ -1,10 +1,11 @@
 /* Drawer Đơn hàng khách (port ERPPeek.register('dh') của steel-data.js): thông tin đơn, hàng hóa, tổng giá trị,
    liên kết hợp đồng. Thao tác: Sửa (useUpdateOrder) · Chuyển kế toán (đơn đang "Chốt đơn"). */
 import { App, Button } from 'antd'
-import { Download, Info, Package, Paperclip, Pencil, Send } from 'lucide-react'
+import { Download, Info, Package, Pencil, Send } from 'lucide-react'
 import { useState } from 'react'
 import { useOrder } from '@/api/hooks'
 import { blobError, downloadFile } from '@/api/hooksEdit'
+import { DocLink } from '@/components/DocAttach'
 import HistoryBlock from '@/components/HistoryBlock'
 import { Cell, CellGrid, Sec } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
@@ -45,14 +46,7 @@ export default function OrderDrawer({ id }: { id: string }) {
             <Cell label="Mã nội bộ">{o.code}</Cell>
             <Cell label="Ngày chốt">{fmtD(o.date)}</Cell>
             {o.completeBy && <Cell label="Ngày hoàn thành">{fmtD(o.completeBy)}</Cell>}
-            <Cell label="File đính kèm">
-              {o.file ? (
-                <a style={{ color: 'var(--rust)', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                  onClick={() => message.info(`Demo: mở file ${o.file}`)}>
-                  <Paperclip size={12} />{o.file}
-                </a>
-              ) : '—'}
-            </Cell>
+            <Cell label="File ký chốt"><DocLink value={o.file} /></Cell>
             {o.note && <Cell label="Ghi chú" wide>{o.note}</Cell>}
           </CellGrid>
 
@@ -94,7 +88,7 @@ export default function OrderDrawer({ id }: { id: string }) {
           </div>
           {!o.contractId && (
             <p className="caption" style={{ marginTop: 10 }}>
-              Đơn chưa có hợp đồng — sau khi chuyển kế toán, kế toán có <b>05 ngày</b> để trả hợp đồng cho khách.
+              Đơn chưa có hợp đồng — khi chuyển kế toán, Quản lý nhập <b>ngày hoàn thành</b> (hạn của hợp đồng).
             </p>
           )}
 

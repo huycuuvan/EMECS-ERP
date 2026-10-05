@@ -85,7 +85,7 @@ export const useCreateOrder = () => useAction((v: OrderInput) => post<Order>('/o
 export const useUpdateOrder = () => useAction(({ id, ...v }: Partial<OrderInput> & { id: ID }) => api.patch<Order>(`/orders/${id}`, v).then((r) => r.data), (o) => `Đã lưu đơn ${o.id}`)
 export const useSendOrderToKT = () => useAction(({ id, completeBy }: { id: ID; completeBy: string }) => post<Contract>(`/orders/${id}/send-to-kt`, { completeBy }), (c) => `Đã chuyển kế toán — tạo hợp đồng ${c.id}`)
 
-export type ContractPatch = { id: ID; owner?: string; dueAt?: string; unitPrice?: number; advancePct?: number; note?: string }
+export type ContractPatch = { id: ID; owner?: string; completeBy?: string; signedFile?: string; unitPrice?: number; advancePct?: number; note?: string }
 export const useUpdateContract = () => useAction(({ id, ...v }: ContractPatch) => api.patch<Contract>(`/contracts/${id}`, v).then((r) => r.data), (c) => `Đã lưu hợp đồng ${c.id}`)
 export const useContractReturned = () => useAction((id: ID) => post<Contract>(`/contracts/${id}/returned`), (c) => `${c.id}: đã gửi hợp đồng cho khách hàng — đã báo Quản lý`)
 export const useContractSigned = () => useAction((id: ID) => post<Contract>(`/contracts/${id}/signed`), (c) => `${c.id}: đã nhận về hợp đồng khách ký`)

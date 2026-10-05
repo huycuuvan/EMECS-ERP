@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMovementLog, useResetDemo } from '@/api/hooks'
 import { useDashboardByTag, useRunEndOfDay } from '@/api/hooksMaster'
 import type { ContractAggLite, MovementRow } from '@/api/types'
-import { AdvChip, CompleteChip, DueChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
+import { AdvChip, CompleteChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtDelta, fmtDT, fmtKg, fmtT, money, relTime } from '@/lib/format'
 import { PaymentDecision } from '@/peek/drawers/contract/PaymentApprovals'
@@ -48,10 +48,9 @@ export default function Dashboard() {
   if (isError || !d) return <>{header}<Result status="error" title="Không tải được dữ liệu dashboard" /></>
 
   const alerts = d.contractAlerts
-  const nOver = alerts.filter((a) => a.due.state === 'overdue').length
-  const nDue = alerts.filter((a) => a.due.state === 'due').length
+  const nOver = alerts.filter((a) => a.complete.state === 'overdue').length
+  const nSoon = alerts.filter((a) => a.complete.state === 'soon').length
   const nAdv = alerts.filter((a) => a.adv.state === 'missing').length
-  const nLate = alerts.filter((a) => a.complete.state === 'soon' || a.complete.state === 'overdue').length
   const pays = d.pendingPayments
   const pm = d.pendingMismatches
   const nPending = d.pendingLSX.length + d.pendingTasks.length
@@ -65,7 +64,7 @@ export default function Dashboard() {
         <Kpi tone="steel" label="Đang triển khai" value={d.activeContracts}
           sub={`hợp đồng · đã giao lũy kế ${fmtT(d.deliveredKgTotal)}`} onClick={() => open('hd', 'HD-2609-01')} />
         <Kpi tone="signal" label="Cảnh báo hợp đồng" value={<span className={alerts.length ? 'text-signal' : ''}>{alerts.length}</span>}
-          sub={<span className="text-signal">{nOver} quá hạn gửi HĐ · {nDue} đến hạn · {nAdv} tạm ứng chưa về · {nLate} hạn hoàn thành</span>} onClick={() => scrollTo(refContract)} />
+          sub={<span className="text-signal">{nOver} quá ngày hoàn thành · {nSoon} sắp tới hạn · {nAdv} tạm ứng chưa về</span>} onClick={() => scrollTo(refContract)} />
         <Kpi tone="signal" label="Thẻ / phiếu quá hạn" value={<span className={d.overdueDocs.length ? 'text-signal' : ''}>{d.overdueDocs.length}</span>}
           sub={<span className="text-signal">chưa điền số kg + ảnh phiếu</span>} onClick={() => scrollTo(refOverdue)} />
         <Kpi tone="rust" label="Sai lệch chờ QL ký" value={<span className={pm.length ? 'text-signal' : ''}>{pm.length}</span>}
@@ -77,16 +76,15 @@ export default function Dashboard() {
       <SectionLabel>Trung tâm cảnh báo</SectionLabel>
       <Grid>
         <div ref={refContract} style={{ scrollMarginTop: 80 }}>
-          <AlertCard icon={<AlarmClock size={15} color="var(--signal)" />} title="Hợp đồng: hạn gửi · tạm ứng · ngày hoàn thành" count={alerts.length} bad>
+          <AlertCard icon={<AlarmClock size={15} color="var(--signal)" />} title="Hợp đồng: ngày hoàn thành · tạm ứng" count={alerts.length} bad>
             {alerts.length ? alerts.map((x) => (
               <AlertItem key={x.contract.id} onClick={() => open('hd', x.contract.id)}
                 t1={<><span className="mono" style={{ fontWeight: 700 }}>{x.contract.id}</span> · {x.contract.customer}</>}
                 t2={<>{x.contract.code} · {fmtT(x.contract.totalKg)} · {x.adv.state === 'missing'
                   ? <span className="text-signal" style={{ fontWeight: 700 }}><AlertTriangle size={11} style={{ verticalAlign: -2 }} /> Tạm ứng {x.adv.label}</span>
                   : x.adv.label}
-                  {(x.complete.state === 'soon' || x.complete.state === 'overdue') && <> · <span className={x.complete.state === 'overdue' ? 'text-signal' : ''} style={{ fontWeight: 700 }}>{x.complete.label}</span></>}</>}
-                right={x.due.state === 'overdue' || x.due.state === 'due' || x.complete.state === 'none' || x.complete.state === 'ok' || x.complete.state === 'fine'
-                  ? <DueChip due={x.due} /> : <CompleteChip info={x.complete} />} />
+                  </>}
+                right={<CompleteChip info={x.complete} />} />
             )) : <AlertEmpty>Không có hợp đồng cần chú ý.</AlertEmpty>}
           </AlertCard>
         </div>
