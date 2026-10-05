@@ -253,3 +253,10 @@ def test_material_receipt_supplier_vs_actual_notifies_manager(c):
     login(c, "ql")
     n = c.get("/api/notifications").json()[0]
     assert n["title"].startswith(f"Phiếu nhập NVL {m['id']}") and "CHÊNH -50 kg" in n["title"]
+    vk = next(e for e in c.get("/api/vloss").json() if e["refId"] == m["id"])  # kho ảo gồm cả chênh nhập NVL
+    assert vk["source"] == "Nhập nguyên liệu" and vk["kg"] == 50 and vk["note"].startswith("Thiếu 50 kg")
+    assert "= 50 kg thiếu" in vk["formula"]["text"]
+    login(c, "kho")
+    c.patch(f"/api/material-receipts/{m['id']}", json={"kg": 10020})  # sửa thành thừa 20 kg → kho ảo cập nhật theo
+    vk = next(e for e in c.get("/api/vloss").json() if e["refId"] == m["id"])
+    assert vk["kg"] == -20 and "= 20 kg thừa" in vk["formula"]["text"]

@@ -17,17 +17,20 @@ import { SrcChip } from './vloss/SrcChip'
 
 const panel = { background: 'var(--canvas)', border: '1px solid var(--rule)', borderRadius: 12, padding: 18 }
 const PREP = 'Cân xuất (chuẩn bị hàng)'
-const SOURCES = [PREP, 'Cân tại xưởng mạ', 'Giao khách', 'Trạm cân công ty']
+const NVL = 'Nhập nguyên liệu'
+const SOURCES = [NVL, PREP, 'Cân tại xưởng mạ', 'Giao khách', 'Trạm cân công ty']
+/** chữ cho dấu chênh: nhập NVL → thiếu / thừa; còn lại → hụt / dư */
+const word = (d: number, nl?: boolean) => (d > 0 ? (nl ? 'thiếu' : 'hụt') : d < 0 ? (nl ? 'thừa' : 'dư') : '')
 const sumKg = (arr: VLoss[]) => arr.reduce((s, e) => s + Math.abs(Number(e.kg) || 0), 0)
 /** Công thức trên thẻ: Σ số gốc − Σ số cân sau = chênh (cộng từ công thức từng khoản). */
-function CardFormula({ arr, a, b }: { arr: VLoss[]; a: string; b: string }) {
+function CardFormula({ arr, a, b, nl }: { arr: VLoss[]; a: string; b: string; nl?: boolean }) {
   const fs = arr.map((e) => e.formula).filter((f): f is NonNullable<VLoss['formula']> => !!f)
   if (!fs.length) return <>{arr.length} khoản</>
   const sa = fs.reduce((s, f) => s + f.a, 0), sb = fs.reduce((s, f) => s + f.b, 0), d = sa - sb
   return (
     <span style={{ display: 'block', lineHeight: 1.45 }}>
       <span style={{ display: 'block' }}>{a} <b className="num">{fmtKg(sa)}</b> − {b} <b className="num">{fmtKg(sb)}</b></span>
-      <span style={{ display: 'block' }}>= <b className="num">{fmtKg(Math.abs(d))}</b> {d > 0 ? 'hụt' : d < 0 ? 'dư' : ''} · {arr.length} khoản</span>
+      <span style={{ display: 'block' }}>= <b className="num">{fmtKg(Math.abs(d))}</b> {word(d, nl)} · {arr.length} khoản</span>
     </span>
   )
 }
@@ -60,12 +63,12 @@ export default function VirtualLoss() {
     { title: 'Nguồn chênh', dataIndex: 'source', render: (v: string) => <SrcChip src={v} /> },
     { title: 'Phiếu gốc', dataIndex: 'refId', render: (v: string) => <RecordLink id={v} style={{ color: 'var(--rust)' }} /> },
     { title: 'Hợp đồng', dataIndex: 'contractId', render: (v: string) => <RecordLink id={v} style={{ color: 'var(--rust)' }} /> },
-    { title: 'KL chênh', dataIndex: 'kg', align: 'right', render: (v: number) => <span className="num mono" style={{ fontWeight: 700, color: 'var(--steel)' }}>{fmtKg(Math.abs(v))}<div className="caption" style={{ fontSize: 11 }}>{v > 0 ? 'hụt' : v < 0 ? 'dư' : ''}</div></span> },
+    { title: 'KL chênh', dataIndex: 'kg', align: 'right', render: (v: number, e) => <span className="num mono" style={{ fontWeight: 700, color: 'var(--steel)' }}>{fmtKg(Math.abs(v))}<div className="caption" style={{ fontSize: 11 }}>{word(v, e.refType === 'nl')}</div></span> },
     { title: 'Công thức tính chênh', key: 'formula', width: 300, render: (_, e) => e.formula
       ? <div style={{ fontSize: 12, lineHeight: 1.5 }}>
           <div>{e.formula.aLabel}: <b className="num">{fmtKg(e.formula.a)}</b></div>
           <div>− {e.formula.bLabel}: <b className="num">{fmtKg(e.formula.b)}</b></div>
-          <div style={{ borderTop: '1px solid var(--rule)', marginTop: 2, paddingTop: 2 }}>= <b className="num">{fmtKg(Math.abs(e.formula.delta))}</b> {e.formula.delta > 0 ? 'hụt' : e.formula.delta < 0 ? 'dư' : ''}</div>
+          <div style={{ borderTop: '1px solid var(--rule)', marginTop: 2, paddingTop: 2 }}>= <b className="num">{fmtKg(Math.abs(e.formula.delta))}</b> {word(e.formula.delta, e.refType === 'nl')}</div>
         </div>
       : <span className="text-ash">—</span> },
     { title: 'Lý do chênh lệch', key: 'reason', width: 260, render: (_, e) => <div><div style={{ fontSize: 12.5 }}>{e.reason || e.note || '—'}</div><div className="caption" style={{ fontSize: 11 }}>Chấp nhận: {e.approvedBy}</div></div> },
@@ -75,7 +78,7 @@ export default function VirtualLoss() {
   return (
     <div>
       <PageHeader title="Kho ảo chênh lệch"
-        desc="Thống kê các chênh lệch kg VƯỢT DUNG SAI (chuẩn bị hàng, xưởng mạ, giao khách) — ghi tự động khi Quản lý chấp nhận"
+        desc="Thống kê chênh lệch kg: nhập nguyên liệu (mọi khoản thừa / thiếu) và hàng xuất vượt dung sai (chuẩn bị hàng, xưởng mạ, giao khách)"
         extra={<>
           <ExportButton kind="vloss" params={{ source: src, status: st }} ids={rows.map((e) => e.id)} total={all.length} />
           {can('bao-cao') && <Button icon={<BarChart3 size={14} />} onClick={() => nav('/bao-cao')}>Báo cáo đối ứng</Button>}
@@ -84,6 +87,7 @@ export default function VirtualLoss() {
       <KpiGrid>
         <Kpi tone="amber" label="Tổng lệch lũy kế" value={fmtKg(sumKg(all))} sub={<CardFormula arr={all} a="Σ số gốc" b="Σ số cân sau" />} onClick={() => { setSrc(undefined); setSt(undefined) }} />
         <Kpi tone="steel" label="Trong tháng này" value={fmtKg(sumKg(month))} sub={<CardFormula arr={month} a="Σ số gốc" b="Σ số cân sau" />} />
+        <Kpi tone="amber" label="Nhập nguyên liệu" value={fmtKg(sumKg(bySrc(NVL)))} sub={<CardFormula arr={bySrc(NVL)} a="NCC" b="Cân thực tế" nl />} onClick={() => setSrc(NVL)} />
         <Kpi tone="steel" label="Chuẩn bị hàng (cân xuất)" value={fmtKg(sumKg(bySrc(PREP)))} sub={<CardFormula arr={bySrc(PREP)} a="QL giao" b="Cân thực" />} onClick={() => setSrc(PREP)} />
         <Kpi tone="rust" label="Cân tại xưởng mạ" value={fmtKg(sumKg(bySrc('Cân tại xưởng mạ')))} sub={<CardFormula arr={bySrc('Cân tại xưởng mạ')} a="Cân xuất" b="Mạ cân nhận" />} onClick={() => setSrc('Cân tại xưởng mạ')} />
         <Kpi tone="moss" label="Giao khách" value={fmtKg(sumKg(bySrc('Giao khách')))} sub={<CardFormula arr={bySrc('Giao khách')} a="Lấy từ mạ" b="Khách ký nhận" />} onClick={() => setSrc('Giao khách')} />
@@ -104,7 +108,7 @@ export default function VirtualLoss() {
 
       <p className="caption" style={{ marginTop: 12, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
         <Info size={13} style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>Kho ảo tổng hợp chênh lệch: <b>chuẩn bị hàng</b> (QL giao − cân thực), <b>xưởng mạ</b> (cân xuất − mạ cân nhận), <b>giao khách</b> (lấy từ mạ − khách ký).
+        <span>Kho ảo tổng hợp chênh lệch: <b>nhập nguyên liệu</b> (bên cung cấp − cân thực tế, ghi mọi khoản thừa / thiếu khi kho lập phiếu), <b>chuẩn bị hàng</b> (QL giao − cân thực), <b>xưởng mạ</b> (cân xuất − mạ cân nhận), <b>giao khách</b> (lấy từ mạ − khách ký).
           Chỉ ghi khoản <b>vượt dung sai</b>, khi Quản lý duyệt ở màn Chuẩn bị hàng / Thẻ lái xe; lệch trong dung sai không ghi. Chỉ để thống kê.</span>
       </p>
 

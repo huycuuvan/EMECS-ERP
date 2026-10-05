@@ -104,7 +104,7 @@ export interface Mismatch {
 }
 
 export interface VLoss {
-  id: ID; date: string; refType: 'pc' | 'vc'; refId: ID; contractId: ID; source: string; kg: number
+  id: ID; date: string; refType: 'pc' | 'vc' | 'nl'; refId: ID; contractId: ID; source: string; kg: number
   approvedBy: string; note: string; status: 'Đang treo' | 'Đã xử lý' | 'Đã ghi nhận'; resolution: string | null
   resolvedAt: string | null; resolvedNote: string | null
   /** lý do chênh lệch (lái xe / kho ghi) + công thức: số gốc (a) − số cân sau (b) = chênh */

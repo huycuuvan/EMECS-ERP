@@ -24,7 +24,7 @@ export default function VlossDrawer({ id }: { id: string }) {
         {e.formula && <Cell label="Công thức tính chênh" wide>
           <div className="num">{e.formula.aLabel}: <b>{fmtKg(e.formula.a)}</b></div>
           <div className="num">− {e.formula.bLabel}: <b>{fmtKg(e.formula.b)}</b></div>
-          <div className="num">= <b>{fmtKg(Math.abs(e.formula.delta))}</b> {e.formula.delta > 0 ? 'hụt' : e.formula.delta < 0 ? 'dư' : ''}</div>
+          <div className="num">= <b>{fmtKg(Math.abs(e.formula.delta))}</b> {e.formula.delta > 0 ? (e.refType === 'nl' ? 'thiếu' : 'hụt') : e.formula.delta < 0 ? (e.refType === 'nl' ? 'thừa' : 'dư') : ''}</div>
         </Cell>}
         <Cell label="Ngày Quản lý chấp nhận"><span className="num">{fmtDT(e.date)}</span></Cell>
         <Cell label="Người duyệt">{e.approvedBy}</Cell>

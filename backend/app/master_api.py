@@ -469,6 +469,27 @@ def material_out(m: MaterialReceipt) -> dict:
             "photo": sign_photo(m.photo) if m.photo else None}
 
 
+NVL_SOURCE = "Nhập nguyên liệu"
+
+
+def _sync_vloss_material(db: Session, m: MaterialReceipt) -> None:
+    """Kho ảo gồm cả chênh lệch nhập nguyên liệu: kg = NCC − cân thực tế (dương = thiếu, âm = thừa). Lệch bao nhiêu ghi bấy nhiêu."""
+    from .models import VLoss
+    e = db.scalar(select(VLoss).where(VLoss.ref_type == "nl", VLoss.ref_id == m.id))
+    d = (m.kg_supplier - m.kg) if m.kg_supplier is not None else 0
+    if abs(d) <= 0.5:
+        if e:
+            db.delete(e)
+        return
+    note = f"{'Thiếu' if d > 0 else 'Thừa'} {abs(d):,.0f} kg so với bên cung cấp {m.supplier}".replace(",", ".") \
+        + (f" — {m.note}" if m.note else "")
+    if e is None:
+        db.add(VLoss(id=svc.next_id(db, "VK", "vk"), date=utcnow(), ref_type="nl", ref_id=m.id, contract_id="",
+                     source=NVL_SOURCE, kg=d, approved_by=m.by or "Kho", status="Đã ghi nhận", note=note))
+    else:
+        e.kg, e.note = d, note
+
+
 def _notify_material(db: Session, m: MaterialReceipt) -> None:
     """Phiếu nhập NVL gửi lên Quản lý (chỉ ghi nhận / thống kê, không cần duyệt); có chênh thì ghi rõ."""
     d = (m.kg - m.kg_supplier) if m.kg_supplier is not None else 0
@@ -499,6 +520,7 @@ def create_material(body: MaterialIn, db: Session = DB):
     db.add(m)
     db.flush()
     _notify_material(db, m)
+    _sync_vloss_material(db, m)
     db.commit()
     return material_out(m)
 
@@ -515,6 +537,7 @@ def update_material(mid: str, body: MaterialPatch, db: Session = DB):
     for f in ("date", "qty", "kg", "note", "kg_supplier", "photo"):
         if f in data:
             setattr(m, f, data[f])
+    _sync_vloss_material(db, m)
     db.commit()
     return material_out(m)
 

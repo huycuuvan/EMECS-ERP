@@ -1035,6 +1035,12 @@ def vloss_detail(db: Session, e: VLoss) -> dict:
                 reason = t.reason + (f" — {t.reason_note}" if t.reason_note else "")
             elif t.mismatch_id and (m := db.get(Mismatch, t.mismatch_id)):
                 reason = m.reason + (f" — {m.reason_note}" if m.reason_note else "")
+    elif e.ref_type == "nl":
+        from .models import MaterialReceipt
+        mr = db.get(MaterialReceipt, e.ref_id)
+        if mr and mr.kg_supplier is not None:
+            a, b = (f"KG bên cung cấp ({mr.supplier})", mr.kg_supplier), ("Cân thực tế tại xưởng", mr.kg)
+            reason = e.note
     else:
         p = db.get(Weighing, e.ref_id)
         if p:
@@ -1049,7 +1055,8 @@ def vloss_detail(db: Session, e: VLoss) -> dict:
         d = a[1] - b[1]
         out["formula"] = {"aLabel": a[0], "a": a[1], "bLabel": b[0], "b": b[1], "delta": d,
                           "text": f"{a[0]} {fmt_kg(a[1])} − {b[0]} {fmt_kg(b[1])} = {fmt_kg(abs(d))} "
-                                  + ("hụt" if d > 0 else "dư" if d < 0 else "")}
+                                  + (("thiếu" if d > 0 else "thừa" if d < 0 else "") if e.ref_type == "nl"
+                                     else ("hụt" if d > 0 else "dư" if d < 0 else ""))}
     else:
         out["formula"] = None
     return out
