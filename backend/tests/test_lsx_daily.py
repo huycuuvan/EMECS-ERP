@@ -177,7 +177,8 @@ def test_kho_ao_records_all_deviations_including_prep(c):
     c.post(f"/api/weighings/{ws[r1['id']]}/approve")
     c.post(f"/api/weighings/{ws[r2['id']]}/fill", json={"grossKg": 9950, "tareKg": 8000})  # 1.950 (thiếu 2,5%) → tự đạt
     vk = {e["refId"]: e for e in c.get("/api/vloss").json()}
-    a, b = vk[ws[r1["id"]]], vk[ws[r2["id"]]]
+    a = vk[ws[r1["id"]]]
+    assert ws[r2["id"]] not in vk  # trong dung sai → không thống kê vào kho ảo
     assert a["source"] == "Cân xuất (chuẩn bị hàng)" and a["kg"] == -500 and a["reason"] == "Dư bản mã"
-    assert "= 500 kg dư" in a["formula"]["text"] and b["kg"] == 50 and "= 50 kg hụt" in b["formula"]["text"]
+    assert "= 500 kg dư" in a["formula"]["text"]
     assert c.get(f"/api/contracts/{hd['id']}").json()["stockKg"] == 0  # vẫn không thành tồn kho

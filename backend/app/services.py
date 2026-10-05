@@ -746,9 +746,6 @@ def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | N
     else:
         p.mismatch_id, p.status, p.reason, p.reason_note, p.reject_reason = None, "Đã cân", None, None, None
         _billed_notify(db, p)
-        if p.receipt_id:
-            record_vloss(db, "pc", p, exp - p.kg_actual, PREP_SOURCE, f"Trong dung sai {PC_TOLERANCE_PCT:g}% — tự động",
-                         "Tự động (trong dung sai)")
     db.commit()
     return p
 
@@ -757,7 +754,8 @@ PREP_SOURCE = "Cân xuất (chuẩn bị hàng)"
 
 
 def record_vloss(db: Session, ref_type: str, rec, kg: float, source: str, note: str, by: str) -> None:
-    """Kho ảo = thống kê MỌI chênh lệch đã chốt (trong dung sai tự động, hoặc Quản lý đã chấp nhận). Không thao tác xử lý."""
+    """Kho ảo = thống kê các chênh lệch VƯỢT DUNG SAI đã được Quản lý chấp nhận (chuẩn bị hàng, xưởng mạ, giao khách).
+    Trong dung sai không ghi. Không thao tác xử lý."""
     if abs(kg or 0) < 0.001 or rec.loss_accepted:
         return
     db.add(VLoss(id=next_id(db, "VK", "vk"), date=utcnow(), ref_type=ref_type, ref_id=rec.id, contract_id=rec.contract_id,
@@ -914,8 +912,6 @@ def _task_result(db: Session, t: Task, off: bool, what: str, reason: str | None,
                "warning", roles="admin")
     else:
         t.status, t.reason, t.reason_note, t.reject_reason_ql = "Hoàn thành", None, None, None
-        kg, source = _task_delta(t)
-        record_vloss(db, "vc", t, kg, source, "Trong dung sai — tự động", "Tự động (trong dung sai)")
 
 
 def task_fill_galv(db: Session, tid: str, kg: float, photo: str | None, reason: str | None,

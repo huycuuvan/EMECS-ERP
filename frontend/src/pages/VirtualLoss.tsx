@@ -75,7 +75,7 @@ export default function VirtualLoss() {
   return (
     <div>
       <PageHeader title="Kho ảo chênh lệch"
-        desc="Thống kê MỌI chênh lệch kg (chuẩn bị hàng, xưởng mạ, giao khách) — trong dung sai ghi tự động, vượt dung sai ghi khi Quản lý chấp nhận"
+        desc="Thống kê các chênh lệch kg VƯỢT DUNG SAI (chuẩn bị hàng, xưởng mạ, giao khách) — ghi tự động khi Quản lý chấp nhận"
         extra={<>
           <ExportButton kind="vloss" params={{ source: src, status: st }} ids={rows.map((e) => e.id)} total={all.length} />
           {can('bao-cao') && <Button icon={<BarChart3 size={14} />} onClick={() => nav('/bao-cao')}>Báo cáo đối ứng</Button>}
@@ -104,8 +104,8 @@ export default function VirtualLoss() {
 
       <p className="caption" style={{ marginTop: 12, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
         <Info size={13} style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>Kho ảo tổng hợp tất cả chênh lệch: <b>chuẩn bị hàng</b> (QL giao − cân thực), <b>xưởng mạ</b> (cân xuất − mạ cân nhận), <b>giao khách</b> (lấy từ mạ − khách ký).
-          Trong dung sai ghi tự động; vượt dung sai ghi khi Quản lý duyệt ở màn Chuẩn bị hàng / Thẻ lái xe. Chỉ để thống kê.</span>
+        <span>Kho ảo tổng hợp chênh lệch: <b>chuẩn bị hàng</b> (QL giao − cân thực), <b>xưởng mạ</b> (cân xuất − mạ cân nhận), <b>giao khách</b> (lấy từ mạ − khách ký).
+          Chỉ ghi khoản <b>vượt dung sai</b>, khi Quản lý duyệt ở màn Chuẩn bị hàng / Thẻ lái xe; lệch trong dung sai không ghi. Chỉ để thống kê.</span>
       </p>
 
     </div>
