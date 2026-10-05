@@ -290,3 +290,9 @@ def test_read_permissions_per_role(c):
     login(c, "kho")
     o = c.get(f"/api/orders/{oid}").json()
     assert "value" not in o and all("price" not in i for i in o["items"]) and o["items"][0]["kg"] > 0
+
+
+def test_manager_sees_all_pages(c):
+    from app.config import ALL_PAGES
+    perms = c.get("/api/auth/me").json()["permissions"]
+    assert set(ALL_PAGES) <= set(perms) and all(v == "full" for v in perms.values())

@@ -7,7 +7,7 @@ from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .config import PERMISSIONS, ROLES
+from .config import ALL_PAGES, PERMISSIONS, ROLES
 from .db import get_db, utcnow
 from .models import AuditLog, User
 from .schemas import In
@@ -15,7 +15,7 @@ from .security import create_token, get_current_user, hash_password, level_of, r
 from .utils import iso
 
 ROLE_IDS = {r["id"] for r in ROLES}
-PAGES = sorted({p for m in PERMISSIONS.values() for p in m} | {"nguoi-dung"})
+PAGES = sorted(set(ALL_PAGES) | {p for m in PERMISSIONS.values() for p in m})
 
 public = APIRouter(prefix="/api/auth")
 router = APIRouter(prefix="/api", dependencies=[Depends(get_current_user)])

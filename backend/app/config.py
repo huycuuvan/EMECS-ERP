@@ -79,6 +79,10 @@ ROLES = [
 ]
 
 # 'full' quản lý · 'limited' thao tác giới hạn · 'view' chỉ xem · không có = ẩn
+# Mọi màn trên menu (khớp id trong frontend/src/layout/nav.ts) — Quản lý thấy tất cả
+ALL_PAGES = ("dashboard", "don-hang", "hop-dong", "khach-hang", "lsx", "tiep-nhan", "van-chuyen", "phieu-can",
+             "kho-ao", "nguyen-lieu", "doi-ung-ma", "bao-cao", "sai-lech", "xe", "xuong-ma", "nguoi-dung")
+
 PERMISSIONS = {  # mỗi vai trò chỉ thấy đúng màn của mình (Quản lý = tất cả)
     "kt": {"don-hang": "view", "hop-dong": "full", "khach-hang": "full"},  # khách hàng: bổ sung Bên A khi soạn HĐ
     "sx": {"lsx": "full"},
