@@ -69,10 +69,14 @@ export default function Materials() {
     { title: 'Mã phiếu', key: 'id', width: 110, render: (_, m) => <span className="mono" style={{ fontWeight: 700 }}>{m.id}</span> },
     { title: 'Ngày nhập', key: 'date', width: 110, sorter: (a, b) => a.date.localeCompare(b.date), render: (_, m) => <span className="num">{fmtD(m.date)}</span> },
     { title: 'Nhà cung cấp', key: 'sup', render: (_, m) => m.supplier },
-    { title: 'Mác thép', key: 'grade', render: (_, m) => m.steelGrade ? <span className="mono" style={{ fontWeight: 600 }}>{m.steelGrade}</span> : <span className="text-ash">—</span> },
-    { title: 'Quy cách', key: 'spec', render: (_, m) => <>{m.spec || '—'}{m.note && <div className="sub-soft">{m.note}</div>}</> },
-    { title: 'Số lượng', key: 'qty', align: 'right', render: (_, m) => <span className="num">{fmtNum(m.qty)} {m.unit}</span> },
-    { title: 'Khối lượng', key: 'kg', align: 'right', sorter: (a, b) => a.kg - b.kg, render: (_, m) => <b className="num">{fmtKg(m.kg)}</b> },
+    { title: 'Loại hàng', key: 'spec', render: (_, m) => <>{[m.steelGrade, m.spec].filter(Boolean).join(' · ') || '—'}{m.note && <div className="sub-soft">{m.note}</div>}</> },
+    { title: 'KG bên cung cấp', key: 'kgs', align: 'right', render: (_, m) => m.kgSupplier != null ? <span className="num">{fmtKg(m.kgSupplier)}</span> : <span className="text-ash">—</span> },
+    { title: 'KG cân thực tế', key: 'kg', align: 'right', sorter: (a, b) => a.kg - b.kg, render: (_, m) => <b className="num">{fmtKg(m.kg)}</b> },
+    { title: 'Chênh', key: 'd', align: 'right', render: (_, m) => m.delta == null ? <span className="text-ash">—</span>
+      : Math.abs(m.delta) <= 0.5 ? <span className="text-moss">Khớp</span>
+      : <b className="num text-signal">{m.delta > 0 ? '+' : '−'}{fmtNum(Math.abs(m.delta))} kg</b> },
+    { title: 'Chứng từ', key: 'photo', render: (_, m) => m.photo
+      ? <a href={m.photo} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>Xem ảnh</a> : <span className="text-ash">Chưa có</span> },
     { title: 'Người nhập', key: 'by', render: (_, m) => <span className="caption">{m.by}</span> },
   ]
 

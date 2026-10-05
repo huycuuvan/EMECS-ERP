@@ -1,5 +1,5 @@
 /* Hằng, kiểu, context và helper nghiệp vụ của bản mobile hiện trường (không chứa component). */
-import {
+import { Boxes,
   BarChart3, BellRing, CheckCircle2, ClipboardList, Factory, FileSignature, FileWarning, LayoutDashboard, PackageCheck,
   Scale, ShieldCheck, Truck, Warehouse, type LucideIcon,
 } from 'lucide-react'
@@ -92,7 +92,7 @@ export const ROLES: Record<MRole, { label: string; sub: string; icon: LucideIcon
   thukho: {
     label: 'Thủ kho', sub: 'Ngô Minh Kho · Kho thành phẩm', icon: Warehouse,
     tabs: [{ id: 'can', label: 'Phiếu cân', icon: Scale }, { id: 'ptn', label: 'Chuẩn bị hàng', icon: PackageCheck },
-      { id: 'cb', label: 'Cảnh báo', icon: BellRing }],
+      { id: 'nvl', label: 'Nhập NVL', icon: Boxes }, { id: 'cb', label: 'Cảnh báo', icon: BellRing }],
   },
   laixe: {
     label: 'Lái xe', sub: 'Đội vận tải · đối ứng 3 số cân', icon: Truck,

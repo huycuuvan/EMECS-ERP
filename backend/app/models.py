@@ -415,6 +415,8 @@ class MaterialReceipt(Base):
     spec: Mapped[str] = mapped_column(String(200), default="")  # quy cách
     qty: Mapped[float] = mapped_column(Float, default=0)
     unit: Mapped[str] = mapped_column(String(32), default="tấm")
-    kg: Mapped[float] = mapped_column(Float, default=0)
+    kg: Mapped[float] = mapped_column(Float, default=0)  # KG cân thực tế tại xưởng
     note: Mapped[str] = mapped_column(Text, default="")
     by: Mapped[str] = mapped_column(String(120), default="")
+    kg_supplier: Mapped[float | None] = mapped_column(Float, nullable=True)  # KG theo bên cung cấp (phiếu / hóa đơn NCC)
+    photo: Mapped[str | None] = mapped_column(Text, nullable=True)  # ảnh chứng từ

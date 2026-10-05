@@ -24,10 +24,13 @@ export interface Galvanizer { id: number; name: string; address: string; phone: 
 export type GalvanizerInput = Partial<Omit<Galvanizer, 'id'>>
 
 export interface MaterialReceipt {
-  id: string; date: string; supplier: string; steelGrade: string; spec: string; qty: number; unit: string; kg: number
+  id: string; date: string; supplier: string; steelGrade: string; spec: string; qty: number; unit: string
+  /** KG cân thực tế tại xưởng */ kg: number
   note: string; by: string
+  /** KG theo bên cung cấp; delta = thực tế − NCC; photo = ảnh chứng từ */
+  kgSupplier: number | null; delta: number | null; photo: string | null
 }
-export type MaterialInput = Partial<Omit<MaterialReceipt, 'id' | 'by'>>
+export type MaterialInput = Partial<Omit<MaterialReceipt, 'id' | 'by' | 'delta'>>
 
 export interface StatGroup { key: string; kg: number; count: number }
 export interface MaterialStats {

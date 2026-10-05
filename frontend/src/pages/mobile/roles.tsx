@@ -1,6 +1,6 @@
 /* 4 màn theo vai trò: Quản lý A · Sản xuất · Thủ kho · Lái xe (port renderQL/renderSX/renderKho/renderDriver). */
 import {
-  AlarmClock, AlertTriangle, Banknote, BarChart3, Bell, BellRing, CheckCheck, CheckCircle2, ChevronDown, ClipboardList,
+  AlarmClock, AlertTriangle, Banknote, BarChart3, Bell, BellRing, Boxes, CheckCheck, CheckCircle2, ChevronDown, ClipboardList,
   Clock, Coffee, Factory, FileClock, FileSignature, FileWarning, Flame, Gauge, History, Hourglass, Inbox,
   Monitor, Navigation, PackageCheck, PenLine, Plus, Scale, ShieldCheck, Siren, Timer, Truck, UserRound,
   UserX, X, type LucideIcon,
@@ -16,7 +16,8 @@ import { fmtD, fmtDT, fmtKg, fmtT, hoursOver, moneyShort, relTime } from '@/lib/
 import { TaskRoute } from './route'
 import { useSignFlow } from './sign'
 import AssignedGoods from '../weighings/AssignedGoods'
-import { DelivForm, GalvForm, LsxProgressForm, PcFillForm, ReceiptForm, RejectForm } from './forms'
+import { DelivForm, GalvForm, LsxProgressForm, MaterialForm, PcFillForm, ReceiptForm, RejectForm } from './forms'
+import { useMaterials } from '@/api/hooksMaster'
 import {
   fmtN, hoursLeftOf, isOverdueTask, lsxDeadline, type MAlert, type MRole, ROLES, signed, typeLabel, useMob,
 } from './core'
@@ -282,10 +283,27 @@ export function KhoView({ tab, setTab, onRoleSheet }: RoleViewProps) {
   const { data: ps = [], isLoading } = useWeighings()
   const { data: rcs = [], isLoading: l2 } = useReceipts()
   const { data: ods = [] } = useOverdueDocs()
+  const { data: mats = [] } = useMaterials()
   const alerts = khoAlerts(ps, ods)
   const pend = ps.filter((p) => p.status === 'Chờ cân' || p.status === 'QL từ chối').sort((a, b) => b.date.localeCompare(a.date))
   let body: ReactNode
   if (tab === 'cb') body = <AlertTab alerts={alerts} />
+  else if (tab === 'nvl') {
+    body = <>
+      <div className="btn-row" style={{ marginTop: 0, marginBottom: 4 }}>
+        <Btn variant="primary" icon={Plus} onClick={() => m.sheet({ icon: Boxes, title: 'Phiếu nhập nguyên liệu', body: <MaterialForm /> })}>Nhập nguyên liệu (hàng về)</Btn>
+      </div>
+      <SecTitle icon={Boxes} count={mats.length}>Phiếu nhập gần nhất</SecTitle>
+      {mats.length ? mats.slice(0, 15).map((x) => (
+        <Card key={x.id}>
+          <div className="mc-top"><span className="mc-id">{x.id}</span><span className="mc-status">{fmtD(x.date)}</span></div>
+          <Line vClass="left">{x.supplier}{x.spec ? ` · ${x.spec}` : ''}</Line>
+          <Line k={x.kgSupplier != null ? 'NCC / cân thực tế' : 'Cân thực tế'}>{x.kgSupplier != null ? `${fmtN(x.kgSupplier)} / ` : ''}{fmtN(x.kg)} kg</Line>
+          {x.delta != null && <Line k="Chênh" vClass={Math.abs(x.delta) > 0.5 ? 'red-txt' : 'moss-txt'}>{Math.abs(x.delta) > 0.5 ? `${signed(x.delta)} kg` : 'Khớp'}</Line>}
+        </Card>
+      )) : <Empty icon={Inbox}>Chưa có phiếu nhập nguyên liệu.</Empty>}
+    </>
+  }
   else if (tab === 'ptn') {
     const list = [...rcs].sort((a, b) => b.date.localeCompare(a.date))
     body = <>

@@ -442,7 +442,9 @@ class MaterialIn(In):
     spec: str = ""
     qty: float = Field(default=0, ge=0)
     unit: str = "tấm"
-    kg: float = Field(gt=0)
+    kg: float = Field(gt=0)  # KG cân thực tế tại xưởng
+    kg_supplier: float | None = Field(default=None, ge=0)  # KG theo bên cung cấp
+    photo: str | None = None  # ảnh chứng từ
     note: str = ""
 
 
@@ -454,12 +456,27 @@ class MaterialPatch(In):
     qty: float | None = Field(default=None, ge=0)
     unit: str | None = None
     kg: float | None = Field(default=None, gt=0)
+    kg_supplier: float | None = Field(default=None, ge=0)
+    photo: str | None = None
     note: str | None = None
 
 
 def material_out(m: MaterialReceipt) -> dict:
+    from .files import sign_photo
     return {"id": m.id, "date": iso(m.date), "supplier": m.supplier, "steelGrade": m.steel_grade, "spec": m.spec,
-            "qty": m.qty, "unit": m.unit, "kg": m.kg, "note": m.note, "by": m.by}
+            "qty": m.qty, "unit": m.unit, "kg": m.kg, "note": m.note, "by": m.by, "kgSupplier": m.kg_supplier,
+            "delta": (m.kg - m.kg_supplier) if m.kg_supplier is not None else None,  # thực tế − NCC
+            "photo": sign_photo(m.photo) if m.photo else None}
+
+
+def _notify_material(db: Session, m: MaterialReceipt) -> None:
+    """Phiếu nhập NVL gửi lên Quản lý (chỉ ghi nhận / thống kê, không cần duyệt); có chênh thì ghi rõ."""
+    d = (m.kg - m.kg_supplier) if m.kg_supplier is not None else 0
+    lech = f" — CHÊNH {d:+,.0f} kg".replace(",", ".") if abs(d) > 0.5 else ""
+    svc.notify(db, f"Phiếu nhập NVL {m.id}: {m.supplier}{lech}",
+               (f"NCC {m.kg_supplier:,.0f} kg · ".replace(",", ".") if m.kg_supplier is not None else "")
+               + f"cân thực tế {m.kg:,.0f} kg".replace(",", ".") + f" · {m.by}" + (f" · {m.note}" if m.note else ""),
+               "warning" if lech else "info", roles="admin")
 
 
 def _materials(db: Session, frm, to) -> list[MaterialReceipt]:
@@ -478,8 +495,10 @@ def create_material(body: MaterialIn, db: Session = DB):
     m = MaterialReceipt(id=svc.next_id(db, "NL", "nl"), date=body.date or utcnow(), supplier=_clean(body.supplier),
                         steel_grade=_clean(body.steel_grade).upper(), spec=_clean(body.spec), qty=body.qty,
                         unit=_clean(body.unit) or "tấm", kg=body.kg, note=body.note or "",
-                        by=actor(PEOPLE["kho"]["name"]))
+                        by=actor(PEOPLE["kho"]["name"]), kg_supplier=body.kg_supplier, photo=body.photo)
     db.add(m)
+    db.flush()
+    _notify_material(db, m)
     db.commit()
     return material_out(m)
 
@@ -493,7 +512,7 @@ def update_material(mid: str, body: MaterialPatch, db: Session = DB):
             setattr(m, f, _clean(data[f]))
     if "steel_grade" in data:
         m.steel_grade = _clean(data["steel_grade"]).upper()
-    for f in ("date", "qty", "kg", "note"):
+    for f in ("date", "qty", "kg", "note", "kg_supplier", "photo"):
         if f in data:
             setattr(m, f, data[f])
     db.commit()

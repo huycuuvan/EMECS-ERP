@@ -243,3 +243,13 @@ def test_customer_profile_fields_and_segment_filter(c):
     assert seg_orders and {o["customer"] for o in seg_orders} <= {"Cty TNHH Cơ điện Delta", "Ban QLDA Cầu đường 5"}
     assert all(x["customer"] != "Cty TNHH Cơ điện Delta" for x in c.get("/api/contracts", params={"segment": "Thân thiết"}).json())
     assert c.get("/api/dashboard", params={"segment": "Thân thiết"}).status_code == 200
+
+
+def test_material_receipt_supplier_vs_actual_notifies_manager(c):
+    login(c, "kho")
+    m = c.post("/api/material-receipts", json={"supplier": "Thép Minh Khang", "spec": "Thép tấm 12ly",
+                                               "kgSupplier": 10000, "kg": 9950, "photo": "/uploads/x.png"}).json()
+    assert m["kgSupplier"] == 10000 and m["kg"] == 9950 and m["delta"] == -50 and m["photo"]
+    login(c, "ql")
+    n = c.get("/api/notifications").json()[0]
+    assert n["title"].startswith(f"Phiếu nhập NVL {m['id']}") and "CHÊNH -50 kg" in n["title"]
