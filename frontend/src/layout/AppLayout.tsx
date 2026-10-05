@@ -1,15 +1,15 @@
 /* Khung ứng dụng: sidebar tối (nhóm menu theo bản demo, ẩn/đánh dấu theo vai trò) + topbar
    (breadcrumb · chọn vai trò · giao diện điện thoại · chuông thông báo · khôi phục demo). */
-import { Avatar, Badge, Button, Dropdown, Empty, Grid, Layout, Popover, Result, Tooltip } from 'antd'
+import { Avatar, Badge, Button, Dropdown, Empty, Grid, Layout, Popover, Tooltip } from 'antd'
 import { Bell, Eye, KeyRound, LogOut, Menu as MenuIcon, RotateCcw, Smartphone, SquarePen } from 'lucide-react'
 import { useState } from 'react'
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useMeta, useNotifications, useReadAllNotifications, useResetDemo } from '@/api/hooks'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
 import { useAuth } from '@/lib/auth'
 import { relTime } from '@/lib/format'
 import { C } from '@/theme'
-import { NAV, NAV_FLAT } from './nav'
+import { homeFor, NAV, NAV_FLAT } from './nav'
 
 const { Sider, Header, Content } = Layout
 
@@ -122,9 +122,11 @@ export default function AppLayout() {
           <div style={{ flex: 1, minWidth: 0, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             <b>{current?.section ?? 'STEEL ONE'}</b>{current && <span className="text-ash"> · {current.label}</span>}
           </div>
-          <Tooltip title="Giao diện điện thoại (lái xe / xưởng / kho)">
-            <Button shape="circle" icon={<Smartphone size={16} />} onClick={() => navigate('/mobile')} />
-          </Tooltip>
+          {(hasRole('admin') || roles.some((r) => r === 'sx' || r === 'kho' || r === 'lx')) && (
+            <Tooltip title="Giao diện điện thoại (lái xe / xưởng / kho)">
+              <Button shape="circle" icon={<Smartphone size={16} />} onClick={() => navigate('/mobile')} />
+            </Tooltip>
+          )}
           <NotificationBell />
           <Dropdown trigger={['click']} menu={{ items: [
             { key: 'me', disabled: true, label: <div style={{ lineHeight: 1.35 }}><b style={{ color: C.ink }}>{user?.name}</b><div className="caption">{roleText}</div><div className="mono caption">{user?.phone}</div></div> },
@@ -144,10 +146,8 @@ export default function AppLayout() {
           </Dropdown>
         </Header>
         <Content className="app-content">
-          {allowed ? <Outlet /> : (
-            <Result status="403" title="Không có quyền truy cập" subTitle={`Vai trò hiện tại không được xem mục "${current?.label}".`}
-              extra={<Button onClick={() => navigate('/dashboard')}>Về Dashboard</Button>} />
-          )}
+          {/* mỗi vai trò chỉ thấy đúng màn của mình — vào màn không có quyền (gõ đường dẫn) → về màn của vai trò */}
+          {allowed ? <Outlet /> : <Navigate to={homeFor(user?.permissions, roles)} replace />}
         </Content>
       </Layout>
       <ChangePasswordModal open={pwOpen || !!user?.mustChangePassword} forced={!!user?.mustChangePassword} onClose={() => setPwOpen(false)} />

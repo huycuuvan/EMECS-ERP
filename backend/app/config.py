@@ -79,18 +79,9 @@ ROLES = [
 ]
 
 # 'full' quản lý · 'limited' thao tác giới hạn · 'view' chỉ xem · không có = ẩn
-PERMISSIONS = {
-    "kt": {"dashboard": "view", "don-hang": "view", "hop-dong": "full", "lsx": "view",
-           "kho-ao": "view", "bao-cao": "view", "sai-lech": "view",
-           "khach-hang": "view"},
-    "sx": {"dashboard": "view", "don-hang": "view", "hop-dong": "view", "lsx": "full",
-           "tiep-nhan": "view", "bao-cao": "view", "sai-lech": "view",
-           "khach-hang": "view", "nguyen-lieu": "view"},
-    "kho": {"dashboard": "view", "lsx": "view", "tiep-nhan": "full", "phieu-can": "full",
-            "kho-ao": "limited", "van-chuyen": "view", "doi-ung-ma": "view",
-            "bao-cao": "view", "sai-lech": "limited",
-            "nguyen-lieu": "full", "xe": "view", "xuong-ma": "view"},
-    "lx": {"dashboard": "view", "phieu-can": "view", "van-chuyen": "full",
-           "doi-ung-ma": "view", "sai-lech": "limited",
-           "xe": "view", "xuong-ma": "view"},
+PERMISSIONS = {  # mỗi vai trò chỉ thấy đúng màn của mình (Quản lý = tất cả)
+    "kt": {"don-hang": "view", "hop-dong": "full", "khach-hang": "full"},  # khách hàng: bổ sung Bên A khi soạn HĐ
+    "sx": {"lsx": "full"},
+    "kho": {"tiep-nhan": "full", "phieu-can": "full", "nguyen-lieu": "full"},
+    "lx": {"van-chuyen": "full"},
 }

@@ -3,10 +3,11 @@
    Điện thoại thật (≤ 520px): toàn màn hình; bấm tên vai trò trên header để đổi vai trò / về bản desktop. */
 import { ArrowLeft, BatteryFull, Monitor, Signal, Wifi, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useMeta } from '@/api/hooks'
 import type { RoleId } from '@/api/types'
 import { useAuth } from '@/lib/auth'
+import { homeFor } from '@/layout/nav'
 import { Detail } from './mobile/details'
 import { Ctx, KIND_META, type Kind, type MobCtx, type MRole, ROLE_ORDER, ROLES, type SheetSpec } from './mobile/core'
 import { DriverView, KhoView, QlView, SxView } from './mobile/roles'
@@ -21,7 +22,7 @@ function Clock() {
   return <span>{t}</span>
 }
 
-export default function Mobile() {
+function MobileInner() {
   const { data: meta } = useMeta()
   const [params, setParams] = useSearchParams()
   const { user, hasRole } = useAuth()
@@ -190,4 +191,12 @@ export default function Mobile() {
       </div>
     </div>
   )
+}
+
+/** Bản điện thoại chỉ có màn của Quản lý / xưởng / kho / lái xe — vai trò khác (kế toán) về màn của mình. */
+export default function Mobile() {
+  const { user, hasRole } = useAuth()
+  const field = hasRole('admin') || (user?.roles ?? []).some((r) => r === 'sx' || r === 'kho' || r === 'lx')
+  if (!field) return <Navigate to={homeFor(user?.permissions, user?.roles)} replace />
+  return <MobileInner />
 }

@@ -40,3 +40,9 @@ export const NAV: { section: string; items: NavItem[] }[] = [
 ]
 
 export const NAV_FLAT = NAV.flatMap((g) => g.items.map((i) => ({ ...i, section: g.section })))
+
+/** Trang đầu tiên vai trò được xem (mỗi vai trò chỉ thấy màn của mình); không có màn nào trên máy tính → bản điện thoại. */
+export function homeFor(permissions: Record<string, string> | undefined, roles: string[] = []): string {
+  if (roles.length && roles.every((r) => r === 'lx' || r === 'sx')) return '/mobile'
+  return NAV_FLAT.find((i) => permissions?.[i.id])?.path ?? '/mobile'
+}

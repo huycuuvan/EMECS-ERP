@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { errorMessage } from '@/api/client'
 import type { AuthUser } from '@/api/types'
-import { NAV_FLAT } from '@/layout/nav'
+import { homeFor, NAV_FLAT } from '@/layout/nav'
 import { useAuth } from '@/lib/auth'
 import { C } from '@/theme'
 
@@ -24,10 +24,9 @@ const DEMO_ACCOUNTS = [
 
 /** Trang đích sau đăng nhập: trang định mở (nếu đủ quyền), không thì lái xe / xưởng → điện thoại, còn lại → Dashboard. */
 function targetFor(u: AuthUser, want: string | null) {
-  const onlyField = u.roles.every((r) => r === 'lx' || r === 'sx')
   const page = want && NAV_FLAT.find((n) => want.startsWith(n.path))
-  const allowed = want && (want.startsWith('/mobile') || !page || u.permissions[page.id])
-  return allowed ? want : (onlyField ? '/mobile' : '/dashboard')
+  const allowed = want && want !== '/' && (want.startsWith('/mobile') || (page && u.permissions[page.id]))
+  return allowed ? want : homeFor(u.permissions, u.roles)
 }
 
 export default function Login() {

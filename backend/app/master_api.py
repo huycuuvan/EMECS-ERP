@@ -21,7 +21,8 @@ from .utils import VN_TZ, iso
 router = APIRouter(prefix="/api", dependencies=[Depends(get_current_user)])
 DB = Depends(get_db)
 ADMIN = [Depends(require_roles("admin"))]
-CUST_VIEW, CUST_EDIT = [Depends(require("don-hang"))], [Depends(require("don-hang", "full"))]
+# đọc danh mục khách: mọi người đã đăng nhập (đơn hàng, soạn HĐ, giao khách đều cần); sửa: quyền màn Khách hàng
+CUST_VIEW, CUST_EDIT = [], [Depends(require("khach-hang", "full"))]
 FLEET_VIEW = [Depends(require("van-chuyen"))]
 NL_VIEW, NL_EDIT = [Depends(require("nguyen-lieu"))], [Depends(require("nguyen-lieu", "edit"))]
 
