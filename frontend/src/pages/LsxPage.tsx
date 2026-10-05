@@ -36,7 +36,7 @@ export default function LsxPage() {
     if (fs === 'late') return isLate(x)
     if (fs && x.status !== fs) return false
     return true
-  }), [all, cmap, q, fs])
+  }).sort((a, b) => Number(a.status === 'Hoàn thành') - Number(b.status === 'Hoàn thành')), [all, cmap, q, fs])  // lệnh xong xuống dưới
 
   /* KPI */
   const run = all.filter((x) => x.status === 'Đang SX')

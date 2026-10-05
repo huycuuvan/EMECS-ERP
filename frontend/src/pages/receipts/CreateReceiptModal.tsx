@@ -10,6 +10,7 @@ import type { ID, Receipt } from '@/api/types'
 import { fmtD, fmtKg, fmtNum } from '@/lib/format'
 import { InfoBox, WarnBox } from '../lsx/boxes'
 import ContractGoods, { perUnit, useContractGoods } from './ContractGoods'
+import { NUM } from '@/lib/numberInput'
 
 export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxId?: ID; onClose: () => void; onCreated?: (r: Receipt) => void }) {
   const create = useCreateReceipt()
@@ -85,7 +86,7 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
               { required: true, type: 'number', min: 0.0001, message: 'Nhập khối lượng kg hợp lệ' },
               { validator: () => (over > 0 ? Promise.reject(new Error(`Vượt số SX đã báo ${fmtNum(over)} kg — kiểm tra lại với xưởng`)) : Promise.resolve()) },
             ]}>
-              <InputNumber min={0} placeholder="Nhập số lượng ở bảng trên — hoặc gõ thẳng kg" style={{ width: '100%' }} disabled={lines.length > 0} />
+              <InputNumber {...NUM} min={0} placeholder="Nhập số lượng ở bảng trên — hoặc gõ thẳng kg" style={{ width: '100%' }} disabled={lines.length > 0} />
             </Form.Item>
           </div>
           {over > 0 && <WarnBox title={<><AlertOctagon size={13} /> Vượt số SX đã báo {fmtNum(over)} kg — kiểm tra lại với xưởng</>} />}

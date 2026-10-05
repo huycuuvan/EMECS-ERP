@@ -10,6 +10,7 @@ import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtD, fmtT } from '@/lib/format'
 import '@/peek/drawers/contract/contract.css'
+import { NUM } from '@/lib/numberInput'
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
 
@@ -42,7 +43,7 @@ function VehicleModal({ vehicle, onClose }: { vehicle?: Vehicle; onClose: () => 
             <Input placeholder="VD: 29H-123.45" style={{ textTransform: 'uppercase' }} />
           </Form.Item>
           <Form.Item name="capacityKg" label="Tải trọng (kg)" rules={[{ required: true, message: 'Chưa nhập tải trọng' }]}>
-            <InputNumber<number> min={0} step={500} style={{ width: '100%' }} suffix="kg" />
+            <InputNumber<number> {...NUM} min={0} step={500} style={{ width: '100%' }} suffix="kg" />
           </Form.Item>
         </div>
         <Form.Item name="kind" label="Loại xe">

@@ -9,6 +9,7 @@ import type { ID, Weighing } from '@/api/types'
 import { fmtDelta, fmtKg } from '@/lib/format'
 import { InfoBox, WarnBox } from '../lsx/boxes'
 import { MODAL_Z } from '../mismatches/sign'
+import { NUM } from '@/lib/numberInput'
 
 /** Ô "Lý do sửa" — bắt buộc khi `required` (đổi số kg / số lượng). */
 export function EditReasonField({ required }: { required: boolean }) {
@@ -84,11 +85,11 @@ export default function EditWeighingModal({ p, onClose }: { p: Weighing; onClose
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Form.Item name="kgExpected" label="KL theo lệnh xuất (kg)" rules={[{ required: true, type: 'number', min: 0.0001, message: 'KL theo lệnh phải lớn hơn 0' }]}>
-            <InputNumber min={0} style={{ width: '100%' }} disabled={lock} suffix="kg" />
+            <InputNumber {...NUM} min={0} style={{ width: '100%' }} disabled={lock} suffix="kg" />
           </Form.Item>
           <Form.Item name="kgActual" label="KL cân thực tế (kg)" extra={!weighed ? 'Phiếu chưa cân — dùng "Nhập kết quả cân"' : undefined}
             rules={weighed ? [{ required: true, type: 'number', min: 0, message: 'Nhập số kg cân thực' }] : []}>
-            <InputNumber min={0} style={{ width: '100%' }} disabled={lock || !weighed} suffix="kg" />
+            <InputNumber {...NUM} min={0} style={{ width: '100%' }} disabled={lock || !weighed} suffix="kg" />
           </Form.Item>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>

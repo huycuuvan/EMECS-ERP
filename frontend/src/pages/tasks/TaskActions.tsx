@@ -12,6 +12,7 @@ import { PhotoInput } from '@/components/PhotoBlock'
 import { useAuth } from '@/lib/auth'
 import { fmtDelta, fmtKg, fmtNum } from '@/lib/format'
 import RecordLink from '@/peek/RecordLink'
+import { NUM } from '@/lib/numberInput'
 
 type Mode = 'accept' | 'reject' | 'depart' | 'galv' | 'delivery' | null
 /** Modal nằm trên drawer bản ghi (drawer zIndex 1000+). */
@@ -181,7 +182,7 @@ function FillGalvModal({ t, onClose }: { t: Task; onClose: () => void }) {
       </p>
       <Form form={form} layout="vertical">
         <Form.Item name="kg" label="Số cân bên mạ (kg)" rules={kgRule('Phải nhập số cân bên mạ (kg)')}>
-          <InputNumber style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(t.kgRequired)}`} suffix="kg" />
+          <InputNumber {...NUM} style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(t.kgRequired)}`} suffix="kg" />
         </Form.Item>
         {lech && <ReasonBlock notePh="VD: cân mạ hiển thị thấp hơn ~0,5%..."
           title={<>LỆCH {fmtDelta(delta)} so với cân xuất công ty (dung sai ±{tol} kg) — bắt buộc chọn lý do, hệ thống sẽ lập phiếu sai lệch chờ Quản lý ký.</>} />}
@@ -222,10 +223,10 @@ function FillDeliveryModal({ t, onClose }: { t: Task; onClose: () => void }) {
       </p>
       <Form form={form} layout="vertical">
         <Form.Item name="kgPicked" label="KG ký nhận với xưởng mạ" rules={kgRule('Phải nhập KG ký với mạ')}>
-          <InputNumber style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(t.kgRequired)}`} suffix="kg" />
+          <InputNumber {...NUM} style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(t.kgRequired)}`} suffix="kg" />
         </Form.Item>
         <Form.Item name="kgDelivered" label="KG khách ký nhận" rules={kgRule('Phải nhập KG khách ký')}>
-          <InputNumber style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(t.kgRequired)}`} suffix="kg" />
+          <InputNumber {...NUM} style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(t.kgRequired)}`} suffix="kg" />
         </Form.Item>
         {lech && <ReasonBlock notePh="VD: 40 kg để lại trên xe do khách kiểm thiếu..."
           title={<>{msgs.join(' · ')} — bắt buộc chọn lý do, hệ thống lập phiếu sai lệch chờ Quản lý ký.</>} />}

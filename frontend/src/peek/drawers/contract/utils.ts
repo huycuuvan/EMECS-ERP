@@ -4,9 +4,8 @@ import type { LedgerKey, Lsx } from '@/api/types'
 /** Modal mở từ drawer phải nằm trên chồng drawer (zIndex 1000 + 10/lớp). */
 export const MODAL_Z = 1500
 
-/* ---------- định dạng ô nhập tiền / số (1.234.567) ---------- */
-export const numFormatter = (v: number | string | undefined) => (v === undefined || v === '' ? '' : `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.'))
-export const numParser = (v: string | undefined) => Number((v ?? '').replace(/\./g, '').replace(/,/g, '.')) || 0
+/* ---------- định dạng ô nhập tiền / số kiểu Việt Nam (1.234.567,5) — xem lib/numberInput ---------- */
+export { numFormatter, numParser } from '@/lib/numberInput'
 export const positive = (msg: string) => ({ validator: (_: unknown, v: number | null) => (v && v > 0 ? Promise.resolve() : Promise.reject(new Error(msg))) })
 
 export const PAYMENT_TYPES = ['Tạm ứng theo hợp đồng', 'Thanh toán đợt', 'Tất toán']

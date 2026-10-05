@@ -11,6 +11,7 @@ import { daysLeft, fmtD, fmtDT, fmtKg, fmtNum } from '@/lib/format'
 import { numFormatter, numParser } from '@/peek/drawers/contract/utils'
 import { WarnBox } from './boxes'
 import { effDeadline } from './lsxUtil'
+import { NUM } from '@/lib/numberInput'
 
 const OTHER = 'Khác (ghi rõ)'
 
@@ -175,7 +176,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
               { required: true, type: 'number', min: 0.0001, message: 'Khối lượng (kg) phải lớn hơn 0.' },
               { validator: (_, v) => (v > rem ? Promise.reject(new Error(`Khối lượng phát lệnh ${fmtNum(v)} kg VƯỢT phần còn lại của hợp đồng (${fmtNum(rem)} kg chưa phát lệnh).`)) : Promise.resolve()) },
             ]}>
-              <InputNumber min={0} style={{ width: '100%' }} />
+              <InputNumber {...NUM} min={0} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="leadDays" label="Tiến độ (ngày)">
               <InputNumber min={1} style={{ width: '100%' }} />

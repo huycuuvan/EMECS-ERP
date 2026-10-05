@@ -5,6 +5,7 @@ import { useContracts, useOrder, useReceipts } from '@/api/hooks'
 import type { ID, OrderItem } from '@/api/types'
 import { fmtKg, fmtNum } from '@/lib/format'
 import '@/pages/orders/orderForm.css'
+import { NUM } from '@/lib/numberInput'
 
 export const perUnit = (i: OrderItem) => i.kgPerUnit || (i.qty ? i.kg / i.qty : 0)
 
@@ -57,7 +58,7 @@ export default function ContractGoods({ contractId, qtys, onQty }: {
                   <td className="r">{fmtNum(doneQty[i.id!] ?? 0)}</td>
                   {edit && <>
                     <td className="r" style={{ padding: '3px 4px' }}>
-                      <InputNumber<number> size="small" min={0} value={q} placeholder={left ? `còn ${fmtNum(left)}` : '0'}
+                      <InputNumber<number> {...NUM} size="small" min={0} value={q} placeholder={left ? `còn ${fmtNum(left)}` : '0'}
                         status={q != null && q > left ? 'warning' : undefined} style={{ width: '100%' }}
                         onChange={(v) => onQty!(i.id!, v)} />
                     </td>

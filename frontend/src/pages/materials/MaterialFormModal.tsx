@@ -4,6 +4,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { useCreateMaterial, useMaterials, useUpdateMaterial } from '@/api/hooksMaster'
 import type { MaterialReceipt } from '@/api/typesMaster'
 import { numFormatter, numParser, positive } from '@/peek/drawers/contract/utils'
+import { NUM } from '@/lib/numberInput'
 
 interface V { date: Dayjs; supplier: string; steelGrade?: string; spec?: string; qty?: number; unit?: string; kg: number; note?: string }
 const GRADES = ['SS400', 'Q345B', 'A572', 'CT3', 'S355JR']
@@ -50,7 +51,7 @@ export default function MaterialFormModal({ item, onClose }: { item?: MaterialRe
           </Form.Item>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr', gap: '0 12px' }}>
-          <Form.Item name="qty" label="Số lượng"><InputNumber<number> min={0} style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="qty" label="Số lượng"><InputNumber<number> {...NUM} min={0} style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="unit" label="Đơn vị"><AutoComplete options={UNITS.map((u) => ({ value: u }))} /></Form.Item>
           <Form.Item name="kg" label="Khối lượng (kg)" rules={[positive('Khối lượng phải lớn hơn 0')]}>
             <InputNumber<number> min={0} style={{ width: '100%' }} formatter={numFormatter} parser={numParser} suffix="kg" />

@@ -5,6 +5,7 @@ import type { Receipt } from '@/api/types'
 import { InfoBox } from '../lsx/boxes'
 import { MODAL_Z } from '../mismatches/sign'
 import { EditReasonField } from '../weighings/EditWeighingModal'
+import { NUM } from '@/lib/numberInput'
 
 type V = { qty: number; kg: number; note?: string; reason?: string }
 
@@ -30,10 +31,10 @@ export default function EditReceiptModal({ r, onClose }: { r: Receipt; onClose: 
       <Form form={form} layout="vertical" initialValues={{ qty: r.qty, kg: r.kg, note: r.note }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Form.Item name="qty" label="Số lượng SP" rules={[{ required: true, type: 'number', min: 0.0001, message: 'Số lượng phải lớn hơn 0' }]}>
-            <InputNumber min={0} style={{ width: '100%' }} />
+            <InputNumber {...NUM} min={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="kg" label="Khối lượng (kg)" rules={[{ required: true, type: 'number', min: 0.0001, message: 'Khối lượng phải lớn hơn 0' }]}>
-            <InputNumber min={0} style={{ width: '100%' }} suffix="kg" />
+            <InputNumber {...NUM} min={0} style={{ width: '100%' }} suffix="kg" />
           </Form.Item>
         </div>
         <Form.Item name="note" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>

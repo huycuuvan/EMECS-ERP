@@ -10,6 +10,7 @@ import { PhotoInput } from '@/components/PhotoBlock'
 import { fmtDelta, fmtKg, fmtNum, hoursOver } from '@/lib/format'
 import { ErrBox, InfoBox, WarnBox } from '../lsx/boxes'
 import AssignedGoods from './AssignedGoods'
+import { NUM } from '@/lib/numberInput'
 
 export const MAX_TRUCK = 10000 // tải trọng xe 10 tấn/chuyến
 export const PC_FILL_HOURS = 4 // phiếu cân quá 4 giờ chưa có số/ảnh → quá hạn (backend config.PC_FILL_HOURS)
@@ -73,7 +74,7 @@ export function CreateWeighingModal({ lsxId, receiptId, onClose }: { lsxId?: ID;
             { required: true, type: 'number', min: 0.0001, message: 'Nhập khối lượng theo lệnh xuất' },
             { validator: (_, v) => (v > MAX_TRUCK ? Promise.reject(new Error('Quá tải trọng xe: tối đa 10.000 kg/chuyến')) : Promise.resolve()) },
           ]}>
-            <InputNumber min={0} style={{ width: '100%' }} />
+            <InputNumber {...NUM} min={0} style={{ width: '100%' }} />
           </Form.Item>
           {kg > MAX_TRUCK && (
             <WarnBox title={<><AlertOctagon size={13} /> Quá tải trọng xe: {fmtKg(kg)} &gt; 10.000 kg/chuyến — chia thành nhiều chuyến</>} />
@@ -118,11 +119,11 @@ export function FillWeighingModal({ p, onClose }: { p: Weighing; onClose: () => 
         }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0 12px' }}>
           <Form.Item name="gross" label="Trọng lượng xe + hàng (kg)" rules={[{ required: true, type: 'number', min: 0.0001, message: 'Nhập tổng xe + hàng' }]}>
-            <InputNumber min={0} style={{ width: '100%' }} size="large" />
+            <InputNumber {...NUM} min={0} style={{ width: '100%' }} size="large" />
           </Form.Item>
           <Form.Item name="tare" label="Trọng lượng xe (kg)" dependencies={['gross']} rules={[{ required: true, type: 'number', min: 0, message: 'Nhập trọng lượng xe' },
             ({ getFieldValue }) => ({ validator: (_, v) => (v != null && getFieldValue('gross') != null && v > getFieldValue('gross') ? Promise.reject(new Error('Xe nặng hơn tổng?')) : Promise.resolve()) })]}>
-            <InputNumber min={0} style={{ width: '100%' }} size="large" />
+            <InputNumber {...NUM} min={0} style={{ width: '100%' }} size="large" />
           </Form.Item>
           <Form.Item label="Trọng lượng hàng (kg)">
             <div style={{ fontSize: 24, fontWeight: 800, fontFamily: 'var(--ff-mono)', color: bad ? 'var(--signal)' : 'var(--ink)' }}>

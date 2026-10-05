@@ -14,6 +14,7 @@ import { fmtKg } from '@/lib/format'
 import { InfoBox } from '../lsx/boxes'
 import { EditReasonField, MismatchPreview, usePendingMismatchId } from '../weighings/EditWeighingModal'
 import { MODAL_Z } from './TaskActions'
+import { NUM } from '@/lib/numberInput'
 
 const BEFORE_DEPART: Task['status'][] = ['Chờ xác nhận', 'Từ chối', 'Đã nhận']
 export const canEditTask = (t: Task) => BEFORE_DEPART.includes(t.status) || (!!t.filledAt && !t.lossAccepted)
@@ -80,7 +81,7 @@ export function EditTaskModal({ t, onClose }: { t: Task; onClose: () => void }) 
               <Select options={(meta?.drivers ?? []).map((d) => ({ value: d, label: d }))} />
             </Form.Item>
             <Form.Item name="kgRequired" label="KG yêu cầu" rules={[{ required: true, type: 'number', min: 0.01, message: 'KG yêu cầu phải lớn hơn 0' }]}>
-              <InputNumber min={0} style={{ width: '100%' }} suffix="kg" />
+              <InputNumber {...NUM} min={0} style={{ width: '100%' }} suffix="kg" />
             </Form.Item>
           </div>
           <Form.Item name="refId" label="Chứng từ gốc (PC-… / VC-…)"><Input /></Form.Item>
@@ -88,15 +89,15 @@ export function EditTaskModal({ t, onClose }: { t: Task; onClose: () => void }) 
         </>}
         {fix && (isMa ? (
           <Form.Item name="kgAtGalv" label={`Số cân bên mạ (kg) — yêu cầu ${fmtKg(t.kgRequired)}`} rules={[{ required: true, type: 'number', min: 0, message: 'Nhập số cân bên mạ' }]}>
-            <InputNumber min={0} style={{ width: '100%' }} suffix="kg" />
+            <InputNumber {...NUM} min={0} style={{ width: '100%' }} suffix="kg" />
           </Form.Item>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <Form.Item name="kgPicked" label="KG ký nhận với mạ" rules={[{ required: true, type: 'number', min: 0, message: 'Nhập KG ký với mạ' }]}>
-              <InputNumber min={0} style={{ width: '100%' }} suffix="kg" />
+              <InputNumber {...NUM} min={0} style={{ width: '100%' }} suffix="kg" />
             </Form.Item>
             <Form.Item name="kgDelivered" label="KG khách ký nhận" rules={[{ required: true, type: 'number', min: 0, message: 'Nhập KG khách ký' }]}>
-              <InputNumber min={0} style={{ width: '100%' }} suffix="kg" />
+              <InputNumber {...NUM} min={0} style={{ width: '100%' }} suffix="kg" />
             </Form.Item>
           </div>
         ))}
@@ -132,7 +133,7 @@ export function ReassignTaskModal({ t, onClose }: { t: Task; onClose: () => void
           <Select options={drivers.map((d) => ({ value: d, label: d + (d === t.driver ? ' (đang gán)' : '') }))} />
         </Form.Item>
         <Form.Item name="kgRequired" label="KG yêu cầu" rules={[{ required: true, type: 'number', min: 0.01, message: 'KG yêu cầu phải lớn hơn 0' }]}>
-          <InputNumber min={0} style={{ width: '100%' }} suffix="kg" />
+          <InputNumber {...NUM} min={0} style={{ width: '100%' }} suffix="kg" />
         </Form.Item>
         <Form.Item name="note" label="Ghi chú giao lại"><Input placeholder="VD: đổi sang xe 29C-123.45 do xe cũ bảo dưỡng" /></Form.Item>
       </Form>

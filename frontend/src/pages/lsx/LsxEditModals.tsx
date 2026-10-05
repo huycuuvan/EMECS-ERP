@@ -10,6 +10,7 @@ import { MODAL_Z } from '../mismatches/sign'
 import { EditReasonField } from '../weighings/EditWeighingModal'
 import { InfoBox } from './boxes'
 import { useLsxPerms } from './lsxUtil'
+import { NUM } from '@/lib/numberInput'
 
 type EV = { name: string; kgPlan: number; leadDays: number; deadline: Dayjs; reason?: string }
 
@@ -42,7 +43,7 @@ export function EditLsxModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
         <Form.Item name="name" label="Tên lệnh" rules={[{ required: true, whitespace: true, message: 'Nhập tên lệnh' }]}><Input /></Form.Item>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Form.Item name="kgPlan" label="KL kế hoạch (kg)" rules={[{ required: true, type: 'number', min: Math.max(x.kgDone, 0.0001), message: `Tối thiểu ${fmtKg(x.kgDone)} (đã xong)` }]}>
-            <InputNumber min={0} style={{ width: '100%' }} suffix="kg" />
+            <InputNumber {...NUM} min={0} style={{ width: '100%' }} suffix="kg" />
           </Form.Item>
           <Form.Item name="leadDays" label="Tiến độ (ngày)" rules={[{ required: true, type: 'number', min: 1, message: 'Tối thiểu 1 ngày' }]}>
             <InputNumber min={1} style={{ width: '100%' }} />
@@ -82,7 +83,7 @@ export function ReissueLsxModal({ x, onClose }: { x: Lsx; onClose: () => void })
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="kgPlan" label="KL kế hoạch (kg)" rules={[{ required: true, type: 'number', min: 0.0001, message: '> 0' }]}>
-            <InputNumber min={0} style={{ width: '100%' }} />
+            <InputNumber {...NUM} min={0} style={{ width: '100%' }} />
           </Form.Item>
         </div>
         <Form.Item name="note" label="Ghi chú phát lại (ghi vào nhật ký lệnh)">

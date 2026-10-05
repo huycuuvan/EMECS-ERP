@@ -14,6 +14,7 @@ import { fmtNum, money } from '@/lib/format'
 import { MODAL_Z, numFormatter, numParser, positive } from '@/peek/drawers/contract/utils'
 import { UNITS } from './customers'
 import './orderForm.css'
+import { NUM } from '@/lib/numberInput'
 
 const NEW = '__new__'
 type ItemVals = { name: string; unit: string; qty?: number; kgPerUnit?: number; price?: number; note?: string }
@@ -166,7 +167,7 @@ export default function OrderFormModal({ order, onClose, onSaved }: { order?: Or
                         </td>
                         <td>
                           <Form.Item name={[f.name, 'kgPerUnit']} rules={[positive('> 0')]}>
-                            <InputNumber<number> min={0} decimalSeparator="," style={{ width: '100%' }} />
+                            <InputNumber<number> {...NUM} min={0} style={{ width: '100%' }} />
                           </Form.Item>
                         </td>
                         <td className="r calc">{kgOf(it) ? fmtNum(kgOf(it)) : '—'}</td>
