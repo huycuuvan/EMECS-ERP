@@ -10,7 +10,7 @@
 .hdd-legend .sw.r { background: #fde3dc; border: 1px solid #e9a99a; }
 .hdd-dirty { color: var(--amber); }
 
-.hdd-paper { background: #fffefb; color: #14130f; border: 1px solid var(--rule); border-radius: 6px; box-shadow: 0 2px 14px rgba(20, 19, 15, .06);
+.hdd-paper { background: #ffffff; color: #17181c; border: 1px solid var(--rule); border-radius: 6px; box-shadow: 0 2px 14px rgba(23, 24, 28, .06);
   padding: 40px 54px; font-family: 'Times New Roman', Tinos, serif; font-size: 15px; line-height: 1.55; max-width: 900px; margin: 0 auto; }
 @media (max-width: 720px) { .hdd-paper { padding: 22px 16px; font-size: 14px; } }
 .hdd-paper p { margin: 2px 0; }
@@ -25,7 +25,7 @@
 .hdd-paper .hint { font-family: var(--ff-sans, system-ui); font-size: 11.5px; color: var(--ash); font-style: normal; margin: 2px 0 6px; }
 .hdd-paper .adv { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .hdd-paper .fixed-note { font-family: var(--ff-sans, system-ui); font-size: 12.5px; background: var(--paper-2); border: 1px dashed var(--rule);
-  border-radius: 8px; padding: 10px 12px; margin: 14px 0; color: var(--ink3, #4a4740); }
+  border-radius: 8px; padding: 10px 12px; margin: 14px 0; color: var(--ink3, #45474d); }
 .hdd-paper .sign { display: flex; justify-content: space-around; margin-top: 18px; }
 
 /* ô nhập trong trang */
@@ -39,12 +39,12 @@
 .fy.wide > *, .fr.wide > * { flex: 1; }
 .fr-reset { border: 0; background: transparent; color: var(--rust); cursor: pointer; padding: 0 3px; display: inline-flex; flex: none !important; }
 .hdd-paper.ro .fy, .hdd-paper.ro .fr { background: transparent; box-shadow: none; }
-.hdd-paper .ant-input-disabled, .hdd-paper .ant-input-number-disabled input, .hdd-paper .ant-picker-disabled input { color: #14130f !important; cursor: default; }
+.hdd-paper .ant-input-disabled, .hdd-paper .ant-input-number-disabled input, .hdd-paper .ant-picker-disabled input { color: #17181c !important; cursor: default; }
 
 /* bảng hàng hóa */
 .hdd-tblwrap { overflow-x: auto; margin: 6px 0; }
 .hdd-tbl { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 14px; }
-.hdd-tbl th, .hdd-tbl td { border: 1px solid #14130f; padding: 4px 6px; }
+.hdd-tbl th, .hdd-tbl td { border: 1px solid #17181c; padding: 4px 6px; }
 .hdd-tbl th { text-align: center; font-weight: 700; }
 .hdd-tbl .c { text-align: center; } .hdd-tbl .r { text-align: right; font-variant-numeric: tabular-nums; }
 .hdd-tbl td.auto { background: #fdf1ed; }

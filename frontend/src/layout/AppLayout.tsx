@@ -40,7 +40,8 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                   <Link key={i.id} to={i.path} onClick={onNavigate}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 8, marginBottom: 2,
-                      color: active ? C.paper : '#cfc9b9', background: active ? C.rust : 'transparent', fontSize: 13.5,
+                      color: active ? '#fff' : '#c9cbd1', background: active ? C.rust : 'transparent', fontSize: 13.5,
+                      boxShadow: active ? `inset 3px 0 0 ${C.yellow}` : undefined,
                       fontWeight: active ? 600 : 500, textDecoration: 'none',
                     }}>
                     <Icon size={16} />
@@ -110,7 +111,7 @@ export default function AppLayout() {
         </Sider>
       )}
       {mobileNav && (
-        <div onClick={() => setMobileNav(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,19,15,.45)', zIndex: 900 }}>
+        <div onClick={() => setMobileNav(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(23, 24, 28,.45)', zIndex: 900 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 264, height: '100%', background: C.ink }}>
             <Sidebar onNavigate={() => setMobileNav(false)} />
           </div>

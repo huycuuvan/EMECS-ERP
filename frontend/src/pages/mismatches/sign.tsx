@@ -13,9 +13,9 @@ export const MODAL_Z = 1500
 export const signedKg = (d: number) => (d > 0 ? '+' : d < 0 ? '−' : '') + fmtKg(Math.abs(d))
 
 export const SRC: Record<string, { icon: LucideIcon; bg: string; fg: string; color: string }> = {
-  'Trạm cân công ty': { icon: Scale, bg: 'var(--steel-soft)', fg: 'var(--steel)', color: '#4a5560' },
-  'Cân tại xưởng mạ': { icon: Factory, bg: 'var(--rust-soft)', fg: 'var(--rust)', color: '#c5400a' },
-  'Giao khách': { icon: PackageCheck, bg: 'var(--moss-soft)', fg: 'var(--moss)', color: '#2f5d3a' },
+  'Trạm cân công ty': { icon: Scale, bg: 'var(--steel-soft)', fg: 'var(--steel)', color: '#4b5563' },
+  'Cân tại xưởng mạ': { icon: Factory, bg: 'var(--rust-soft)', fg: 'var(--rust)', color: '#d11a24' },
+  'Giao khách': { icon: PackageCheck, bg: 'var(--moss-soft)', fg: 'var(--moss)', color: '#1e6b3a' },
 }
 export function SrcChip({ source }: { source: string }) {
   const m = SRC[source] ?? { icon: MapPin, bg: 'var(--steel-soft)', fg: 'var(--steel)' }

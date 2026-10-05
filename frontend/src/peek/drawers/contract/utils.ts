@@ -15,9 +15,9 @@ export const committedKg = (lsxs: Lsx[]) => lsxs.filter((x) => x.status !== 'T�
 
 /** 5 vị trí thép trong sổ luân chuyển (màu theo demo). */
 export const FLOW_COLS: { k: LedgerKey; label: string; color: string }[] = [
-  { k: 'kho', label: 'Tồn kho', color: '#4a5560' },
-  { k: 'duong', label: 'Đang tới mạ', color: '#9c7714' },
-  { k: 'ma', label: 'Tại xưởng mạ', color: '#c5400a' },
-  { k: 'giao', label: 'Đã giao khách', color: '#2f5d3a' },
-  { k: 'lech', label: 'Lệch ghi nhận', color: '#8a1f1f' },
+  { k: 'kho', label: 'Tồn kho', color: '#4b5563' },
+  { k: 'duong', label: 'Đang tới mạ', color: '#8a6100' },
+  { k: 'ma', label: 'Tại xưởng mạ', color: '#d11a24' },
+  { k: 'giao', label: 'Đã giao khách', color: '#1e6b3a' },
+  { k: 'lech', label: 'Lệch ghi nhận', color: '#a3121b' },
 ]

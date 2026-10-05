@@ -107,13 +107,13 @@ export default function Materials() {
       <Grid min={320}>
         <Panel title="Nhập theo tháng" sub="Tổng khối lượng nguyên liệu nhập mỗi tháng (tấn)"><MonthBars data={st?.byMonth ?? []} /></Panel>
         <Panel title="Theo nhà cung cấp" sub="kg nhập trong kỳ">
-          {st?.bySupplier.length ? <HBar color="#4a5560" items={st.bySupplier.map((g) => ({ label: `${g.key} (${g.count})`, value: g.kg }))} /> : <p className="caption">—</p>}
+          {st?.bySupplier.length ? <HBar color="#4b5563" items={st.bySupplier.map((g) => ({ label: `${g.key} (${g.count})`, value: g.kg }))} /> : <p className="caption">—</p>}
         </Panel>
         <Panel title="Theo mác thép" sub="kg nhập trong kỳ">
-          {st?.byGrade.length ? <HBar color="#c5400a" items={st.byGrade.map((g) => ({ label: `${g.key} (${g.count})`, value: g.kg }))} /> : <p className="caption">—</p>}
+          {st?.byGrade.length ? <HBar color="#d11a24" items={st.byGrade.map((g) => ({ label: `${g.key} (${g.count})`, value: g.kg }))} /> : <p className="caption">—</p>}
         </Panel>
         <Panel title="Nguyên liệu nhập vs SX hoàn thành" sub="SX hoàn thành = thành phẩm xưởng bàn giao kho (phiếu chuẩn bị hàng) trong kỳ">
-          <HBar color="#2f5d3a" items={[
+          <HBar color="#1e6b3a" items={[
             { label: 'Nguyên liệu nhập', value: st?.totalKg ?? 0 },
             { label: 'SX hoàn thành bàn giao kho', value: st?.producedKg ?? 0 },
           ]} />

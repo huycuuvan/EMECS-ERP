@@ -101,7 +101,7 @@ function GroupHead({ no, title, color, count, kg }: { no: string; title: string;
 function BalRow({ ok, children }: { ok: boolean; children: ReactNode }) {
   return (
     <tr>
-      <td colSpan={6} style={{ padding: '8px 12px', background: ok ? C.mossSoft : C.amberSoft, fontWeight: 700, fontSize: 11, color: ok ? C.moss : '#7a5c0e' }}>
+      <td colSpan={6} style={{ padding: '8px 12px', background: ok ? C.mossSoft : C.amberSoft, fontWeight: 700, fontSize: 11, color: ok ? C.moss : '#6b4e00' }}>
         <span className="mono" style={{ letterSpacing: '.06em' }}>ĐỐI ỨNG</span>&nbsp; {children}
       </td>
     </tr>

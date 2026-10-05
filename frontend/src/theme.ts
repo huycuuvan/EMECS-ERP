@@ -1,16 +1,18 @@
 import type { ThemeConfig } from 'antd'
 
-/** Bảng màu "Industrial Press" lấy từ bản demo (assets/css/style.css). Dùng qua CSS var trong global.css. */
+/** Bảng màu EMECS Việt Nam (phương án A): đỏ thương hiệu + vàng điểm nhấn trên nền trung tính. Tên khóa giữ như cũ
+ *  (rust = màu chính, signal = cảnh báo, paper/ink = nền/chữ). Đồng bộ với biến CSS trong index.css. */
 export const C = {
-  paper: '#f5f1e8', paper2: '#ece7d7', paper3: '#e0dac6', canvas: '#fbfaf5',
-  ink: '#14130f', ink2: '#1f1d18', ink3: '#2b2820',
-  ash: '#6b665b', ash2: '#918b7e', ash3: '#b8b2a2',
-  rule: '#d8d2c0', ruleSoft: '#e8e3d3', ruleHair: '#efebde',
-  rust: '#c5400a', rust2: '#e85a2a', rustSoft: '#f4e2d6', rustDeep: '#8a2d07',
-  moss: '#2f5d3a', mossSoft: '#dde8d8',
-  amber: '#9c7714', amberSoft: '#f0e6c4',
-  signal: '#8a1f1f', signalSoft: '#efd5d5',
-  steel: '#4a5560', steelSoft: '#e0e5ea',
+  paper: '#f6f6f5', paper2: '#ececeb', paper3: '#dfdfdd', canvas: '#ffffff',
+  ink: '#17181c', ink2: '#212329', ink3: '#2c2f36',
+  ash: '#62656d', ash2: '#8b8e96', ash3: '#b5b7bd',
+  rule: '#dcdde0', ruleSoft: '#e7e8ea', ruleHair: '#f0f0f1',
+  rust: '#d11a24', rust2: '#e30f1b', rustSoft: '#fbe3e4', rustDeep: '#9b111a',
+  moss: '#1e6b3a', mossSoft: '#e6f4ea',
+  amber: '#8a6100', amberSoft: '#fff3c4',
+  signal: '#a3121b', signalSoft: '#fde4e4',
+  steel: '#4b5563', steelSoft: '#e5e7eb',
+  yellow: '#ffd200', // vàng tia sét EMECS — điểm nhấn (vạch menu đang chọn), không dùng cho chữ trên nền sáng
 }
 
 export const FF_SANS = "'Geist', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif"
@@ -43,11 +45,11 @@ export const theme: ThemeConfig = {
     Layout: { siderBg: C.ink, headerBg: C.paper, bodyBg: C.paper, headerHeight: 60, headerPadding: '0 24px' },
     Menu: {
       darkItemBg: C.ink, darkSubMenuItemBg: C.ink, darkItemSelectedBg: C.rust,
-      darkItemColor: '#cfc9b9', darkItemHoverColor: '#ffffff', darkGroupTitleColor: C.ash2,
+      darkItemColor: '#c9cbd1', darkItemHoverColor: '#ffffff', darkGroupTitleColor: C.ash2,
       itemBorderRadius: 8,
     },
     Table: {
-      headerBg: C.paper2, headerColor: C.ash, rowHoverBg: '#f3eee0', borderColor: C.ruleHair,
+      headerBg: C.paper2, headerColor: C.ash, rowHoverBg: '#f7f7f8', borderColor: C.ruleHair,
       headerSplitColor: 'transparent', cellPaddingBlock: 12,
     },
     Card: { colorBorderSecondary: C.rule },

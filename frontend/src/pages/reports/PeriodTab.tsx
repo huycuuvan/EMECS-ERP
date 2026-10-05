@@ -83,7 +83,7 @@ export default function PeriodTab() {
         </div>
         <div className="stat5 stat5b">
           <div className="c1">
-            <StatCell dashed label="Trên xe đang tới mạ" value={fmtKg(onTruck)} color="#9c7714" onClick={() => setPopup('truck')} title="Bấm xem danh sách chuyến xe"
+            <StatCell dashed label="Trên xe đang tới mạ" value={fmtKg(onTruck)} color="#8a6100" onClick={() => setPopup('truck')} title="Bấm xem danh sách chuyến xe"
               cap={`${truckList.length} chuyến đã cân xuất, mạ chưa xác nhận — bấm xem phiếu`} />
           </div>
           <div className="c2">
@@ -96,12 +96,12 @@ export default function PeriodTab() {
 
         <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>Đối ứng kg theo tuần (4 tuần gần nhất)</div>
         <LegendRow items={[
-          { label: 'Cân xuất công ty (PC)', color: '#14130f' }, { label: 'Đến xưởng mạ', color: '#c5400a' }, { label: 'Giao khách', color: '#2f5d3a' },
+          { label: 'Cân xuất công ty (PC)', color: '#17181c' }, { label: 'Đến xưởng mạ', color: '#d11a24' }, { label: 'Giao khách', color: '#1e6b3a' },
         ]} />
         <GroupedBar height={250} unit="kg" labels={['3 tuần trước', '2 tuần trước', 'Tuần trước', 'Tuần này']} datasets={[
-          { name: 'Cân xuất công ty', color: '#14130f', values: series['Cân xuất đi mạ'] },
-          { name: 'Đến xưởng mạ', color: '#c5400a', values: series['Nhập xưởng mạ'] },
-          { name: 'Giao khách', color: '#2f5d3a', values: series['Giao khách'] },
+          { name: 'Cân xuất công ty', color: '#17181c', values: series['Cân xuất đi mạ'] },
+          { name: 'Đến xưởng mạ', color: '#d11a24', values: series['Nhập xưởng mạ'] },
+          { name: 'Giao khách', color: '#1e6b3a', values: series['Giao khách'] },
         ]} />
       </Panel>
 
@@ -134,7 +134,7 @@ function TruckModal({ open, rows, onClose }: { open: boolean; rows: Task[]; onCl
     {
       title: 'Trạng thái', dataIndex: 'status', render: (s, x) => {
         const over = !!x.fillDeadline && Date.now() > new Date(x.fillDeadline).getTime()
-        return <span style={over ? { color: 'var(--signal)', fontWeight: 700 } : { color: '#9c7714' }}>{s}{over ? ' · QUÁ HẠN ĐIỀN' : ''}</span>
+        return <span style={over ? { color: 'var(--signal)', fontWeight: 700 } : { color: '#8a6100' }}>{s}{over ? ' · QUÁ HẠN ĐIỀN' : ''}</span>
       },
     },
   ]

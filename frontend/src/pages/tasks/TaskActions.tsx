@@ -20,7 +20,7 @@ export const MODAL_Z = 1500
 
 const hint = { fontSize: 12.5, color: 'var(--ash)', margin: '0 0 12px' }
 const strong = { color: 'var(--rust-deep)', fontWeight: 700 }
-const warnBox = { background: 'var(--signal-soft)', border: '1px solid rgba(138,31,31,.35)', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }
+const warnBox = { background: 'var(--signal-soft)', border: '1px solid rgba(163, 18, 27,.35)', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }
 const warnTitle = { color: 'var(--signal)', fontWeight: 800, fontSize: 12, marginBottom: 8, display: 'flex', gap: 6, alignItems: 'flex-start' }
 
 /** Quản lý chấp nhận / không chấp nhận phiếu lệch của lái xe — ngay trên màn lái xe (không qua biên bản sai lệch). */

@@ -89,7 +89,7 @@ export default function FlowTab({ g, L }: { g: ContractAgg; L?: Ledger }) {
               <td colSpan={3}>SỐ DƯ HIỆN TẠI (kg)</td>
               {FLOW_COLS.map((col) => {
                 const v = L.final[col.k]
-                const color = col.k === 'giao' || v === 0 ? 'var(--moss)' : col.k === 'lech' ? 'var(--signal)' : '#9c7714'
+                const color = col.k === 'giao' || v === 0 ? 'var(--moss)' : col.k === 'lech' ? 'var(--signal)' : '#8a6100'
                 return <td key={col.k} style={{ color }}>{fmtNum(v)}{v === 0 ? ' ✓' : ''}</td>
               })}
             </tr>

@@ -93,7 +93,7 @@ export default function Mismatches() {
       rs[m.reason] = (rs[m.reason] || 0) + Math.abs(m.delta)
     })
     return {
-      bySrc: Object.entries(src).map(([label, value]) => ({ label, value, color: SRC[label]?.color ?? '#4a5560' })),
+      bySrc: Object.entries(src).map(([label, value]) => ({ label, value, color: SRC[label]?.color ?? '#4b5563' })),
       byReason: Object.entries(rs).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value),
       total: all.reduce((s, m) => s + Math.abs(m.delta), 0),
     }

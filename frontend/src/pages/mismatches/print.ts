@@ -7,14 +7,14 @@ export function printDoc(opts: { title: string; id: string; docSub?: string; pai
   const rows = opts.pairs.filter(([, v]) => v !== '' && v != null).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')
   w.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>${esc(opts.title)} ${esc(opts.id)}</title>
 <style>
-  body{font-family:'Times New Roman',serif;color:#14130f;margin:40px 56px;font-size:15px}
-  .co{display:flex;justify-content:space-between;font-size:13px;border-bottom:1.5px solid #14130f;padding-bottom:8px}
+  body{font-family:'Times New Roman',serif;color:#17181c;margin:40px 56px;font-size:15px}
+  .co{display:flex;justify-content:space-between;font-size:13px;border-bottom:1.5px solid #17181c;padding-bottom:8px}
   .co b{letter-spacing:.06em}
   h1{text-align:center;font-size:21px;margin:28px 0 4px;letter-spacing:.04em}
   .sub{text-align:center;font-style:italic;margin-bottom:22px;font-size:13.5px}
   table{width:100%;border-collapse:collapse}
-  td{border:1px solid #b8b2a2;padding:8px 12px;vertical-align:top}
-  td:first-child{width:34%;background:#f5f1e8;font-weight:600}
+  td{border:1px solid #b5b7bd;padding:8px 12px;vertical-align:top}
+  td:first-child{width:34%;background:#f6f6f5;font-weight:600}
   .note{margin-top:18px;font-size:12.5px;font-style:italic;color:#555}
   .sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:36px;text-align:center}
   .sign i{display:block;font-size:12.5px;margin-top:2px}

@@ -136,7 +136,7 @@ function MobileInner() {
       <Link className="back-desktop" to="/dashboard"><ArrowLeft />Về bản desktop</Link>
       <div className="mob-stage">
         <div className="stage-title">
-          <div className="kicker">Steel One · App hiện trường</div>
+          <div className="kicker">EMECS Việt Nam · App hiện trường</div>
           <h1>Giao diện điện thoại theo vai trò</h1>
           <p>Chọn vai trò để xem đúng màn hình người đó cầm trên tay — thao tác thật, dữ liệu đối ứng thật.</p>
         </div>

@@ -25,7 +25,7 @@ import { signedKg, useSignMismatchDialog } from './mismatches/sign'
 import CustomerTags from './orders/CustomerTags'
 import { TagFilter } from './customers/tags'
 
-const DONUT_COLORS = ['#2f5d3a', '#4a5560', '#e85a2a', '#9c7714', '#d8d2c2']
+const DONUT_COLORS = ['#1e6b3a', '#4b5563', '#e30f1b', '#8a6100', '#d4d5d9']
 const tons1 = (kg: number) => Math.round(kg / 100) / 10
 
 export default function Dashboard() {
@@ -329,12 +329,12 @@ function WeeklyChart() {
   return (
     <Panel title="Đối ứng 3 điểm cân theo tuần (tấn)" sub="Cân xuất công ty vs mạ xác nhận vs khách ký nhận — 4 tuần gần nhất">
       <GroupedBar height={230} unit="tấn" labels={labels} datasets={[
-        { name: 'Cân xuất công ty', color: '#14130f', values: pc },
-        { name: 'Mạ xác nhận', color: '#4a5560', values: ma },
-        { name: 'Khách ký nhận', color: '#c5400a', values: giao },
+        { name: 'Cân xuất công ty', color: '#17181c', values: pc },
+        { name: 'Mạ xác nhận', color: '#4b5563', values: ma },
+        { name: 'Khách ký nhận', color: '#d11a24', values: giao },
       ]} />
       <LegendRow items={[
-        { label: 'Cân xuất công ty', color: '#14130f' }, { label: 'Mạ xác nhận', color: '#4a5560' }, { label: 'Khách ký nhận', color: '#c5400a' },
+        { label: 'Cân xuất công ty', color: '#17181c' }, { label: 'Mạ xác nhận', color: '#4b5563' }, { label: 'Khách ký nhận', color: '#d11a24' },
       ]} />
     </Panel>
   )

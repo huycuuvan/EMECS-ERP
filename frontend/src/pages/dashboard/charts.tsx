@@ -3,9 +3,9 @@
 import { Tooltip } from 'antd'
 import type { ReactNode } from 'react'
 
-const GRID = '#e8e3d3'
-const MUTED = '#918b7e'
-const AXIS = '#6b665b'
+const GRID = '#e7e8ea'
+const MUTED = '#8b8e96'
+const AXIS = '#62656d'
 
 const axisLabel = (v: number) => (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(v < 10 ? 1 : 0))
 const nf = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 })
@@ -113,7 +113,7 @@ export function GroupedBar({ labels, datasets, height = 240, unit = '', width = 
 }
 
 /* ------------------------------------------------------------------ horizontal bar (nhãn dài, ví dụ lý do lệch) */
-export function HBar({ items, color = '#8a1f1f', unit = 'kg' }: { items: { label: string; value: number }[]; color?: string; unit?: string }) {
+export function HBar({ items, color = '#a3121b', unit = 'kg' }: { items: { label: string; value: number }[]; color?: string; unit?: string }) {
   const max = Math.max(1, ...items.map((x) => x.value))
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

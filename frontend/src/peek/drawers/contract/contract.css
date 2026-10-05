@@ -4,7 +4,7 @@
 .hdtabs { display: flex; gap: 5px; margin: 16px 0 6px; background: var(--paper-2); padding: 5px; border-radius: 12px; }
 .hdtab { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 8px; font-size: 12.5px; font-weight: 600; border: 0; border-radius: 9px; background: transparent; color: var(--ash); cursor: pointer; font-family: inherit; transition: all 130ms ease; }
 .hdtab:hover { color: var(--ink); }
-.hdtab.active { background: var(--ink); color: var(--paper); box-shadow: 0 2px 8px rgba(20, 19, 15, .25); }
+.hdtab.active { background: var(--ink); color: var(--paper); box-shadow: 0 2px 8px rgba(23, 24, 28, .25); }
 
 .hd-actbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding: 10px 12px; background: var(--canvas); border: 1px dashed var(--rule); border-radius: 12px; align-items: center; }
 .hd-actbar .lbl { font-family: var(--ff-mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ash); margin-right: 4px; }
@@ -41,7 +41,7 @@
 .hdledger .lg-up { background: #dde8d833; }
 .hdledger .lg-up b { color: var(--moss); }
 .hdledger .lg-down { background: #f4e2d633; }
-.hdledger .lg-down b { color: #9a4a12; }
+.hdledger .lg-down b { color: #a3121b; }
 .hdledger .lg-zero b::after { content: " \2713"; color: var(--moss); }
 .hdledger .lg-mut { color: var(--ash-3); }
 .hdledger tfoot td { background: var(--paper-2); border-top: 2px solid var(--ink); font-weight: 700; font-size: 12px; }
@@ -50,7 +50,7 @@
 .hdta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
 .hdta-box { border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; background: var(--canvas); align-self: start; }
 .hdta-h { padding: 9px 12px; font-family: var(--ff-mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: flex; align-items: center; gap: 7px; }
-.hdta-h.no { background: var(--rust-soft); color: #9a3608; }
+.hdta-h.no { background: var(--rust-soft); color: #9b111a; }
 .hdta-h.co { background: var(--moss-soft); color: var(--moss); }
 .hdta-box table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .hdta-box td { padding: 6px 12px; border-bottom: 1px solid var(--rule-hair); font-variant-numeric: tabular-nums; vertical-align: top; }
