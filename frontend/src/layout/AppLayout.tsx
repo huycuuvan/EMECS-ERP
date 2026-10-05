@@ -19,9 +19,9 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Link to="/dashboard" onClick={onNavigate} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 16px', textDecoration: 'none' }}>
-        <span style={{ width: 34, height: 34, borderRadius: 8, background: C.rust, color: C.paper, display: 'grid', placeItems: 'center', fontWeight: 800 }}>ST</span>
+        <img src="/logo-mark.png" alt="EMECS Việt Nam" width={36} height={36} style={{ flex: 'none' }} />
         <span>
-          <div style={{ color: C.paper, fontWeight: 800, letterSpacing: '.04em' }}>STEEL ONE</div>
+          <div style={{ color: C.paper, fontWeight: 800, letterSpacing: '.04em' }}>EMECS VIỆT NAM</div>
           <div className="mono" style={{ color: C.ash2, fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase' }}>Điều hành kết cấu thép</div>
         </span>
       </Link>
@@ -120,7 +120,7 @@ export default function AppLayout() {
         <Header style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${C.rule}`, position: 'sticky', top: 0, zIndex: 50 }}>
           <Button className="mobile-nav-btn" type="text" icon={<MenuIcon size={18} />} onClick={() => setMobileNav(true)} aria-label="Menu" />
           <div style={{ flex: 1, minWidth: 0, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            <b>{current?.section ?? 'STEEL ONE'}</b>{current && <span className="text-ash"> · {current.label}</span>}
+            <b>{current?.section ?? 'EMECS Việt Nam'}</b>{current && <span className="text-ash"> · {current.label}</span>}
           </div>
           {(hasRole('admin') || roles.some((r) => r === 'sx' || r === 'kho' || r === 'lx')) && (
             <Tooltip title="Giao diện điện thoại (lái xe / xưởng / kho)">

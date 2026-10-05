@@ -74,7 +74,7 @@ function MobileInner() {
 
   useEffect(() => {
     const prev = document.title
-    document.title = 'Bản mobile hiện trường — STEEL ONE'
+    document.title = 'Bản mobile hiện trường — EMECS Việt Nam'
     return () => { document.title = prev }
   }, [])
   useEffect(() => {

@@ -21,11 +21,11 @@ export function printDoc(opts: { title: string; id: string; docSub?: string; pai
   .sp{height:90px}
   @media print{body{margin:16mm}}
 </style></head><body>
-<div class="co"><div><b>STEEL ONE</b><br>Công ty cơ khí kết cấu thép</div><div style="text-align:right">Ngày in: ${esc(new Date().toLocaleString('vi-VN'))}</div></div>
+<div class="co"><div><b>CÔNG TY TNHH EMECS VIỆT NAM</b><br>Cơ khí kết cấu thép</div><div style="text-align:right">Ngày in: ${esc(new Date().toLocaleString('vi-VN'))}</div></div>
 <h1>${esc(opts.title)}</h1>
 <div class="sub">Số: ${esc(opts.id)}${opts.docSub ? ' · ' + esc(opts.docSub) : ''}</div>
 <table>${rows}</table>
-<div class="note">Chứng từ khởi tạo từ hệ thống STEEL ONE — chuỗi đối ứng: Sản xuất → Cân xuất → Gửi mạ → Nhận mạ → Giao khách.</div>
+<div class="note">Chứng từ khởi tạo từ hệ thống ERP EMECS Việt Nam — chuỗi đối ứng: Sản xuất → Cân xuất → Gửi mạ → Nhận mạ → Giao khách.</div>
 <div class="sign"><div><b>${esc(opts.signL)}</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div><div><b>${esc(opts.signR)}</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div></div>
 <script>window.onload=function(){setTimeout(function(){window.print()},150)}</script>
 </body></html>`)

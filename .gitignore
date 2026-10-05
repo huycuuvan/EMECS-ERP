@@ -28,3 +28,8 @@ backups/
 # Tài liệu khách hàng & bản demo gốc — chỉ lưu nội bộ, KHÔNG đưa lên Git (repo public)
 docs/
 Cơ khí thép/
+
+# Logo khách hàng — không đưa lên repo public, chép thẳng lên server
+frontend/public/logo-emecs.png
+frontend/public/logo-mark.png
+frontend/public/favicon.png

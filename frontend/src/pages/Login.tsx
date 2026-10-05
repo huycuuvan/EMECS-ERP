@@ -51,9 +51,9 @@ export default function Login() {
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: C.ink, padding: 16 }}>
       <div style={{ width: '100%', maxWidth: 420, background: C.paper, borderRadius: 16, padding: '32px 28px', boxShadow: '0 20px 60px rgba(0,0,0,.35)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <span style={{ width: 44, height: 44, borderRadius: 10, background: C.rust, color: C.paper, display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 18 }}>ST</span>
+          <img src="/logo-emecs.png" alt="EMECS Việt Nam" width={64} height={64} style={{ flex: 'none' }} />
           <div>
-            <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: '.03em' }}>STEEL ONE</div>
+            <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: '.03em' }}>EMECS VIỆT NAM</div>
             <div className="micro-u">Điều hành cơ khí kết cấu thép</div>
           </div>
         </div>
