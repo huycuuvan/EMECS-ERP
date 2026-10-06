@@ -2,16 +2,16 @@
    ngày hoàn thành, tạm ứng, lũy kế giao — tiền) · thao tác theo 4 bước: Soạn thảo → Đã gửi khách hàng → Đã nhận về →
    Đã hoàn thành · + Tiền về (chờ Quản lý duyệt) · Xuất Excel · Đơn hàng chờ làm HĐ. */
 import { Button, Input, Select, Table, Tag, type TableColumnsType } from 'antd'
-import { AlertTriangle, CheckCircle2, FilePen, Info, Search, ShoppingCart } from 'lucide-react'
+import { AlarmClock, AlertTriangle, CheckCircle2, FilePen, Info, Search, ShoppingCart } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTasks } from '@/api/hooks'
 import { useContractsByTag } from '@/api/hooksMaster'
 import { type Contract, type ContractRow, type ContractStatus } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
-import { AdvChip, CompleteChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
+import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtNum, fmtT, moneyShort } from '@/lib/format'
+import { fmtD, fmtNum, fmtT, moneyShort } from '@/lib/format'
 import { usePeek } from '@/peek/context'
 import { PaymentModal } from '@/peek/drawers/contract/modals'
 import { useContractFlow } from '@/peek/drawers/contract/useContractFlow'
@@ -89,7 +89,7 @@ export default function Contracts() {
 
   const columns: TableColumnsType<ContractRow> = [
     {
-      title: 'Hợp đồng', key: 'id', width: 150, fixed: 'left',
+      title: 'Hợp đồng', key: 'id', width: 160, fixed: 'left',
       render: (_, c) => (
         <>
           <div className="mono" style={{ fontWeight: 700 }}>{c.id}</div>
@@ -98,37 +98,28 @@ export default function Contracts() {
       ),
     },
     {
-      title: 'Khách hàng', key: 'customer',
+      title: 'Khách hàng', key: 'customer', width: 220,
       render: (_, c) => <>{c.customer}<CustomerTags name={c.customer} customerId={c.customerId} /><div className="sub-soft num">{fmtNum(c.totalQty)} {c.unit} · {fmtT(c.totalKg)}</div></>,
     },
     {
-      title: 'Giá trị', key: 'value', align: 'right', sorter: (a, b) => a.value - b.value,
+      title: 'Giá trị', key: 'value', width: 120, align: 'right', sorter: (a, b) => a.value - b.value,
       render: (_, c) => <span className="num"><b>{moneyShort(c.value)}</b><div className="sub-soft">{fmtNum(c.unitPrice)}₫/kg</div></span>,
     },
     {
-      title: 'Ngày hoàn thành', key: 'complete', width: 170,
+      title: 'Ngày hoàn thành', key: 'complete', width: 150,
       sorter: (a, b) => (a.completeBy ? new Date(a.completeBy).getTime() : 9e15) - (b.completeBy ? new Date(b.completeBy).getTime() : 9e15),
-      render: (_, c) => <CompleteChip info={c.complete} />,
+      render: (_, c) => <CompleteCell c={c} />,
     },
+    { title: 'Tạm ứng', key: 'adv', width: 190, render: (_, c) => <AdvCell c={c} /> },
     {
-      title: 'Tạm ứng', key: 'adv',
-      render: (_, c) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          {c.adv.state === 'missing' && <AlertTriangle size={12} color="var(--signal)" />}
-          {c.adv.state === 'ok' && <CheckCircle2 size={12} color="var(--moss)" />}
-          <AdvChip adv={c.adv} />
-        </span>
-      ),
-    },
-    {
-      title: 'Giao hàng lũy kế', key: 'deliv',
+      title: 'Giao hàng lũy kế', key: 'deliv', width: 180,
       render: (_, c) => {
         const g = agg[c.id]
         return <MiniProg pct={g?.pctDelivered ?? 0} tone="warn" top={`${fmtT(g?.deliveredKg)} / ${fmtT(c.totalKg)}`} bottom={`${g?.trips ?? 0} chuyến đã giao`} />
       },
     },
     {
-      title: 'Tiền về lũy kế', key: 'paid',
+      title: 'Tiền về lũy kế', key: 'paid', width: 190,
       render: (_, c) => {
         const g = agg[c.id]
         if (!g) return null
@@ -138,8 +129,8 @@ export default function Contracts() {
             {c.pendingPayment > 0 && <div style={{ color: 'var(--amber)', fontWeight: 600 }}>+ {moneyShort(c.pendingPayment)} chờ duyệt</div>}</>} />
       },
     },
-    { title: 'Trạng thái', key: 'status', render: (_, c) => <StatusTag status={c.status} /> },
-    { title: '', key: 'act', width: 200, render: (_, c) => rowActions(c) },
+    { title: 'Trạng thái', key: 'status', width: 170, render: (_, c) => <StatusTag status={c.status} /> },
+    { title: '', key: 'act', width: 220, render: (_, c) => rowActions(c) },
   ]
 
   return (
@@ -182,7 +173,7 @@ export default function Contracts() {
           {quick && <Tag closable onClose={() => setQuick('')} color="volcano" style={{ margin: 0 }}>{QUICK_LABEL[quick]}</Tag>}
         </div>
         <Table<ContractRow> rowKey="id" size="middle" loading={isLoading} columns={columns} dataSource={rows}
-          scroll={{ x: 1480 }} pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false}
+          scroll={{ x: 1600 }} tableLayout="fixed" pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false}
           rowClassName={(c) => 'clickable-row' + (c.complete.state === 'overdue' ? ' row-alert' : '')}
           onRow={(r) => ({ onClick: () => open('hd', r.id) })}
           locale={{ emptyText: 'Không có hợp đồng phù hợp bộ lọc.' }} />
@@ -195,5 +186,43 @@ export default function Contracts() {
 
       {paying && <PaymentModal contract={paying} onClose={() => setPaying(null)} />}
     </>
+  )
+}
+
+/* Ô gọn 2 dòng (dòng chính đậm + dòng phụ nhỏ) — cùng kiểu cột lũy kế, không dùng chip dài để khỏi tràn cột. */
+const line1 = { fontWeight: 700, fontSize: 13, lineHeight: 1.35 } as const
+const line2 = { fontSize: 11.5, lineHeight: 1.35, marginTop: 2 } as const
+
+function CompleteCell({ c }: { c: ContractRow }) {
+  const k = c.complete
+  if (k.state === 'none' || !c.completeBy) return <span className="text-ash">Chưa có ngày</span>
+  const d = k.days ?? 0
+  const [txt, color, icon] = k.state === 'ok' ? ['Đã hoàn thành', 'var(--moss)', <CheckCircle2 key="i" size={11} />]
+    : k.state === 'overdue' ? [`QUÁ HẠN ${Math.abs(d)} ngày`, 'var(--signal)', <AlertTriangle key="i" size={11} />]
+      : k.state === 'soon' ? [d <= 0 ? 'Đến hạn hôm nay' : `Còn ${d} ngày`, 'var(--amber)', <AlarmClock key="i" size={11} />]
+        : [`Còn ${d} ngày`, 'var(--ash)', null]
+  return (
+    <div>
+      <div className="num" style={line1}>{fmtD(c.completeBy)}</div>
+      <div className={k.state === 'overdue' ? 'chip-overdue' : undefined}
+        style={{ ...line2, color, fontWeight: k.state === 'fine' ? 400 : 700, display: 'flex', alignItems: 'center', gap: 4 }}>{icon}{txt}</div>
+    </div>
+  )
+}
+
+function AdvCell({ c }: { c: ContractRow }) {
+  const a = c.adv
+  const [main, ...rest] = a.label.split(' · ')
+  const color = a.state === 'ok' ? 'var(--moss)' : a.state === 'missing' ? 'var(--signal)' : a.state === 'none' ? 'var(--ash)' : 'var(--ink)'
+  return (
+    <div>
+      <div style={{ ...line1, color, display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+        {a.state === 'ok' && <CheckCircle2 size={12} style={{ flex: 'none', marginTop: 3 }} />}
+        {a.state === 'missing' && <AlertTriangle size={12} style={{ flex: 'none', marginTop: 3 }} />}
+        <span>{main}</span>
+      </div>
+      {rest.length > 0 && <div className="sub-soft" style={{ marginTop: 2 }}>{rest.join(' · ')}</div>}
+      {a.state !== 'none' && c.advance.pct > 0 && !rest.length && <div className="sub-soft" style={{ marginTop: 2 }}>Tạm ứng {fmtNum(c.advance.pct)}%</div>}
+    </div>
   )
 }
