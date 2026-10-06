@@ -661,6 +661,13 @@ def create_receipt(db: Session, lsx_id: str, qty: float | None, kg: float | None
             kg = round(sum(l["kg"] for l in lines), 3)
     if not kg or kg <= 0:
         raise HTTPException(400, "Nhập số lượng từng mặt hàng (hoặc khối lượng) lớn hơn 0")
+    # chỉ chuẩn bị giao được hàng xưởng ĐÃ BÁO LÀM XONG của lệnh này (không giao trước hàng chưa sản xuất)
+    prev = db.scalars(select(Receipt).where(Receipt.lsx_id == x.id)).all()
+    done_prev = sum(stock_kg_of_receipts(db, prev).values()) if prev else 0
+    left = (x.kg_done or 0) - done_prev
+    if kg > left + 0.5:
+        raise HTTPException(400, f"Lệnh {x.id}: xưởng mới báo xong {fmt_kg(x.kg_done or 0)}, đã chuẩn bị {fmt_kg(done_prev)} "
+                                 f"— chỉ còn chuẩn bị được {fmt_kg(max(left, 0))}, không giao {fmt_kg(kg)}")
     r = Receipt(id=next_id(db, "PTN", "ptn"), lsx_id=lsx_id, contract_id=x.contract_id, date=utcnow(),
                 qty=qty or 0, kg=kg, by=actor(KHO), note=note or "",
                 items=json.dumps(lines, ensure_ascii=False) if lines else None)

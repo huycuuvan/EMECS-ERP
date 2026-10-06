@@ -21,6 +21,14 @@ def _new_lsx(c, kg=10_000):
     return x["id"]
 
 
+def _produce(c, lid, kg):
+    """Xưởng nhận lệnh + báo sản lượng hôm nay (phải báo xong mới chuẩn bị giao hàng được), rồi về Quản lý."""
+    login(c, "sx")
+    c.post(f"/api/lsx/{lid}/accept")
+    assert c.post(f"/api/lsx/{lid}/daily", json={"kg": kg}).status_code == 200
+    login(c, "ql")
+
+
 def test_daily_entries_sum_and_edit_time(c):
     lid = _new_lsx(c)
     today = datetime.now(VN).date()
@@ -61,8 +69,10 @@ def test_8pm_alert_lists_lsx_without_today_entry(c):
 
 
 def test_receipt_kg_only_and_task_auto_kg_arrival_delivery(c):
+    lid = _new_lsx(c)
+    _produce(c, lid, 1000)
     login(c, "kho")
-    r = c.post("/api/receipts", json={"lsxId": "LSX-SD06", "kg": 1000})  # không cần số lượng SP
+    r = c.post("/api/receipts", json={"lsxId": lid, "kg": 1000})  # không cần số lượng SP
     assert r.status_code == 200 and r.json()["kg"] == 1000
     login(c, "ql")
     base = {"type": "di_ma", "driver": "Lê Đức Vận", "contractId": "HD-2609-06", "refId": "PC-0201"}
@@ -89,6 +99,7 @@ def test_receipt_items_sum_to_kg(c):
         {"name": "Bản mã", "qty": 200, "unit": "Bộ", "kgPerUnit": 10, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 12000}).json()
+    _produce(c, x["id"], 12000)
     ids = [i["id"] for i in c.get(f"/api/orders/{o['id']}").json()["items"]]
     login(c, "kho")
     r = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": ids[0], "qty": 4}, {"itemId": ids[1], "qty": 30}]}).json()
@@ -103,6 +114,7 @@ def test_prepare_goods_to_warehouse_weigh_5pct_and_billing(c):
         {"name": "Cột", "qty": 40, "unit": "Bộ", "kgPerUnit": 250, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 10000}).json()
+    _produce(c, x["id"], 10000)
     item = c.get(f"/api/orders/{o['id']}").json()["items"][0]["id"]
     r = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": item, "qty": 8}]}).json()  # QL giao 2.000 kg
     pcs = [p for p in c.get("/api/weighings").json() if p["receiptId"] == r["id"]]
@@ -137,6 +149,7 @@ def test_prepare_goods_assigns_driver_task(c):
         {"name": "Cột", "qty": 10, "unit": "Bộ", "kgPerUnit": 100, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 1000}).json()
+    _produce(c, x["id"], 1000)
     item = c.get(f"/api/orders/{o['id']}").json()["items"][0]["id"]
     r = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": item, "qty": 5}], "driver": "Lê Đức Vận",
                                       "vehiclePlate": "29c-999.99", "arriveAt": "2099-01-01T08:00:00+07:00"}).json()
@@ -155,6 +168,7 @@ def test_prepare_goods_deviation_not_tracked_as_stock(c):
         {"name": "Cột", "qty": 70, "unit": "Bộ", "kgPerUnit": 100, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 7000}).json()
+    _produce(c, x["id"], 7000)
     item = c.get(f"/api/orders/{o['id']}").json()["items"][0]["id"]
     r = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": item, "qty": 70}]}).json()  # giao 7.000
     w = next(p for p in c.get("/api/weighings").json() if p["receiptId"] == r["id"])
@@ -169,6 +183,7 @@ def test_kho_ao_records_all_deviations_including_prep(c):
         {"name": "Cột", "qty": 100, "unit": "Bộ", "kgPerUnit": 100, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 10000}).json()
+    _produce(c, x["id"], 10000)
     item = c.get(f"/api/orders/{o['id']}").json()["items"][0]["id"]
     r1 = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": item, "qty": 70}]}).json()  # 7.000
     r2 = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": item, "qty": 20}]}).json()  # 2.000
@@ -225,3 +240,14 @@ def test_missed_yesterday_flag(c):
     assert c.post(f"/api/lsx/{lid}/daily", json={"day": yday, "kg": 0}).status_code == 200
     x = c.get(f"/api/lsx/{lid}").json()
     assert not x["missedYesterday"] and x["yesterday"]["kg"] == 0 and yday not in x["missedDays"]
+
+
+def test_receipt_cannot_exceed_reported_output(c):
+    """Không chuẩn bị giao hàng xưởng chưa báo làm xong của lệnh."""
+    x = next(l for l in c.get("/api/lsx").json() if l["status"] == "Đang SX")
+    left = x["kgDone"] - sum(r["kg"] for r in c.get("/api/receipts").json() if r["lsxId"] == x["id"])
+    login(c, "kho")
+    r = c.post("/api/receipts", json={"lsxId": x["id"], "kg": left + 1000})
+    assert r.status_code == 400 and "chỉ còn chuẩn bị được" in r.json()["detail"]
+    if left > 1:
+        assert c.post("/api/receipts", json={"lsxId": x["id"], "kg": left}).status_code == 200

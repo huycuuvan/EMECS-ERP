@@ -23,10 +23,12 @@ export function flowOf(x: Lsx, receipts: Receipt[], weighings: Weighing[], tasks
   return { rcs, pcs, diMa, giao }
 }
 
+const WAITING = ['', 'còn ở xưởng', 'chờ cân xuất', 'đang tới mạ / lệch cân', 'còn tại mạ']
+
 export function FlowChain({ x, f }: { x: Lsx; f: FlowData }) {
   const steps = [
     { label: 'SX báo xong', who: 'Xưởng SX', kg: x.kgDone, color: C.steel },
-    { label: 'Kho tiếp nhận', who: `${f.rcs.length} phiếu PTN`, kg: sum(f.rcs, stockKgOf), color: C.steel },
+    { label: 'Chuẩn bị hàng', who: `${f.rcs.length} phiếu chuẩn bị`, kg: sum(f.rcs, stockKgOf), color: C.steel },
     { label: 'Cân xuất lên xe', who: `${f.pcs.length} phiếu cân`, kg: sum(f.pcs, (p) => p.kgActual), color: C.amber },
     { label: 'Xưởng mạ nhận', who: `${f.diMa.length} chuyến`, kg: sum(f.diMa, (t) => t.kgAtGalv), color: C.rust },
     { label: 'Khách ký nhận', who: `${f.giao.length} chuyến giao`, kg: sum(f.giao, (t) => t.kgDelivered), color: C.moss },
@@ -35,13 +37,18 @@ export function FlowChain({ x, f }: { x: Lsx; f: FlowData }) {
     <>
       <div style={{ display: 'flex', alignItems: 'stretch', overflowX: 'auto', margin: '4px 0 10px' }}>
         {steps.map((st, i) => {
-          const d = i > 0 ? st.kg - steps[i - 1].kg : 0
+          // hàng còn nằm lại ở bước trước (bình thường, chưa đi tiếp) — chỉ khi bước sau LỚN hơn bước trước mới là bất thường
+          const left = i > 0 ? steps[i - 1].kg - st.kg : 0
           return (
             <div key={st.label} style={{ display: 'flex', flex: 1 }}>
               {i > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 2px', minWidth: 44 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 4px', minWidth: 70, textAlign: 'center' }}>
                   <span style={{ fontSize: 14, color: C.ash }}>→</span>
-                  <span className="num" style={{ fontSize: 9, fontWeight: 700, color: eq(d, 0) ? C.moss : C.signal }}>{eq(d, 0) ? 'khớp ✓' : signed(d)}</span>
+                  {eq(left, 0)
+                    ? <span style={{ fontSize: 9.5, fontWeight: 700, color: C.moss }}>khớp ✓</span>
+                    : left > 0
+                      ? <span className="num" style={{ fontSize: 9.5, color: C.ash, lineHeight: 1.25 }}><b style={{ color: C.ink3 }}>{fmtNum(left)} kg</b><br />{WAITING[i]}</span>
+                      : <span className="num" style={{ fontSize: 9.5, fontWeight: 700, color: C.signal, lineHeight: 1.25 }}>vượt {fmtNum(-left)} kg<br />kiểm tra lại</span>}
                 </div>
               )}
               <div style={{ flex: 1, minWidth: 96, background: C.canvas, border: `1px solid ${C.rule}`, borderTop: `3px solid ${st.color}`, borderRadius: 10, padding: '8px 10px' }}>
@@ -54,7 +61,7 @@ export function FlowChain({ x, f }: { x: Lsx; f: FlowData }) {
         })}
       </div>
       <div style={{ fontSize: 10.5, color: C.ash, margin: '-4px 0 6px' }}>
-        Chênh giữa 2 bước liền kề = hàng đang nằm lại ở bước trước (tồn kho, đang trên đường, còn tại mạ) hoặc lệch có biên bản.
+        Số giữa 2 ô = hàng chưa đi tiếp, còn nằm lại ở bước trước (còn ở xưởng, chờ cân, đang tới mạ, còn tại mạ) — bình thường khi hàng đang đi dần. Chữ đỏ "vượt" = bước sau nhiều hơn bước trước, cần kiểm tra.
       </div>
     </>
   )

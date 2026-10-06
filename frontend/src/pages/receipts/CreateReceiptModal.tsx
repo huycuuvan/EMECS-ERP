@@ -55,10 +55,11 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
 
   return (
     <Modal open title="Chuẩn bị hàng — giao xuống kho" okText="Giao xuống kho" cancelText="Hủy" onCancel={onClose} width={860}
-      confirmLoading={create.isPending} onOk={() => form.submit()} okButtonProps={{ disabled: !lsxs.length }}>
+      confirmLoading={create.isPending} onOk={() => form.submit()} okButtonProps={{ disabled: !lsxs.length || over > 0.5 }}>
       {!lsxs.length && all.length ? <p className="caption" style={{ marginTop: 12 }}>Chưa có lệnh SX nào đang sản xuất / hoàn thành để tiếp nhận.</p> : (
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}
           onFinish={async (v) => {
+            if (over > 0.5) return  // không giao trước hàng xưởng chưa báo xong
             const items = lines.map((i) => ({ itemId: i.id!, qty: qtys[i.id!] || 0 }))
             const dispatch = v.driver ? { driver: v.driver, vehiclePlate: v.plate || undefined, galvanizerId: v.galvId,
               arriveAt: v.arriveAt?.format(), fillDeadline: v.fillDeadline?.format() } : {}
@@ -73,11 +74,11 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
           <ContractGoods contractId={cid} qtys={qtys} onQty={(id, val) => setQtys((p) => ({ ...p, [id]: val }))} />
           <Form.Item name="lsxId" label="Lệnh sản xuất của hợp đồng (đang SX / hoàn thành)" rules={[{ required: true, message: 'Chọn lệnh SX' }]}>
             <Select placeholder={cid ? 'Chọn lệnh SX' : 'Chọn hợp đồng trước'}
-              options={lsxOfC.map((l) => ({ value: l.id, label: `${l.id} · ${l.name} — còn nhận được ${fmtNum(Math.max(0, (l.kgDone || 0) - recOf(l.id)))} kg` }))} />
+              options={lsxOfC.map((l) => ({ value: l.id, label: `${l.id} · ${l.name} — còn chuẩn bị được ${fmtNum(Math.max(0, (l.kgDone || 0) - recOf(l.id)))} kg` }))} />
           </Form.Item>
           {x && (
             <InfoBox>
-              <Factory size={12} style={{ verticalAlign: -2 }} /> SX đã báo xong <b>{fmtKg(x.kgDone || 0)}</b> — kho đã nhận <b>{fmtKg(rec)}</b> — còn có thể nhận <b>{fmtKg(remain)}</b>
+              <Factory size={12} style={{ verticalAlign: -2 }} /> SX đã báo xong <b>{fmtKg(x.kgDone || 0)}</b> — đã chuẩn bị <b>{fmtKg(rec)}</b> — còn chuẩn bị được <b>{fmtKg(remain)}</b>
               <br />HĐ <b>{x.contractId}</b> · hạn SX {fmtD(x.extension ? x.extension.to : x.deadline)}
             </InfoBox>
           )}
@@ -89,7 +90,10 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
               <InputNumber {...NUM} min={0} placeholder="Nhập số lượng ở bảng trên — hoặc gõ thẳng kg" style={{ width: '100%' }} disabled={lines.length > 0} />
             </Form.Item>
           </div>
-          {over > 0 && <WarnBox title={<><AlertOctagon size={13} /> Vượt số SX đã báo {fmtNum(over)} kg — kiểm tra lại với xưởng</>} />}
+          {over > 0.5 && <WarnBox title={<><AlertOctagon size={13} /> Vượt {fmtNum(over)} kg so với hàng xưởng đã báo làm xong — không giao xuống kho được</>}>
+            <span style={{ fontSize: 13 }}>Lệnh này xưởng mới báo xong <b>{fmtKg(x?.kgDone || 0)}</b>, đã chuẩn bị <b>{fmtKg(rec)}</b> → chỉ còn chuẩn bị được <b>{fmtKg(remain)}</b>.
+              Giảm số lượng lần này, hoặc chờ xưởng nhập thêm sản lượng.</span>
+          </WarnBox>}
           <p className="caption" style={{ margin: '0 0 10px' }}>Bấm <b>Giao xuống kho</b> → kho nhận phiếu cân <b>Chờ cân</b> với số lượng này; kho cân xe, chụp phiếu.
             Chỉ định tài xế → tài xế nhận ngay thẻ đi mạ gắn phiếu cân này. Cân thiếu trong 5% là đạt; <b>thiếu quá 5% hoặc dư</b> so với số giao → kho nhập lý do, Quản lý duyệt mới tính công nợ.</p>
           <div style={{ border: '1px solid var(--rule)', borderRadius: 10, padding: '10px 12px 0', marginBottom: 12, background: 'var(--paper)' }}>
