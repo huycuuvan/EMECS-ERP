@@ -9,18 +9,18 @@ import ChangePasswordModal from '@/components/ChangePasswordModal'
 import { useAuth } from '@/lib/auth'
 import { relTime } from '@/lib/format'
 import { C } from '@/theme'
-import { homeFor, NAV, NAV_FLAT } from './nav'
+import { desktopHomeFor, NAV, NAV_FLAT } from './nav'
 import PushToggle from '@/notify/PushToggle'
 import { useOpenNotification } from '@/notify/Realtime'
 
 const { Sider, Header, Content } = Layout
 
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const { level } = useAuth()
+  const { level, user } = useAuth()
   const { pathname } = useLocation()
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Link to="/dashboard" onClick={onNavigate} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 16px', textDecoration: 'none' }}>
+      <Link to={desktopHomeFor(user?.permissions)} onClick={onNavigate} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 16px', textDecoration: 'none' }}>
         <img src="/logo-mark.png" alt="EMECS Việt Nam" width={36} height={36} style={{ flex: 'none' }} />
         <span>
           <div style={{ color: C.paper, fontWeight: 800, letterSpacing: '.04em' }}>EMECS VIỆT NAM</div>
@@ -155,7 +155,7 @@ export default function AppLayout() {
         </Header>
         <Content className="app-content">
           {/* mỗi vai trò chỉ thấy đúng màn của mình — vào màn không có quyền (gõ đường dẫn) → về màn của vai trò */}
-          {allowed ? <Outlet /> : <Navigate to={homeFor(user?.permissions, roles)} replace />}
+          {allowed ? <Outlet /> : <Navigate to={desktopHomeFor(user?.permissions)} replace />}
         </Content>
       </Layout>
       <ChangePasswordModal open={pwOpen || !!user?.mustChangePassword} forced={!!user?.mustChangePassword} onClose={() => setPwOpen(false)} />

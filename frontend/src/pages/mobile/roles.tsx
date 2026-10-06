@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { desktopHomeFor } from '@/layout/nav'
+import { useAuth } from '@/lib/auth'
 import {
   useDashboard, useLsxAccept, useLsxList, useMismatches, useMovementLog, useNotifications, useOverdueDocs, useReadAllNotifications,
   useReceipts, useTaskAccept,
@@ -34,6 +36,7 @@ interface ShellProps {
 }
 export function Shell({ role, sub, alerts, tab, setTab, badges = {}, loading, children, onRoleSheet }: ShellProps) {
   const m = useMob()
+  const { user } = useAuth()
   const R = ROLES[role]
   const red = alerts.filter((a) => a.red).length
   const { data: notifs = [] } = useNotifications()
@@ -49,7 +52,7 @@ export function Shell({ role, sub, alerts, tab, setTab, badges = {}, loading, ch
           <span className="hd-ic"><R.icon /></span>
           <span className="hd-tt"><b>{R.label}<ChevronDown /></b><span>{sub ?? R.sub}</span></span>
         </button>
-        <Link to="/dashboard" className="m-iconbtn phone-only" aria-label="Về bản desktop"><Monitor /></Link>
+        <Link to={desktopHomeFor(user?.permissions)} className="m-iconbtn phone-only" aria-label="Về bản desktop"><Monitor /></Link>
         <button type="button" className="m-iconbtn" onClick={openBell} aria-label="Thông báo">
           <Bell />{unread + alerts.length > 0 && <span className="bdg">{unread + alerts.length > 9 ? '9+' : unread + alerts.length}</span>}
         </button>

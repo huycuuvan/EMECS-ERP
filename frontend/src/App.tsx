@@ -5,6 +5,7 @@ import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from
 import { api } from '@/api/client'
 import RealtimeBridge from '@/notify/Realtime'
 import { notifTarget } from '@/notify/target'
+import { homeFor } from '@/layout/nav'
 import { useAuth } from '@/lib/auth'
 import AppLayout from '@/layout/AppLayout'
 import Login from '@/pages/Login'
@@ -49,6 +50,12 @@ function OpenFromNotification() {
   return <Navigate to={notifTarget(id === '-' ? null : id, user?.permissions, roles)} replace />
 }
 
+/** Mở địa chỉ gốc / sai đường dẫn → trang mặc định theo vai trò (xưởng, lái xe → bản điện thoại). */
+function HomeRedirect() {
+  const { user, roles } = useAuth()
+  return <Navigate to={homeFor(user?.permissions, roles)} replace />
+}
+
 const PageLoading = () => <div style={{ minHeight: '60vh', display: 'grid', placeItems: 'center' }}><Spin size="large" /></div>
 
 export default function App() {
@@ -61,7 +68,7 @@ export default function App() {
       <Route path="/mobile" element={<RequireAuth><Mobile /></RequireAuth>} />
       <Route path="/xem/:id" element={<RequireAuth><OpenFromNotification /></RequireAuth>} />
       <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<HomeRedirect />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/don-hang" element={<Orders />} />
         <Route path="/hop-dong" element={<Contracts />} />
@@ -79,7 +86,7 @@ export default function App() {
         <Route path="/danh-muc/khach-hang" element={<Customers />} />
         <Route path="/danh-muc/xe" element={<Vehicles />} />
         <Route path="/danh-muc/xuong-ma" element={<Galvanizers />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<HomeRedirect />} />
       </Route>
     </Routes>
     </Suspense>

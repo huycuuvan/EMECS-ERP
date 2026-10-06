@@ -7,7 +7,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useMeta } from '@/api/hooks'
 import type { RoleId } from '@/api/types'
 import { useAuth } from '@/lib/auth'
-import { homeFor } from '@/layout/nav'
+import { desktopHomeFor, homeFor } from '@/layout/nav'
 import { Detail } from './mobile/details'
 import { Ctx, KIND_META, type Kind, type MobCtx, type MRole, refKindOf, ROLE_ORDER, ROLES, type SheetSpec } from './mobile/core'
 import { DriverView, KhoView, QlView, SxView } from './mobile/roles'
@@ -126,7 +126,7 @@ function MobileInner() {
           })}
         </div>
         <div className="btn-row" style={{ marginTop: 16 }}>
-          <Link to="/dashboard" className="btn-m"><Monitor />Về bản desktop</Link>
+          <Link to={desktopHomeFor(user?.permissions)} className="btn-m"><Monitor />Về bản desktop</Link>
         </div>
       </>
     ),
@@ -137,13 +137,13 @@ function MobileInner() {
 
   if (!allowed.length) return (
     <div className="mob-root" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', color: 'var(--paper)', textAlign: 'center', padding: 24 }}>
-      <div>Tài khoản của bạn không có vai trò hiện trường (xưởng, kho, lái xe).<br /><Link to="/dashboard" style={{ color: 'var(--rust-2)' }}>Về bản desktop</Link></div>
+      <div>Tài khoản của bạn không có vai trò hiện trường (xưởng, kho, lái xe).<br /><Link to={desktopHomeFor(user?.permissions)} style={{ color: 'var(--rust-2)' }}>Về bản desktop</Link></div>
     </div>
   )
 
   return (
     <div className="mob-root">
-      <Link className="back-desktop" to="/dashboard"><ArrowLeft />Về bản desktop</Link>
+      <Link className="back-desktop" to={desktopHomeFor(user?.permissions)}><ArrowLeft />Về bản desktop</Link>
       <div className="mob-stage">
         <div className="stage-title">
           <div className="kicker">EMECS Việt Nam · App hiện trường</div>
