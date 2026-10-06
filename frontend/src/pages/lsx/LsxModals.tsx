@@ -11,6 +11,7 @@ import { daysLeft, fmtD, fmtDT, fmtKg, fmtNum } from '@/lib/format'
 import { numFormatter, numParser } from '@/peek/drawers/contract/utils'
 import { WarnBox } from './boxes'
 import { effDeadline } from './lsxUtil'
+import LeadHint from './LeadHint'
 import { NUM } from '@/lib/numberInput'
 
 const OTHER = 'Khác (ghi rõ)'
@@ -178,19 +179,12 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
             ]}>
               <InputNumber {...NUM} min={0} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item name="leadDays" label="Tiến độ (ngày)">
+            <Form.Item name="leadDays" label="Tiến độ (số ngày)">
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
           </div>
-          {(() => {
-            const c = contracts.find((z) => z.id === cid)
-            if (!c?.completeBy) return null
-            const end = dayjs().add(leadDays || 7, 'day')
-            const by = dayjs(c.completeBy)
-            return end.isAfter(by, 'day')
-              ? <WarnBox>Hạn lệnh ({end.format('DD/MM')}) <b>vượt ngày hoàn thành đơn {by.format('DD/MM/YYYY')}</b> — rút ngắn tiến độ hoặc báo khách.</WarnBox>
-              : <p className="caption" style={{ margin: 0 }}>Ngày hoàn thành đơn: <b>{by.format('DD/MM/YYYY')}</b> · hạn lệnh {end.format('DD/MM')}.</p>
-          })()}
+          {cid && <LeadHint completeBy={contracts.find((z) => z.id === cid)?.completeBy} lead={leadDays}
+            onFit={(d) => form.setFieldValue('leadDays', d)} />}
         </Form>
       )}
     </Modal>

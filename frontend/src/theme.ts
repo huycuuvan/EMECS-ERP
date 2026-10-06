@@ -53,6 +53,11 @@ export const theme: ThemeConfig = {
       headerSplitColor: 'transparent', cellPaddingBlock: 12,
     },
     Card: { colorBorderSecondary: C.rule },
+    // viền ô đang nhập dùng than chì — màu chính là đỏ nên viền đỏ dễ bị hiểu nhầm là đang báo lỗi
+    Input: { activeBorderColor: C.ink3, hoverBorderColor: C.ash2, activeShadow: '0 0 0 2px rgba(23, 24, 28, .08)' },
+    InputNumber: { activeBorderColor: C.ink3, hoverBorderColor: C.ash2, activeShadow: '0 0 0 2px rgba(23, 24, 28, .08)' },
+    Select: { activeBorderColor: C.ink3, hoverBorderColor: C.ash2, activeOutlineColor: 'rgba(23, 24, 28, .08)' },
+    DatePicker: { activeBorderColor: C.ink3, hoverBorderColor: C.ash2, activeShadow: '0 0 0 2px rgba(23, 24, 28, .08)' },
     Button: { primaryShadow: 'none', defaultShadow: 'none', fontWeight: 600 },
     Tag: { defaultBg: C.paper2 },
     Drawer: { colorBgElevated: C.paper },

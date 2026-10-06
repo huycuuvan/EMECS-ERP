@@ -6,6 +6,7 @@ import { useMemo } from 'react'
 import { useCreateLsx, useMeta, useRecordPayment, useUpdateContract } from '@/api/hooks'
 import type { Contract, Lsx } from '@/api/types'
 import { useAuth } from '@/lib/auth'
+import LeadHint from '@/pages/lsx/LeadHint'
 import { fmtNum, money } from '@/lib/format'
 import { usePeek } from '../../context'
 import { committedKg, MODAL_Z, numFormatter, numParser, PAYMENT_TYPES, positive } from './utils'
@@ -98,6 +99,7 @@ export function LsxFromContractModal({ contract: c, lsxs, onClose }: { contract:
   const { open } = usePeek()
   const rem = Math.max(0, c.totalKg - committedKg(lsxs))
   const kg = Form.useWatch('kg', form)
+  const lead = Form.useWatch('lead', form)
   const over = (kg || 0) > rem
   const submit = async () => {
     const v = await form.validateFields()
@@ -122,8 +124,9 @@ export function LsxFromContractModal({ contract: c, lsxs, onClose }: { contract:
           <Form.Item name="kg" label="Khối lượng (kg)" rules={[positive('Khối lượng (kg) phải lớn hơn 0.')]}>
             <InputNumber<number> style={{ width: '100%' }} min={0} formatter={numFormatter} parser={numParser} />
           </Form.Item>
-          <Form.Item name="lead" label="Tiến độ (ngày)"><InputNumber<number> style={{ width: '100%' }} min={1} /></Form.Item>
+          <Form.Item name="lead" label="Tiến độ (số ngày)"><InputNumber<number> style={{ width: '100%' }} min={1} /></Form.Item>
         </div>
+        <LeadHint completeBy={c.completeBy} lead={lead} onFit={(d) => form.setFieldValue('lead', d)} />
       </Form>
       {over && (
         <Alert type="error" showIcon
