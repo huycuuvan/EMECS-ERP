@@ -147,7 +147,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
     const c = contracts.find((z) => z.id === id)
     const seq = lsxs.filter((l) => l.contractId === id).length + 1
     const r = remainOf(id)
-    form.setFieldsValue({ name: `Lệnh SX ${c?.code ?? ''} — đợt ${seq}`, kg: r > 0 ? r : undefined })
+    form.setFieldsValue({ name: `Lệnh SX ${c?.code || c?.number || c?.id || ''} — đợt ${seq}`, kg: r > 0 ? r : undefined })
   }
 
   return (

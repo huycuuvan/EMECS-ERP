@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import serializers as S
-from .config import (PC_TOLERANCE_PCT, COMPLETE_WARN_DAYS, CONTRACT_EXTEND_DAYS, CT_DONE, CT_RECEIVED, CT_SENT, CT_WAIT, FILL_HOURS, PAY_OK,
+from .config import (PC_TOLERANCE_PCT, COMPLETE_WARN_DAYS, CONTRACT_EXTEND_DAYS, CT_DONE, DELIVER_DONE_PCT, CT_RECEIVED, CT_SENT, CT_WAIT, FILL_HOURS, PAY_OK,
                      PAY_PENDING, PAY_REJECTED, PC_FILL_HOURS, PEOPLE, TOLERANCE_KG)
 from .db import utcnow
 from .security import actor
@@ -84,27 +84,28 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
 
     produced_kg = _sum(lsxs, lambda x: x.kg_done)
     produced_qty = _sum(lsxs, lambda x: x.qty_done)
-    eff = stock_kg_of_receipts(db, rcs)
-    received_kg = _sum(rcs, lambda x: eff[x.id])
+    # kho nhận = số Quản lý GIAO xuống kho; chờ cân = phiếu chưa cân (lệch cân đã duyệt KHÔNG thành tồn kho)
+    received_kg = _sum(rcs, lambda x: x.kg)
+    weighed_rc = {p.receipt_id for p in pcs if p.receipt_id and p.kg_actual is not None}
+    pending_kg = _sum([r for r in rcs if r.id not in weighed_rc], lambda x: x.kg)
     weighed_kg = _sum([p for p in pcs if p.kg_actual is not None], lambda p: p.kg_actual)
     sent_galv_kg = _sum([t for t in di_ma if t.kg_at_galv is not None], lambda t: t.kg_at_galv)
     in_transit_kg = _sum([t for t in di_ma if t.kg_at_galv is None and t.status != "Từ chối"], lambda t: t.kg_required)
     picked_kg = _sum([t for t in giao if t.kg_picked is not None], lambda t: t.kg_picked)
     delivered_kg = _sum([t for t in giao if t.kg_delivered is not None], lambda t: t.kg_delivered)
     at_galv_kg = sent_galv_kg - picked_kg
-    stock_kg = received_kg - weighed_kg
+    stock_kg = pending_kg
     bill_kg, bill_pending = billed_kg(db, cid)
-    # công nợ theo KG CÂN XUẤT đã đạt (±5%) / đã được Quản lý duyệt
-    delivered_value = round(bill_kg * (c.unit_price or 0))
-    paid_total = _sum(approved(c.payments), lambda p: p.amount)
+    # công nợ theo KG CÂN XUẤT đã đạt (±5%) / đã được Quản lý duyệt × đơn giá từng mặt hàng + VAT
+    bill = billing(db, c)
+    delivered_value, paid_total, debt = bill["deliveredValue"], bill["paidTotal"], bill["debt"]
     pending_pay = _sum([p for p in c.payments if p.status == PAY_PENDING], lambda p: p.amount)
-    debt = delivered_value - paid_total
 
     checks = [
-        ("SX bàn giao vs Kho tiếp nhận", produced_kg, received_kg, "SX báo hoàn thành", "Kho đã tiếp nhận",
-         "Chênh = hàng còn ở xưởng chưa bàn giao", False),
-        ("Kho tiếp nhận vs Cân xuất đi mạ", received_kg, weighed_kg, "Kho tiếp nhận", "Đã cân xuất",
-         "Chênh = tồn kho chờ cân", False),
+        ("SX báo xong vs Chuẩn bị hàng", produced_kg, received_kg, "SX báo hoàn thành", "Quản lý giao kho",
+         "Chênh = hàng xưởng làm xong, chưa chuẩn bị giao", False),
+        ("Chuẩn bị hàng vs Cân xuất đi mạ", received_kg, weighed_kg + pending_kg, "Quản lý giao kho", "Đã cân xuất + chờ cân",
+         "Chênh = lệch cân xuất so với số giao (thiếu ≤5% đạt, quá 5% / dư Quản lý đã duyệt)", False),
         ("CÂN XUẤT CÔNG TY vs CÂN ĐẾN XƯỞNG MẠ", weighed_kg, sent_galv_kg + in_transit_kg, "Cân xuất tại công ty",
          "Mạ xác nhận + đang trên đường", "Số cân 2 đầu phải khớp từng chuyến", True),
         ("GỬI MẠ vs LẤY RA TỪ MẠ", sent_galv_kg, picked_kg + at_galv_kg, "Đã gửi vào mạ", "Đã lấy ra + còn tại mạ",
@@ -126,12 +127,13 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
         "sentGalvKg": sent_galv_kg, "inTransitToGalvKg": in_transit_kg, "atGalvKg": at_galv_kg,
         "pickedKg": picked_kg, "deliveredKg": delivered_kg, "stockKg": stock_kg,
         "deliveredValue": delivered_value, "paidTotal": paid_total, "debt": debt, "pendingPayment": pending_pay,
+        "deliveredValuePre": bill["deliveredValuePre"], "deliveredVat": bill["deliveredVat"], "billedValues": bill["billedValues"],
         "billedKg": bill_kg, "billPendingKg": bill_pending,
         "complete": complete_info(c), "deliver": deliver_info(c, delivered_kg),
         "extensions": [S.extension(e) for e in contract_extensions(db, cid)],
         "pctProduced": round(produced_kg / tk * 100) if tk else 0,
         "pctDelivered": round(delivered_kg / tk * 100) if tk else 0,
-        "pctPaid": round(paid_total / c.value * 100) if c.value else 0,
+        "pctPaid": round(paid_total / value_vat(c) * 100) if c.value else 0,
         "checks": checks_out,
         "mismatches": [S.mismatch(m) for m in db.scalars(select(Mismatch).where(Mismatch.contract_id == cid))],
         "adv": advance_info(c),
@@ -155,7 +157,7 @@ def contract_flow_ledger(db: Session, cid: str) -> dict:
     rcs = db.scalars(select(Receipt).where(Receipt.contract_id == cid)).all()
     eff = stock_kg_of_receipts(db, rcs)
     for r in rcs:
-        ev.append({"date": r.date, "id": r.id, "type": "ptn", "kg": eff[r.id], "label": "SX bàn giao — kho tiếp nhận",
+        ev.append({"date": r.date, "id": r.id, "type": "ptn", "kg": eff[r.id], "label": "Chuẩn bị hàng — giao xuống kho",
                    "delta": {"kho": eff[r.id]}, "source": True})
     for p in db.scalars(select(Weighing).where(Weighing.contract_id == cid)):
         if p.kg_actual is None:
@@ -198,7 +200,7 @@ def movement_log(db: Session, cid: str | None, frm: datetime | None, to: datetim
     q = lambda m: select(m).where(m.contract_id == cid) if cid else select(m)
     for r in db.scalars(q(Receipt)):
         out.append({"kind": "Chuẩn bị hàng", "type": "ptn", "id": r.id, "contractId": r.contract_id, "date": r.date,
-                    "kg": r.kg, "desc": f"SX bàn giao {r.qty:g} SP", "who": r.by})
+                    "kg": r.kg, "desc": f"Quản lý giao kho {fmt_kg(r.kg)}" + (f" · {r.qty:g} bộ" if r.qty else ""), "who": r.by})
     for p in db.scalars(q(Weighing)):
         out.append({"kind": "Cân xuất đi mạ", "type": "pc", "id": p.id, "contractId": p.contract_id, "date": p.date,
                     "kg": p.kg_actual, "who": p.by,
@@ -248,7 +250,8 @@ def complete_info(c: Contract) -> dict:
 
 def deliver_info(c: Contract, delivered_kg: float = 0) -> dict:
     """HẠN GIAO HÀNG cho khách: xong khi khách đã ký nhận đủ kg hợp đồng (hoặc kế toán đã hoàn thành HĐ)."""
-    done = c.status == CT_DONE or (bool(c.total_kg) and delivered_kg >= c.total_kg - 0.5)
+    # hao hụt cân luôn có → khách ký ≥ DELIVER_DONE_PCT% khối lượng hợp đồng là giao đủ
+    done = c.status == CT_DONE or (bool(c.total_kg) and delivered_kg >= c.total_kg * DELIVER_DONE_PCT / 100 - 0.5)
     return _deadline(c.deliver_by, done, "hạn giao hàng")
 
 
@@ -397,7 +400,7 @@ def create_order(db: Session, customer: str, items: list[dict], file: str | None
                  customer_id: int | None = None, vat_pct: float = 10) -> Order:
     cu = ensure_customer(db, customer, customer_id)
     customer = cu.name
-    o = Order(id=next_id(db, "DH", "dh", month_code=True), customer=customer, code=code or "MOI", date=utcnow(),
+    o = Order(id=next_id(db, "DH", "dh", month_code=True), customer=customer, code=(code or "").strip(), date=utcnow(),
               file=file or None, status="Chốt đơn", vat_pct=vat_pct,
               contract_id=None, note=note or "", customer_id=cu.id)
     _set_items(o, items)
@@ -655,7 +658,7 @@ def create_lsx(db: Session, cid: str, name: str | None, qty: float | None, kg: f
         raise HTTPException(400, f"HĐ {cid} còn {fmt_kg(max((c.total_kg or 0) - committed, 0))} chưa phát lệnh — không phát {fmt_kg(kg)}")
     lead = lead_days or 7
     now = utcnow()
-    x = Lsx(id=next_id(db, "LSX", "lsx"), contract_id=cid, name=name or f"Lệnh SX {c.code}", assigned_at=now,
+    x = Lsx(id=next_id(db, "LSX", "lsx"), contract_id=cid, name=name or f"Lệnh SX {c.code or c.number or c.id}", assigned_at=now,
             assigned_by=actor(QL), lead_days=lead, deadline=add_days(now, lead), status="Chờ nhận", qty_plan=qty or 0,
             kg_plan=kg, qty_done=0, kg_done=0)
     _log(x, f"{actor(QL)} phát lệnh — tiến độ {lead:02d} ngày")
@@ -763,8 +766,8 @@ def create_receipt(db: Session, lsx_id: str, qty: float | None, kg: float | None
     if not kg or kg <= 0:
         raise HTTPException(400, "Nhập số lượng từng mặt hàng (hoặc khối lượng) lớn hơn 0")
     # chỉ chuẩn bị giao được hàng xưởng ĐÃ BÁO LÀM XONG của lệnh này (không giao trước hàng chưa sản xuất)
-    prev = db.scalars(select(Receipt).where(Receipt.lsx_id == x.id)).all()
-    done_prev = sum(stock_kg_of_receipts(db, prev).values()) if prev else 0
+    # đã chuẩn bị = số Quản lý GIAO xuống kho (phần cân lệch là hao hụt đã duyệt, không chuẩn bị bù)
+    done_prev = _sum(db.scalars(select(Receipt).where(Receipt.lsx_id == x.id)).all(), lambda r: r.kg)
     left = (x.kg_done or 0) - done_prev
     if kg > left + 0.5:
         raise HTTPException(400, f"Lệnh {x.id}: xưởng mới báo xong {fmt_kg(x.kg_done or 0)}, đã chuẩn bị {fmt_kg(done_prev)} "
@@ -819,7 +822,8 @@ def create_mismatch(db: Session, source, ref_type, ref_id, cid, expected, actual
 
 def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | None, reason: str | None,
                   reason_note: str | None, signer_lai_xe: str | None = None, gross: float | None = None,
-                  tare: float | None = None, weigh_in=None, weigh_out=None, plate: str | None = None) -> Weighing:
+                  tare: float | None = None, weigh_in=None, weigh_out=None, plate: str | None = None,
+                  signer_boc_xep: str | None = None) -> Weighing:
     """Kho cân xe: hàng = (xe + hàng) − xe. So với số Quản lý giao (kg_expected): thiếu trong PC_TOLERANCE_PCT% → đạt;
     thiếu quá PC_TOLERANCE_PCT% hoặc LỚN HƠN số giao → bắt buộc lý do + biên bản chờ Quản lý duyệt.
     Chỉ phiếu đạt / đã duyệt mới tính vào công nợ."""
@@ -848,6 +852,9 @@ def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | N
         p.photo = photo
     if signer_lai_xe:
         p.signer_lai_xe = signer_lai_xe
+    if signer_boc_xep is not None:
+        p.signer_boc_xep = signer_boc_xep.strip()
+    p.signer_kho = actor(KHO)  # thủ kho thực hiện cân
     exp = p.kg_expected or 0
     over = exp and p.kg_actual > exp + 0.001  # cân LỚN HƠN số giao (bất kỳ) → lý do + duyệt
     short = exp and exp - p.kg_actual > exp * PC_TOLERANCE_PCT / 100  # cân NHỎ HƠN quá 5% → lý do + duyệt
@@ -855,13 +862,9 @@ def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | N
         if not (reason or "").strip():
             raise HTTPException(400, ("Cân lớn hơn số Quản lý giao" if over else f"Cân thiếu quá {PC_TOLERANCE_PCT:g}% so với số Quản lý giao")
                                 + " — bắt buộc nhập lý do")
-        if p.receipt_id:  # Chuẩn bị hàng: chỉ cần Quản lý duyệt / từ chối, chưa đưa vào sai lệch / kho ảo
-            p.status, p.reason, p.reason_note, p.reject_reason = "Chờ QL duyệt", reason, reason_note or "", None
-            p.approved_by = p.approved_at = None
-        else:
-            m = create_mismatch(db, "Trạm cân công ty", "pc", p.id, p.contract_id, exp, p.kg_actual,
-                                reason, reason_note, actor(KHO), "Kho")
-            p.mismatch_id, p.status = m.id, "Lệch — chờ ký"
+        # một quy tắc cho mọi phiếu cân ở trạm công ty: Quản lý duyệt / từ chối (duyệt mới tính công nợ + kho ảo)
+        p.status, p.reason, p.reason_note, p.reject_reason = "Chờ QL duyệt", reason, reason_note or "", None
+        p.approved_by = p.approved_at = None
         notify(db, f"{p.id}: cân xuất {'dư' if over else 'thiếu'} {(p.kg_actual - exp) / exp * 100:+.1f}% — chờ Quản lý duyệt",
                f"{p.receipt_id or ''} · giao {fmt_kg(exp)} · cân {fmt_kg(p.kg_actual)} · {reason}", "warning", roles="admin")
     else:
@@ -913,7 +916,8 @@ def _billed_notify(db: Session, p: Weighing) -> None:
     c = db.get(Contract, p.contract_id)
     if c:
         notify(db, f"{p.id}: cân xuất {fmt_kg(p.kg_actual)} — đã tính vào công nợ HĐ {c.id}",
-               f"Ghi tăng {money_short((p.kg_actual or 0) * (c.unit_price or 0))}", "success", roles="admin,kt", ref=c.id)
+               f"Ghi tăng {money_short(weighing_value(db, c, p) * (1 + (c.vat_pct or 0) / 100))} (gồm VAT)", "success",
+               roles="admin,kt", ref=c.id)
 
 
 def billed_kg(db: Session, cid: str) -> tuple[float, float]:
@@ -927,6 +931,45 @@ def billed_kg(db: Session, cid: str) -> tuple[float, float]:
         elif p.status in ("Lệch — chờ ký", "Chờ QL duyệt"):
             pend += p.kg_actual
     return ok, pend
+
+
+def value_vat(c: Contract) -> float:
+    """Giá trị hợp đồng SAU THUẾ (khách chuyển tiền gồm cả VAT)."""
+    return (c.value or 0) + round((c.value or 0) * (c.vat_pct or 0) / 100)
+
+
+def item_prices(db: Session, c: Contract) -> dict[int, float]:
+    """Đơn giá ₫/kg THEO TỪNG MẶT HÀNG: theo bản hợp đồng (kế toán sửa giá) — không thì theo đơn hàng."""
+    from .contract_doc import document
+    try:
+        return {ln["itemId"]: ln["amount"] / ln["kg"] for ln in document(db, c)["lines"] if ln["kg"]}
+    except Exception:  # noqa: BLE001 — thiếu đơn / dữ liệu cũ → dùng đơn giá bình quân
+        return {}
+
+
+def weighing_value(db: Session, c: Contract, p: Weighing, prices: dict[int, float] | None = None) -> float:
+    """Giá trị (trước thuế) 1 phiếu cân xuất: KG thực cân × đơn giá bình quân CỦA ĐÚNG CÁC MẶT HÀNG trong phiếu
+    chuẩn bị hàng (cân lệch thì phân bổ đều theo tỉ lệ). Phiếu không có dòng hàng → đơn giá bình quân hợp đồng."""
+    import json
+    r = db.get(Receipt, p.receipt_id) if p.receipt_id else None
+    lines = json.loads(r.items) if r and r.items else []
+    prices = item_prices(db, c) if prices is None else prices
+    kg = sum(ln["kg"] for ln in lines)
+    val = sum(ln["kg"] * prices.get(ln["itemId"], c.unit_price or 0) for ln in lines)
+    rate = val / kg if kg else (c.unit_price or 0)
+    return round((p.kg_actual or 0) * rate)
+
+
+def billing(db: Session, c: Contract) -> dict:
+    """Công nợ: giá trị hàng đã giao (cân xuất đạt / đã duyệt, theo từng mặt hàng) + VAT − tiền về đã duyệt."""
+    prices = item_prices(db, c)
+    per = {p.id: weighing_value(db, c, p, prices) for p in db.scalars(select(Weighing).where(
+        Weighing.contract_id == c.id, Weighing.status == "Đã cân", Weighing.kg_actual.is_not(None)))}
+    pre = sum(per.values())
+    vat = round(pre * (c.vat_pct or 0) / 100)
+    paid = _sum(approved(c.payments), lambda p: p.amount)
+    return {"billedValues": per, "deliveredValuePre": pre, "deliveredVat": vat, "deliveredValue": pre + vat,
+            "paidTotal": paid, "debt": pre + vat - paid}
 
 
 # ---------------------------------------------------------------- thẻ công việc lái xe
@@ -987,6 +1030,8 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
     if fill_deadline <= arrive_at:
         raise HTTPException(400, "Hạn trả phiếu phải sau giờ lái xe có mặt")
     kg = kg_required if kg_required else _kg_from_ref(db, type_, ref_id)
+    if type_ == "di_ma" and ref_id and (w := db.get(Weighing, ref_id)) and not w.signer_lai_xe:
+        w.signer_lai_xe = driver
     t = Task(id=next_id(db, "VC", "vc"), type=type_, driver=driver, contract_id=cid, ref_id=ref_id,
              assigned_at=utcnow(), status="Chờ xác nhận", kg_required=kg or 0, note=note or "",
              vehicle_plate=(vehicle_plate or "").strip().upper() or None,

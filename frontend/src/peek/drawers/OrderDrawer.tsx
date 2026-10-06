@@ -43,7 +43,7 @@ export default function OrderDrawer({ id }: { id: string }) {
           <Sec icon={<Info />}>Thông tin đơn</Sec>
           <CellGrid>
             <Cell label="Khách hàng" extra={<CustomerTags name={o.customer} />}>{o.customer}</Cell>
-            <Cell label="Mã nội bộ">{o.code}</Cell>
+            <Cell label="Mã nội bộ">{o.code || '—'}</Cell>
             <Cell label="Ngày chốt">{fmtD(o.date)}</Cell>
             {o.completeBy && <Cell label="Hạn trả hợp đồng">{fmtD(o.completeBy)}</Cell>}
             {o.deliverBy && <Cell label="Hạn giao hàng">{fmtD(o.deliverBy)}</Cell>}

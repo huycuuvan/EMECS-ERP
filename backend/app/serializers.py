@@ -42,6 +42,7 @@ def contract(c: Contract) -> dict:
         "sentToKtAt": iso(c.sent_to_kt_at), "dueAt": iso(c.due_at), "returnedAt": iso(c.returned_at),
         "signDate": iso(c.sign_date), "status": c.status, "owner": c.owner, "totalQty": c.total_qty,
         "unit": c.unit, "totalKg": c.total_kg, "unitPrice": c.unit_price, "value": c.value, "vatPct": c.vat_pct,
+        "valueAfterVat": (c.value or 0) + round((c.value or 0) * (c.vat_pct or 0) / 100),
         "advance": {"pct": c.advance_pct, "required": c.advance_required, "received": c.advance_received,
                     "receivedAt": iso(c.advance_received_at)},
         "payments": [payment(p) for p in c.payments],

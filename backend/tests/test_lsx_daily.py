@@ -141,7 +141,8 @@ def test_prepare_goods_to_warehouse_weigh_5pct_and_billing(c):
     login(c, "ql")
     c.post(f"/api/weighings/{pid}/approve")
     g = c.get(f"/api/contracts/{hd['id']}").json()
-    assert g["billedKg"] == 2200 and g["deliveredValue"] == round(2200 * g["contract"]["unitPrice"])
+    pre = round(2200 * g["contract"]["unitPrice"])  # 1 mặt hàng → giá mặt hàng = giá bình quân
+    assert g["billedKg"] == 2200 and g["deliveredValuePre"] == pre and g["deliveredValue"] == pre + round(pre * g["contract"]["vatPct"] / 100)
 
 
 def test_prepare_goods_assigns_driver_task(c):
@@ -174,7 +175,7 @@ def test_prepare_goods_deviation_not_tracked_as_stock(c):
     w = next(p for p in c.get("/api/weighings").json() if p["receiptId"] == r["id"])
     c.post(f"/api/weighings/{w['id']}/fill", json={"grossKg": 15500, "tareKg": 8000, "reason": "Dư bản mã"})  # cân 7.500
     g = c.get(f"/api/contracts/{hd['id']}").json()
-    assert g["stockKg"] == 0 and g["receivedKg"] == 7500  # lệch 500 kg không thành tồn kho / sai lệch
+    assert g["stockKg"] == 0 and g["receivedKg"] == 7000  # kho nhận = số QL giao; lệch 500 kg không thành tồn kho
     assert next(x for x in c.get("/api/receipts").json() if x["id"] == r["id"])["kgStock"] == 7500
 
 
@@ -259,3 +260,26 @@ def test_lsx_cannot_exceed_contract_kg(c):
     assert c.post("/api/lsx", json={"contractId": hd["id"], "kg": 800}).status_code == 200
     r = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 300})
     assert r.status_code == 400 and "còn 200 kg chưa phát lệnh" in r.json()["detail"]
+
+
+def test_billing_per_item_price_vat_and_delivery_threshold(c):
+    """Công nợ theo đơn giá TỪNG MẶT HÀNG của phiếu chuẩn bị hàng + VAT; giao ≥95% là giao đủ; cân thiếu không chuẩn bị bù."""
+    o = c.post("/api/orders", json={"customer": "Cty Công nợ", "vatPct": 10, "items": [
+        {"name": "Cột", "qty": 20, "unit": "Bộ", "kgPerUnit": 250, "price": 24000},
+        {"name": "Xà", "qty": 50, "unit": "Bộ", "kgPerUnit": 40, "price": 26000}]}).json()
+    assert o["code"] == ""  # không còn mã mặc định "MOI"
+    hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01", "deliverBy": "2099-02-01"}).json()
+    x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 7000}).json()
+    assert x["name"].endswith(hd["number"])
+    _produce(c, x["id"], 7000)
+    ids = {i["name"]: i["id"] for i in c.get(f"/api/orders/{o['id']}").json()["items"]}
+    r = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": ids["Xà"], "qty": 50}]}).json()  # 2.000 kg xà
+    w = next(p for p in c.get("/api/weighings").json() if p["receiptId"] == r["id"])
+    c.post(f"/api/weighings/{w['id']}/fill", json={"kgActual": 1950})  # thiếu 2.5% → đạt
+    g = c.get(f"/api/contracts/{hd['id']}").json()
+    assert g["billedValues"][w["id"]] == 1950 * 26000  # giá xà 26.000, không phải bình quân 24.571
+    assert g["deliveredValuePre"] == 50_700_000 and g["deliveredVat"] == 5_070_000 and g["deliveredValue"] == 55_770_000
+    assert g["contract"]["valueAfterVat"] == 189_200_000
+    # cân thiếu 50 kg không thành "còn chuẩn bị được": đã chuẩn bị 2.000 theo số giao → còn 5.000
+    assert c.post("/api/receipts", json={"lsxId": x["id"], "kg": 5050}).status_code == 400
+    assert c.post("/api/receipts", json={"lsxId": x["id"], "kg": 5000}).status_code == 200

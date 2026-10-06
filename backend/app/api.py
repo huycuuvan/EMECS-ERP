@@ -210,7 +210,8 @@ def send_to_kt(oid: str, body: SC.SendToKtIn, db: Session = DB):
 # Hợp đồng bản rút gọn cho vai trò không có màn Hợp đồng (kho, xưởng, lái xe…): đủ để chọn / hiển thị, KHÔNG có tiền
 LITE_KEYS = ("id", "orderId", "code", "number", "customer", "customerId", "status", "totalQty", "unit", "totalKg",
              "completeBy", "deliverBy", "signDate", "sentToKtAt")
-MONEY_AGG_KEYS = ("deliveredValue", "paidTotal", "debt", "pendingPayment", "pctPaid", "billedKg", "billPendingKg")
+MONEY_AGG_KEYS = ("billedValue", "billedValues", "deliveredValuePre", "deliveredVat", "deliveredValue", "paidTotal", "debt",
+                  "pendingPayment", "pctPaid", "billedKg", "billPendingKg")
 
 
 def contract_lite(d: dict) -> dict:
@@ -238,6 +239,8 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
         d["complete"] = svc.complete_info(c)
         d["deliver"] = svc.deliver_info(c, delivered.get(c.id, 0))
         d["billedKg"], d["billPendingKg"] = svc.billed_kg(db, c.id)  # công nợ theo cân xuất đã duyệt
+        b = svc.billing(db, c)  # giá trị hàng đã giao theo từng mặt hàng + VAT
+        d["billedValue"], d["debt"] = b["deliveredValue"], b["debt"]
         out.append(d)
     return out if can(user, "hop-dong") else [contract_lite(d) for d in out]
 
@@ -442,7 +445,7 @@ def fill_weighing(pid: str, body: SC.WeighingFill, db: Session = DB):
     return S.weighing(svc.fill_weighing(db, pid, body.kg_actual, body.photo, body.reason, body.reason_note,
                                         body.signer_lai_xe, gross=body.gross_kg, tare=body.tare_kg,
                                         weigh_in=body.weigh_in_at, weigh_out=body.weigh_out_at,
-                                        plate=body.vehicle_plate))
+                                        plate=body.vehicle_plate, signer_boc_xep=body.signer_boc_xep))
 
 
 @router.put("/weighings/{pid}/photo", dependencies=[Depends(require("phieu-can", "edit"))])
@@ -459,13 +462,26 @@ def list_tasks(contract_id: str | None = None, type: str | None = None, driver: 
                db: Session = DB, user: User = Depends(get_current_user)):
     if user.role_list == ["lx"]:  # lái xe thuần: chỉ thấy thẻ của mình
         driver = user.name
-    return _list(db, Task, Task.assigned_at, lambda t: S.task(t, photo=False), contract_id=contract_id, type=type,
+    rows = _list(db, Task, Task.assigned_at, lambda t: S.task(t, photo=False), contract_id=contract_id, type=type,
                  driver=driver)
+    return _with_galv_left(db, rows)
+
+
+def _with_galv_left(db: Session, rows: list[dict]) -> list[dict]:
+    """Thẻ giao khách chưa lấy hàng: kèm số kg của HĐ còn tại xưởng mạ (lái xe biết chuyến này lấy tối đa bao nhiêu)."""
+    left: dict[str, float] = {}
+    for r in rows:
+        if r.get("type") == "giao_khach" and r.get("kgPicked") is None and r.get("contractId"):
+            cid = r["contractId"]
+            if cid not in left:
+                left[cid] = svc.galv_remaining_kg(db, cid)
+            r["galvLeftKg"] = left[cid]
+    return rows
 
 
 @router.get("/tasks/{tid}", dependencies=[Depends(require_any(*R_TASKS))])
 def get_task(tid: str, db: Session = DB):
-    return S.task(svc.get_or_404(db, Task, tid))
+    return _with_galv_left(db, [S.task(svc.get_or_404(db, Task, tid))])[0]
 
 
 @router.post("/tasks", dependencies=[Depends(require_roles("admin"))])

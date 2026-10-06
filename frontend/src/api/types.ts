@@ -40,12 +40,16 @@ export interface Contract {
   advance: { pct: number; required: number; received: number; receivedAt: string | null }
   payments: Payment[]; note: string
   number: string; completeBy: string | null; deliverBy: string | null; signedFile: string | null; draftedAt: string | null; completedAt: string | null; pendingPayment: number
+  /** giá trị HĐ đã gồm VAT */
+  valueAfterVat: number
 }
 /** Cảnh báo theo 1 mốc hạn: hạn trả hợp đồng (complete) hoặc hạn giao hàng (deliver). */
 export interface CompleteInfo { state: 'none' | 'ok' | 'fine' | 'soon' | 'overdue'; label: string; days: number | null }
 export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label: string }
 /** GET /contracts trả kèm adv + 2 mốc: complete = hạn trả hợp đồng (kế toán), deliver = hạn giao hàng cho khách */
-export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo; pendingExtension: ContractExtension | null; billedKg: number; billPendingKg: number }
+export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo; pendingExtension: ContractExtension | null; billedKg: number; billPendingKg: number
+  /** công nợ: giá trị hàng đã giao (theo giá từng mặt hàng) gồm VAT, và số còn nợ */
+  billedValue: number; debt: number }
 
 export type LsxStatus = 'Chờ nhận' | 'Đang SX' | 'Từ chối' | 'Hoàn thành'
 /** Sản lượng 1 ngày xưởng báo (kg; không làm = 0) + giờ nhập / sửa. */
@@ -89,6 +93,8 @@ export interface Task {
   id: ID; type: TaskType; driver: string; contractId: ID; refId: ID | null; assignedAt: string
   status: TaskStatus; acceptedAt: string | null; departedAt: string | null; fillDeadline: string | null
   kgRequired: number; kgAtGalv: number | null; kgPicked: number | null; kgDelivered: number | null
+  /** thẻ giao khách chưa lấy hàng: kg của HĐ còn tại xưởng mạ */
+  galvLeftKg?: number
   filledAt: string | null; photo: string | null; hasPhoto: boolean; rejectReason: string | null
   mismatchId: ID | null; note: string; lossAccepted: boolean
   vehiclePlate?: string | null; galvanizerId?: number | null
@@ -132,6 +138,8 @@ export interface ContractAgg {
   producedKg: number; producedQty: number; receivedKg: number; weighedKg: number; sentGalvKg: number
   inTransitToGalvKg: number; atGalvKg: number; pickedKg: number; deliveredKg: number; stockKg: number
   deliveredValue: number; paidTotal: number; debt: number; pendingPayment: number; complete: CompleteInfo; deliver: CompleteInfo
+  /** giá trị hàng đã giao trước VAT / tiền VAT / giá trị từng phiếu cân (trước VAT, theo giá từng mặt hàng) */
+  deliveredValuePre: number; deliveredVat: number; billedValues: Record<string, number>
   extensions: ContractExtension[]
   /** công nợ tính theo kg cân xuất đã đạt / đã duyệt; kg đang chờ QL duyệt */
   billedKg: number; billPendingKg: number

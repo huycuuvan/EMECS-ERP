@@ -116,8 +116,8 @@ export const useCreateReceipt = () => useAction((v: { lsxId: ID; qty?: number; k
 export const useCreateWeighing = () => useAction((v: { sourceId: ID; kgExpected: number }) => post<Weighing>('/weighings', v), (p) => `Đã tạo phiếu cân ${p.id}`)
 export const useApproveWeighing = () => useAction((id: ID) => post<Weighing>(`/weighings/${id}/approve`), (p) => `Đã duyệt ${p.id} — tính vào công nợ`)
 export const useRejectWeighing = () => useAction(({ id, reason }: { id: ID; reason: string }) => post<Weighing>(`/weighings/${id}/reject`, { reason }), (p) => `Đã từ chối ${p.id} — kho cân lại`)
-export const useFillWeighing = () => useAction(({ id, ...v }: { id: ID; kgActual?: number; grossKg?: number; tareKg?: number; weighInAt?: string; weighOutAt?: string; vehiclePlate?: string; photo?: string | null; reason?: string; reasonNote?: string; signerLaiXe?: string }) => post<Weighing>(`/weighings/${id}/fill`, v),
-  (p) => p.mismatchId ? `${p.id}: LỆCH vượt dung sai — đã tạo ${p.mismatchId} chờ Quản lý ký` : `${p.id}: đã cân`)
+export const useFillWeighing = () => useAction(({ id, ...v }: { id: ID; kgActual?: number; grossKg?: number; tareKg?: number; weighInAt?: string; weighOutAt?: string; vehiclePlate?: string; photo?: string | null; reason?: string; reasonNote?: string; signerLaiXe?: string; signerBocXep?: string }) => post<Weighing>(`/weighings/${id}/fill`, v),
+  (p) => p.status === 'Chờ QL duyệt' ? `${p.id}: lệch quá dung sai — chờ Quản lý duyệt` : `${p.id}: đã cân — Đạt`)
 export const useWeighingPhoto = () => useAction(({ id, photo }: { id: ID; photo: string | null }) => api.put<Weighing>(`/weighings/${id}/photo`, { photo }).then((r) => r.data), 'Đã cập nhật ảnh phiếu')
 
 export const useApproveTask = () => useAction((id: ID) => post<Task>(`/tasks/${id}/approve`), (t) => `Đã chấp nhận phiếu ${t.id}`)

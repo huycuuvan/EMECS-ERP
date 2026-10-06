@@ -59,14 +59,14 @@ def test_order_to_contract(c):
     assert hd["advance"]["received"] == 75_000_000
 
 
-def test_weighing_over_tolerance_creates_mismatch_and_sign_clears(c):
+def test_station_weighing_one_rule_5pct_manager_approves(c):
+    """Mọi phiếu cân ở trạm công ty (kể cả phiếu tạo lẻ) theo 1 quy tắc ±5% + Quản lý duyệt — ±30 kg chỉ ở xưởng mạ."""
     p = c.post("/api/weighings", json={"sourceId": "LSX-SD06", "kgExpected": 5000}).json()
     assert c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 4700}).status_code == 400  # lệch 6% → bắt lý do
-    p = c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 4700, "reason": "Sai số thiết bị cân"}).json()
-    assert p["status"] == "Lệch — chờ ký" and p["mismatchId"]
-    m = c.post(f"/api/mismatches/{p['mismatchId']}/sign").json()
-    assert m["status"] == "Đã ký xác nhận"
-    assert c.get(f"/api/weighings/{p['id']}").json()["status"] == "Đã cân"
+    p = c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 4700, "reason": "Sai số thiết bị cân", "signerBocXep": "Tổ anh Hải"}).json()
+    assert p["status"] == "Chờ QL duyệt" and p["mismatchId"] is None
+    assert p["signers"]["kho"] == "Quản lý A" and p["signers"]["bocXep"] == "Tổ anh Hải"  # ghi người cân + bốc xếp
+    assert c.post(f"/api/weighings/{p['id']}/approve").json()["status"] == "Đã cân"
 
 
 def test_weighing_within_tolerance_no_mismatch(c):
@@ -79,7 +79,7 @@ def test_weighing_over_expected_needs_reason_and_approval(c):
     p = c.post("/api/weighings", json={"sourceId": "LSX-SD06", "kgExpected": 5000}).json()
     assert c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 5010}).status_code == 400  # dư → bắt lý do
     p = c.post(f"/api/weighings/{p['id']}/fill", json={"kgActual": 5010, "reason": "Khác (ghi rõ)", "reasonNote": "thêm bản mã"}).json()
-    assert p["status"] == "Lệch — chờ ký" and p["mismatchId"] and not p["approved"]
+    assert p["status"] == "Chờ QL duyệt" and p["mismatchId"] is None
 
 
 def test_task_galv_flow(c):

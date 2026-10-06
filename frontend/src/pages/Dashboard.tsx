@@ -84,7 +84,7 @@ export default function Dashboard() {
             {alerts.length ? alerts.map((x) => (
               <AlertItem key={x.contract.id} onClick={() => open('hd', x.contract.id)}
                 t1={<><span className="mono" style={{ fontWeight: 700 }}>{x.contract.id}</span> · {x.contract.customer}</>}
-                t2={<>{x.contract.code} · {fmtT(x.contract.totalKg)} · {x.adv.state === 'missing'
+                t2={<>{x.contract.code && <>{x.contract.code} · </>}{fmtT(x.contract.totalKg)} · {x.adv.state === 'missing'
                   ? <span className="text-signal" style={{ fontWeight: 700 }}><AlertTriangle size={11} style={{ verticalAlign: -2 }} /> Tạm ứng {x.adv.label}</span>
                   : x.adv.label}
                   {LATE.has(x.deliver.state) && <> · <span className={x.deliver.state === 'overdue' ? 'text-signal' : 'text-amber'} style={{ fontWeight: 700 }}>{x.deliver.label}</span></>}
@@ -269,7 +269,7 @@ function MovementSection() {
       <MovementFilterBar f={f} setF={setF} />
       <MovementTable rows={shown} loading={isLoading} />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', padding: '12px 4px 2px', borderTop: '2px solid var(--rule)', marginTop: 8 }}>
-        {cell('SX bàn giao', tot.ptn)}{delta(tot.ptn, tot.pc)}
+        {cell('Chuẩn bị hàng (giao kho)', tot.ptn)}{delta(tot.ptn, tot.pc)}
         {cell('Cân xuất công ty', tot.pc)}{delta(tot.pc, tot.ma)}
         {cell('Mạ xác nhận', tot.ma)}{delta(tot.ma, tot.giao)}
         {cell('Giao khách ký', tot.giao)}
@@ -299,10 +299,10 @@ function WhereIsSteel({ contracts }: { contracts: ContractAggLite[] }) {
   ]
   return (
     <Panel
-      title={<span>Hàng HĐ <RecordLink id={c.id} type="hd" style={{ color: 'var(--rust)' }} /> ({c.code} — {c.customer}) đang ở đâu?</span>}
+      title={<span>Hàng HĐ <RecordLink id={c.id} type="hd" style={{ color: 'var(--rust)' }} /> ({c.code ? `${c.code} — ` : ''}{c.customer}) đang ở đâu?</span>}
       extra={withMove.length > 1 && (
         <Select size="small" value={c.id} onChange={setCid} style={{ minWidth: 150 }} popupMatchSelectWidth={false}
-          options={withMove.map((x) => ({ value: x.contract.id, label: `${x.contract.id} — ${x.contract.code}` }))} />
+          options={withMove.map((x) => ({ value: x.contract.id, label: `${x.contract.id} — ${x.contract.code || x.contract.customer}` }))} />
       )}
       sub={`${fmtT(c.totalKg)} theo hợp đồng · đã SX ${g.pctProduced}% · đã giao ${g.pctDelivered}%`}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, alignItems: 'center' }}>
@@ -377,7 +377,7 @@ function ContractChecks({ contracts }: { contracts: ContractAggLite[] }) {
   const columns: ColumnsType<ContractAggLite> = [
     {
       title: 'Hợp đồng', key: 'id', render: (_, g) => (
-        <div><RecordLink id={g.contract.id} type="hd" /><div style={{ fontSize: 11, color: 'var(--ash)' }}>{g.contract.code} · {g.contract.customer}</div>
+        <div><RecordLink id={g.contract.id} type="hd" /><div style={{ fontSize: 11, color: 'var(--ash)' }}>{[g.contract.code, g.contract.customer].filter(Boolean).join(' · ')}</div>
           <CustomerTags name={g.contract.customer} /></div>
       ),
     },

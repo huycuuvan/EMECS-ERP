@@ -21,7 +21,7 @@ export default function HealthTab() {
     {
       title: 'Hợp đồng', key: 'id', render: (_, g) => (
         <div><RecordLink id={g.contract.id} type="hd" style={{ color: 'var(--rust)' }} />
-          <div style={{ color: 'var(--ash)', fontSize: 11, marginTop: 2 }}>{g.contract.code} · {fmtT(g.contract.totalKg)}</div></div>
+          <div style={{ color: 'var(--ash)', fontSize: 11, marginTop: 2 }}>{g.contract.code && <>{g.contract.code} · </>}{fmtT(g.contract.totalKg)}</div></div>
       ),
     },
     { title: 'Khách hàng', key: 'cus', render: (_, g) => g.contract.customer },

@@ -1,6 +1,5 @@
 /* Drawer Chuẩn bị hàng — port ERPPeek.register('ptn') trong steel-data.js:
    thông tin phiếu · đối chiếu với số SX báo trên lệnh · phiếu cân xuất từ cùng lệnh · tạo phiếu cân xuất (kho). */
-import { stockKgOf } from '@/api/types'
 import { Button } from 'antd'
 import { Info, Link2, Pencil, Scale, Factory } from 'lucide-react'
 import { useState } from 'react'
@@ -30,7 +29,7 @@ export default function ReceiptDrawer({ id }: { id: string }) {
   if (!r) return <PeekShell type="ptn" id={id} loading={isLoading} notFound={!isLoading && (isError || !r)} />
 
   const lsxRcs = rcs.filter((z) => z.lsxId === r.lsxId)
-  const recKg = lsxRcs.reduce((s, z) => s + stockKgOf(z), 0)
+  const recKg = lsxRcs.reduce((s, z) => s + (Number(z.kg) || 0), 0)
   const pcs = allPcs.filter((p) => p.lsxId === r.lsxId).sort((a, b) => (a.date || '').localeCompare(b.date || ''))
   const stock = stockOfLsx(r.lsxId, lsxRcs, pcs)
   const overSx = x ? recKg - x.kgDone : 0

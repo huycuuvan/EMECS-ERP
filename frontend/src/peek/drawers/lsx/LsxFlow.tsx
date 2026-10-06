@@ -1,7 +1,7 @@
 /* Drawer LSX: chuỗi giao nhận 5 bước + bảng phiếu liên quan nhóm theo bước, có dòng ĐỐI ỨNG giữa các nhóm
    (port phần chainHtml / docsTable của ERPPeek.register('lsx') trong steel-data.js). */
 import type { CSSProperties, ReactNode } from 'react'
-import { stockKgOf, type Lsx, type Receipt, type Task, type Weighing } from '@/api/types'
+import { type Lsx, type Receipt, type Task, type Weighing } from '@/api/types'
 import { fmtDT, fmtNum } from '@/lib/format'
 import RecordLink from '@/peek/RecordLink'
 import { C } from '@/theme'
@@ -28,12 +28,12 @@ export function flowOf(x: Lsx, receipts: Receipt[], weighings: Weighing[], tasks
   return { rcs, pcs, diMa, giao, sharedGiao: solo ? 0 : byHd.length }
 }
 
-const WAITING = ['', 'còn ở xưởng', 'chờ cân xuất', 'đang tới mạ / lệch cân', 'còn tại mạ / lệch giao']
+const WAITING = ['', 'còn ở xưởng', 'chờ cân / lệch cân', 'đang tới mạ / lệch cân', 'còn tại mạ / lệch giao']
 
 export function FlowChain({ x, f }: { x: Lsx; f: FlowData }) {
   const steps = [
     { label: 'SX báo xong', who: 'Xưởng SX', kg: x.kgDone, color: C.steel },
-    { label: 'Chuẩn bị hàng', who: `${f.rcs.length} phiếu chuẩn bị`, kg: sum(f.rcs, stockKgOf), color: C.steel },
+    { label: 'Chuẩn bị hàng', who: `${f.rcs.length} phiếu chuẩn bị`, kg: sum(f.rcs, (r) => r.kg), color: C.steel },
     { label: 'Cân xuất lên xe', who: `${f.pcs.length} phiếu cân`, kg: sum(f.pcs, (p) => p.kgActual), color: C.amber },
     { label: 'Xưởng mạ nhận', who: `${f.diMa.length} chuyến`, kg: sum(f.diMa, (t) => t.kgAtGalv), color: C.rust },
     { label: 'Khách ký nhận', who: `${f.giao.length} chuyến giao`, kg: sum(f.giao, (t) => t.kgDelivered), color: C.moss },
@@ -131,19 +131,22 @@ export function FlowTable({ x, f }: { x: Lsx; f: FlowData }) {
   const late = (t: Task) => !!t.fillDeadline && !t.filledAt && now > new Date(t.fillDeadline).getTime()
   const byDate = (a: DocRow, b: DocRow) => (a.date || '').localeCompare(b.date || '')
   const g = {
-    ptn: rcs.map((r): DocRow => ({ date: r.date, id: r.id, from: 'Xưởng SX', to: `Kho — ${r.by}`, kg: stockKgOf(r), delta: null, st: 'Đã tiếp nhận', ml: null })).sort(byDate),
-    pc: pcs.map((p): DocRow => ({ date: p.date, id: p.id, from: `Kho — ${p.by}`, to: `Xe — ${p.signers.laiXe || 'chưa gán'}`, kg: p.kgActual,
-      delta: p.kgActual != null && !p.receiptId ? p.kgActual - p.kgExpected : null, st: p.status, ml: p.mismatchId })).sort(byDate),
+    ptn: rcs.map((r): DocRow => ({ date: r.date, id: r.id, from: 'Xưởng SX', to: `Kho — ${r.by}`, kg: r.kg, delta: null, st: 'Đã tiếp nhận', ml: null })).sort(byDate),
+    pc: pcs.map((p): DocRow => ({ date: p.date, id: p.id, from: `Kho — ${p.signers.kho || p.by}`, to: `Xe — ${p.signers.laiXe || 'chưa gán'}`, kg: p.kgActual,
+      delta: p.kgActual != null ? p.kgActual - p.kgExpected : null, st: p.status, ml: p.mismatchId })).sort(byDate),
     ma: diMa.map((t): DocRow => ({ date: t.filledAt || t.departedAt || t.assignedAt, id: t.id, from: `Xe — ${t.driver}`, to: 'Xưởng mạ', kg: t.kgAtGalv,
       delta: t.kgAtGalv != null ? t.kgAtGalv - t.kgRequired : null, st: t.status, ml: t.mismatchId, overdue: late(t) })).sort(byDate),
     giao: giao.map((t): DocRow => ({ date: t.filledAt || t.departedAt || t.assignedAt, id: t.id, from: 'Xưởng mạ', to: `Khách — xe ${t.driver}`, kg: t.kgDelivered,
       delta: t.kgDelivered != null && t.kgPicked != null ? t.kgDelivered - t.kgPicked : null, st: t.status, ml: t.mismatchId, overdue: late(t) })).sort(byDate),
   }
-  const khoNhan = sum(rcs, stockKgOf)
+  const khoNhan = sum(rcs, (r) => r.kg)
   const canXuat = sum(pcs, (p) => p.kgActual)
   const maNhan = sum(diMa, (t) => t.kgAtGalv)
   const giaoKh = sum(giao, (t) => t.kgDelivered)
   const tonKho = khoNhan - canXuat
+  // phần chênh: phiếu chưa cân (hàng còn chờ cân) + hụt / dư khi cân (lệch cân, Quản lý duyệt — không phải hàng còn ở kho)
+  const choCan = sum(pcs.filter((p) => p.kgActual == null), (p) => p.kgExpected)
+  const lechCan = sum(pcs.filter((p) => p.kgActual != null && p.receiptId), (p) => p.kgExpected - (p.kgActual ?? 0))
   const inTransit = sum(diMa.filter((t) => t.kgAtGalv == null && t.status !== 'Từ chối'), (t) => t.kgRequired)
   const lechMa = sum(diMa.filter((t) => t.kgAtGalv != null), (t) => t.kgRequired - (t.kgAtGalv ?? 0))
   const picked = sum(giao, (t) => t.kgPicked)
@@ -165,7 +168,8 @@ export function FlowTable({ x, f }: { x: Lsx; f: FlowData }) {
           <GroupHead no="②" title="KHO CÂN XUẤT → LÊN XE" color={C.amber} count={g.pc.length} kg={canXuat} />
           {g.pc.length ? g.pc.map((d) => <Row key={d.id} d={d} />) : <Empty />}
           <BalRow ok={eq(tonKho, 0)}>
-            Kho nhận {fmtNum(khoNhan)} − cân xuất {fmtNum(canXuat)} = {eq(tonKho, 0) ? 'ĐÃ CÂN XUẤT HẾT ✓' : <b>tồn kho chờ cân {fmtNum(tonKho)} kg</b>}
+            Kho nhận {fmtNum(khoNhan)} − cân xuất {fmtNum(canXuat)} = {eq(tonKho, 0) ? 'ĐÃ CÂN XUẤT HẾT ✓'
+              : <><b>{fmtNum(tonKho)} kg</b> ({join([!eq(choCan, 0) && `chờ cân ${fmtNum(choCan)} kg`, !eq(lechCan, 0) && `lệch cân ${lechCan > 0 ? 'hụt' : 'dư'} ${fmtNum(Math.abs(lechCan))} kg`, !eq(tonKho - choCan - lechCan, 0) && `chưa lập phiếu cân ${fmtNum(tonKho - choCan - lechCan)} kg`]) || 'kiểm tra lại'})</>}
           </BalRow>
           <GroupHead no="③" title="XE CHỞ → XƯỞNG MẠ XÁC NHẬN" color={C.rust} count={g.ma.length} kg={maNhan} />
           {g.ma.length ? g.ma.map((d) => <Row key={d.id} d={d} />) : <Empty />}

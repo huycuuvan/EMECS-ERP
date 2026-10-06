@@ -8,18 +8,18 @@ import RecordLink from '../../RecordLink'
 
 export default function MoneyTab({ g }: { g: ContractAgg }) {
   const c = g.contract
-  // vế nợ = phiếu cân xuất đã đạt (±5%) / đã được Quản lý duyệt
+  // vế nợ = phiếu cân xuất đã đạt (±5%) / đã được Quản lý duyệt; giá theo từng mặt hàng, cộng VAT ở dòng tổng
   const deliv = g.weighings.filter((p) => p.kgActual != null && p.status === 'Đã cân')
     .sort((a, b) => (a.weighOutAt || a.date || '').localeCompare(b.weighOutAt || b.date || ''))
   const noRows = deliv.map((t, i) => {
-    const v = Math.round((t.kgActual || 0) * c.unitPrice)
-    const luy = deliv.slice(0, i + 1).reduce((s, x) => s + Math.round((x.kgActual || 0) * c.unitPrice), 0)
+    const v = g.billedValues[t.id] ?? 0  // giá trị trước VAT, theo giá từng mặt hàng của phiếu
+    const luy = deliv.slice(0, i + 1).reduce((s, x) => s + (g.billedValues[x.id] ?? 0), 0)
     return { t, v, luy }
   })
   const pays = (c.payments || []).filter((p) => p.status === 'Đã duyệt')  // chờ duyệt / từ chối: xem khối Tiền về chờ duyệt
   const coRows = pays.map((p, i) => ({ p, luy: pays.slice(0, i + 1).reduce((s, x) => s + x.amount, 0) }))
   const conGiao = c.totalKg - g.deliveredKg
-  const conThu = c.value - g.paidTotal
+  const conThu = c.valueAfterVat - g.paidTotal  // giá trị HĐ gồm VAT
 
   return (
     <>
@@ -36,6 +36,12 @@ export default function MoneyTab({ g }: { g: ContractAgg }) {
                 <td><b className="num">{money(v)}</b><div className="hdta-luy">lũy kế {money(luy)}</div></td>
               </tr>
             )) : <tr><td colSpan={4} style={{ color: 'var(--ash)', textAlign: 'center', padding: 14 }}>Chưa có phiếu cân xuất nào được tính công nợ.</td></tr>}
+            {noRows.length > 0 && (
+              <>
+                <tr><td colSpan={3}>Cộng tiền hàng (trước VAT)</td><td className="num">{money(g.deliveredValuePre)}</td></tr>
+                <tr><td colSpan={3}>VAT {c.vatPct}%</td><td className="num">{money(g.deliveredVat)}</td></tr>
+              </>
+            )}
             <tr className="hdta-tot">
               <td colSpan={2}>TỔNG {deliv.length} phiếu · {fmtKg(g.billedKg)}{g.billPendingKg > 0 && <> · <span style={{ color: 'var(--amber)' }}>+{fmtKg(g.billPendingKg)} chờ duyệt</span></>}</td>
               <td colSpan={2} className="num">{money(g.deliveredValue)}</td>
@@ -63,10 +69,10 @@ export default function MoneyTab({ g }: { g: ContractAgg }) {
 
       {g.debt > 0 ? (
         <div className="hddebt no"><AlertCircle size={17} />SỐ DƯ CÔNG NỢ: khách còn nợ {money(g.debt)}
-          <small>(cân xuất đã duyệt {money(g.deliveredValue)} − tiền về {money(g.paidTotal)})</small></div>
+          <small>(hàng đã giao gồm VAT {money(g.deliveredValue)} − tiền về {money(g.paidTotal)})</small></div>
       ) : g.debt < 0 ? (
         <div className="hddebt co"><ShieldCheck size={17} />TIỀN VỀ TRƯỚC HÀNG {money(-g.debt)}
-          <small>(tiền về {money(g.paidTotal)} − cân xuất đã duyệt {money(g.deliveredValue)})</small></div>
+          <small>(tiền về {money(g.paidTotal)} − hàng đã giao gồm VAT {money(g.deliveredValue)})</small></div>
       ) : (
         <div className="hddebt co"><CheckCircle2 size={17} />CÂN BẰNG TUYỆT ĐỐI: hàng xuất (đã duyệt) = tiền đã về = {money(g.paidTotal)} ✓</div>
       )}
@@ -75,7 +81,7 @@ export default function MoneyTab({ g }: { g: ContractAgg }) {
         <Cell label="Còn phải giao">
           {conGiao <= 0 ? '0 kg — ĐÃ GIAO ĐỦ ✓' : `${fmtKg(conGiao)} (~${Math.ceil(conGiao / 10000)} chuyến xe 10T)`}
         </Cell>
-        <Cell label="Còn phải thu theo HĐ">{conThu <= 0 ? '0₫ — ĐÃ THU ĐỦ ✓' : money(conThu)}</Cell>
+        <Cell label="Còn phải thu theo HĐ (gồm VAT)">{conThu <= 0 ? '0₫ — ĐÃ THU ĐỦ ✓' : money(conThu)}</Cell>
       </CellGrid>
     </>
   )

@@ -9,6 +9,14 @@ import { fmtDT, hoursOver } from '@/lib/format'
 import { fmtN, isOverdueTask } from './core'
 import { DLink } from './kit'
 
+/** đi mạ: theo phiếu cân; giao khách: đã lấy / đã giao, chưa lấy thì hiện số còn tại mạ của HĐ */
+function kgText(t: Task, isMa: boolean) {
+  if (isMa || t.kgRequired) return t.kgRequired ? `${fmtN(t.kgRequired)} kg` : '—'
+  if (t.kgDelivered != null) return `${fmtN(t.kgDelivered)} kg đã giao`
+  if (t.kgPicked != null) return `${fmtN(t.kgPicked)} kg đã lấy`
+  return t.galvLeftKg != null ? `còn tại mạ ${fmtN(t.galvLeftKg)} kg` : '—'
+}
+
 const mapUrl = (q: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
 const Tel = ({ n }: { n?: string }) => (n ? <a className="rt-tel" href={`tel:${n.replace(/[^\d+]/g, '')}`}><Phone size={12} />{n}</a> : null)
 
@@ -60,7 +68,7 @@ export function TaskRoute({ t }: { t: Task }) {
         <div><span>Có mặt lúc</span><b>{t.arriveAt ? fmtDT(t.arriveAt) : '—'}</b></div>
         <div className={overdue ? 'bad' : ''}><span>Hạn trả phiếu</span><b>{t.fillDeadline ? fmtDT(t.fillDeadline) : '—'}{overdue ? ` · quá ${hoursOver(t.fillDeadline!)}h` : ''}</b></div>
         <div><span>Xe</span><b className="mono">{t.vehiclePlate || 'Chưa gán'}</b></div>
-        <div><span>Khối lượng</span><b>{t.kgRequired ? `${fmtN(t.kgRequired)} kg` : '—'}</b></div>
+        <div><span>Khối lượng</span><b>{kgText(t, isMa)}</b></div>
         <div><span>Phiếu đi kèm</span><b>{t.refId ? <>{isMa ? 'Phiếu cân xuất ' : 'Thẻ đi mạ '}<DLink id={t.refId} /></> : 'Không gắn'}</b></div>
         <div><span>Hợp đồng</span><b><DLink kind="hd" id={t.contractId} />{c && <small> · {c.customer}</small>}</b></div>
       </div>

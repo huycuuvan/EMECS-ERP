@@ -132,6 +132,7 @@ export function PcFillForm({ p }: { p: Weighing }) {
   const [inAt, setInAt] = useState(nowLocal(new Date(Date.now() - 30 * 60000)))
   const [outAt, setOutAt] = useState(nowLocal())
   const [plate, setPlate] = useState(p.vehiclePlate ?? '')
+  const [bocXep, setBocXep] = useState(p.signers.bocXep ?? '')
   const [photo, setPhoto] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
@@ -147,7 +148,7 @@ export function PcFillForm({ p }: { p: Weighing }) {
     try {
       await fill.mutateAsync({
         id: p.id, grossKg: num(gross), tareKg: num(tare), weighInAt: new Date(inAt).toISOString(), weighOutAt: new Date(outAt).toISOString(),
-        vehiclePlate: plate || undefined, photo, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined,
+        vehiclePlate: plate || undefined, photo, signerBocXep: bocXep.trim() || undefined, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined,
       })
       m.pop()
     } catch { /* đã báo */ }
@@ -168,6 +169,8 @@ export function PcFillForm({ p }: { p: Weighing }) {
       <input type="datetime-local" className="inp" value={outAt} onChange={(e) => setOutAt(e.target.value)} />
       <label className="f-lbl">Biển số xe</label>
       <input className="inp" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="VD: 29C-123.45" />
+      <label className="f-lbl">Người bốc xếp</label>
+      <input className="inp" value={bocXep} onChange={(e) => setBocXep(e.target.value)} placeholder="Tên người bốc xếp ký phiếu" />
       {p.signers.laiXe && <div className="f-hint">Tài xế (Quản lý chỉ định): <b>{p.signers.laiXe}</b></div>}
       {p.status === 'QL từ chối' && <div className="f-hint red-txt">Quản lý từ chối lần cân trước: {p.rejectReason} — cân lại.</div>}
       <PhotoPicker label="Ảnh phiếu cân (bắt buộc)" value={photo} onChange={setPhoto} demo={{ label: `${p.id} · phiếu cân`, kg: v || p.kgExpected }} />

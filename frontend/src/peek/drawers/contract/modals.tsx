@@ -122,7 +122,7 @@ export function LsxFromContractModal({ contract: c, lsxs, onClose }: { contract:
           : <span className="text-signal" style={{ fontWeight: 600 }}>Hợp đồng đã phát lệnh đủ khối lượng — không còn phần để phát thêm.</span>}
       </p>
       <Form form={form} layout="vertical" requiredMark={false}
-        initialValues={{ name: `Lệnh SX ${c.code} — đợt ${lsxs.length + 1}`, kg: rem > 0 ? rem : undefined, lead: 7 }}>
+        initialValues={{ name: `Lệnh SX ${c.code || c.number || c.id} — đợt ${lsxs.length + 1}`, kg: rem > 0 ? rem : undefined, lead: 7 }}>
         <Form.Item name="name" label="Tên lệnh" rules={[{ required: true, whitespace: true, message: 'Nhập tên lệnh sản xuất.' }]}><Input /></Form.Item>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0 12px' }}>
           <Form.Item name="kg" label="Khối lượng (kg)" rules={[positive('Khối lượng (kg) phải lớn hơn 0.')]}>

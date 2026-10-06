@@ -25,7 +25,7 @@ export default function OverviewTab({ g, onGoFlow, onPay }: { g: ContractAgg; on
       <Sec icon={<Info />}>Thông tin hợp đồng</Sec>
       <CellGrid>
         <Cell label="Khách hàng">{c.customer}</Cell>
-        <Cell label="Mã đơn">{c.code}</Cell>
+        <Cell label="Mã nội bộ">{c.code || '—'}</Cell>
         <Cell label="Chuyển kế toán">{fmtD(c.sentToKtAt)}</Cell>
         <Cell label="Hạn trả hợp đồng (kế toán)" alert={compAlert}>{comp.label}</Cell>
         <Cell label="Hạn giao hàng cho khách" alert={dlvAlert}>{dlv.label}</Cell>

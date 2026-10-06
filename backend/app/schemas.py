@@ -125,6 +125,7 @@ class WeighingFill(In):
     reason: str | None = None
     reason_note: str | None = None
     signer_lai_xe: str | None = None
+    signer_boc_xep: str | None = None  # người bốc xếp (ô ký thứ 3 trên phiếu cân)
 
 
 class TaskCreate(In):

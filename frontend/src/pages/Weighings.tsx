@@ -1,5 +1,7 @@
 /* Trạm cân · Phiếu cân — port pages/06-phieu-can.html:
-   KPI · danh sách phiếu cân (KL theo lệnh vs KL cân thực, chênh đỏ khi vượt dung sai, ảnh phiếu, ký 3 bên, quá hạn 4h) ·
+   KPI · danh sách phiếu cân (KL theo lệnh vs KL cân thực, ảnh phiếu, ký 3 bên, quá hạn 4h) ·
+   1 quy tắc cho mọi phiếu cân tại trạm: hụt ≤ 5% → Đạt; hụt > 5% hoặc dư → kho nhập lý do, Quản lý Duyệt / Từ chối.
+   (±30 kg là dung sai riêng khi xưởng mạ cân nhận / khách ký nhận — xem Thẻ lái xe, không áp ở trạm cân.)
    tạo phiếu cân xuất từ LSX/PTN · nhập kết quả cân · điều xe đi mạ. */
 import { Button, Card, Input, Select, Table, Tooltip, type TableColumnsType } from 'antd'
 import { Image as ImageIcon, ImageOff, Info, Scale, Search, Truck } from 'lucide-react'
@@ -13,6 +15,7 @@ import { useAuth } from '@/lib/auth'
 import { usePeek } from '@/peek/context'
 import RecordLink from '@/peek/RecordLink'
 import { C } from '@/theme'
+import { WeighActions, WeighResult } from './receipts/WeighApproval'
 import { isMissing, isOverdue, PC_FILL_HOURS, useWeighingActions } from './weighings/WeighingModals'
 
 const sub = { color: C.ash, fontSize: 11, marginTop: 2 }
@@ -28,7 +31,7 @@ export default function Weighings() {
   const isQl = hasRole('admin')
   const canEdit = can('phieu-can', 'edit')
   const { data: meta } = useMeta()
-  const tol = meta?.toleranceKg ?? 30
+  const pct = meta?.pcTolerancePct ?? 5
   const { data: all = [], isLoading } = useWeighings()
   const { data: contracts = [] } = useContracts()
   const { data: tasks = [] } = useTasks({ type: 'di_ma' })
@@ -47,7 +50,7 @@ export default function Weighings() {
 
   const rows = useMemo(() => [...all].sort((a, b) => (b.date || '').localeCompare(a.date || '')).filter((p) => {
     if (fh && p.contractId !== fh) return false
-    if (fs === 'miss') { if (!isMissing(p)) return false } else if (fs === 'overdue') { if (!isOverdue(p)) return false } else if (fs && p.status !== fs) return false
+    if (fs === 'miss') { if (!isMissing(p)) return false } else if (fs === 'overdue') { if (!isOverdue(p)) return false } else if (fs === 'Chờ QL duyệt') { if (!waitQl(p)) return false } else if (fs && p.status !== fs) return false
     if (q && `${p.id} ${p.contractId} ${p.lsxId} ${p.by || ''}`.toLowerCase().indexOf(q.toLowerCase()) < 0) return false
     return true
   }), [all, fh, fs, q])
@@ -55,7 +58,8 @@ export default function Weighings() {
   /* KPI */
   const doneMonth = all.filter((p) => p.kgActual != null && sameMonth(p.date))
   const kgMonth = doneMonth.reduce((s, p) => s + Number(p.kgActual), 0)
-  const lech = all.filter((p) => p.status === 'Lệch — chờ ký').length
+  const waitQl = (p: Weighing) => p.status === 'Chờ QL duyệt' || p.status === 'Lệch — chờ ký'  // 'Lệch — chờ ký': phiếu cũ trước khi gộp quy tắc
+  const lech = all.filter(waitQl).length
   const miss = all.filter(isMissing).length
   const overdue = all.filter(isOverdue).length
 
@@ -84,22 +88,24 @@ export default function Weighings() {
       title: 'KL cân thực', key: 'act', align: 'right',
       render: (_, p) => {
         if (p.kgActual == null) return <span className="text-signal" style={{ fontWeight: 800, fontSize: 11.5, letterSpacing: '.04em' }}>CHƯA CÂN</span>
-        const bad = !p.receiptId && Math.abs(p.kgActual - p.kgExpected) > tol
+        const bad = p.status !== 'Đã cân'
         return <span className="mono num" style={{ fontWeight: bad ? 800 : 600, color: bad ? C.signal : undefined }}>{fmtKg(p.kgActual)}</span>
       },
     },
     {
       title: 'Chênh', key: 'delta', align: 'right',
       render: (_, p) => {
-        if (p.kgActual == null || p.receiptId) return <span style={sub}>—</span>  // chênh của phiếu Chuẩn bị hàng: Quản lý tự xử lý
+        if (p.kgActual == null) return <span style={sub}>—</span>
         const d = p.kgActual - p.kgExpected
         if (d === 0) return <span className="mono text-moss">±0</span>
-        const bad = Math.abs(d) > tol
+        const dev = p.kgExpected ? (d / p.kgExpected) * 100 : 0
+        const bad = d > 0 || -dev > pct  // dư, hoặc hụt quá 5%
         const txt = `${d > 0 ? '+' : '−'}${fmtNum(Math.abs(d))} kg`
-        if (!bad) return <span className="mono text-moss">{txt}</span>
+        const pctTxt = <div style={sub}>{dev > 0 ? '+' : ''}{dev.toFixed(1)}%</div>
+        if (!bad) return <span className="mono text-moss">{txt}{pctTxt}</span>
         return p.mismatchId
           ? <RecordLink id={p.mismatchId} danger style={{ fontWeight: 700 }}>{txt}</RecordLink>
-          : <span className="mono text-signal" style={{ fontWeight: 700 }}>{txt}</span>
+          : <span className="mono text-signal" style={{ fontWeight: 700 }}>{txt}{pctTxt}</span>
       },
     },
     {
@@ -120,18 +126,19 @@ export default function Weighings() {
     },
     {
       title: 'Trạng thái', key: 'st',
-      render: (_, p) => (
+      render: (_, p) => (p.kgActual != null && p.status !== 'Lệch — chờ ký' ? <WeighResult p={p} /> : (
         <div>
           <StatusTag status={p.status} style={p.status === 'Lệch — chờ ký' ? { animation: 'blink-signal 1.6s ease-in-out infinite' } : undefined} />
           {p.status === 'Lệch — chờ ký' && p.mismatchId && (
             <div style={sub}><RecordLink id={p.mismatchId} danger style={{ fontSize: 11 }}>Biên bản {p.mismatchId}</RecordLink></div>
           )}
         </div>
-      ),
+      )),
     },
     {
       title: '', key: 'ops',
       render: (_, p) => {
+        if (p.status === 'Chờ QL duyệt') return isQl ? <WeighActions p={p} /> : <span style={sub}>Chờ Quản lý duyệt</span>
         if (p.status === 'Chờ cân' || p.status === 'QL từ chối') return canEdit
           ? <Button size="small" type="primary" icon={<Scale size={11} />} onClick={stop(() => act.fill(p))}>{p.status === 'QL từ chối' ? 'Cân lại' : 'Nhập kết quả cân'}</Button>
           : null
@@ -147,7 +154,7 @@ export default function Weighings() {
   return (
     <div>
       <PageHeader title="Phiếu cân xuất hàng — ký 3 bên"
-        desc={`Mọi chuyến xe rời công ty phải qua trạm cân: số kg thực + ảnh phiếu có chữ ký Bốc xếp · Thủ kho · Lái xe. Lệch quá ±${tol} kg → báo động sai lệch.`}
+        desc={`Mọi chuyến xe rời công ty phải qua trạm cân: số kg thực + ảnh phiếu có chữ ký Bốc xếp · Thủ kho · Lái xe. Hụt ≤ ${pct}% → Đạt; hụt > ${pct}% hoặc dư → kho ghi lý do, Quản lý duyệt. (±30 kg chỉ áp khi xưởng mạ / khách cân nhận.)`}
         extra={<>
           <ExportButton kind="weighings" params={{ contract_id: fh, status: fs }} ids={rows.map((p) => p.id)} total={all.length} />
           {canEdit && <Button type="primary" icon={<Scale size={14} />} onClick={() => act.create()}>+ Phiếu cân xuất</Button>}
@@ -156,8 +163,8 @@ export default function Weighings() {
       <KpiGrid>
         <Kpi tone="steel" label="Phiếu đã cân tháng" value={doneMonth.length} sub="chuyến xe đã qua trạm cân" />
         <Kpi tone="moss" label="Tổng kg cân xuất" value={fmtT(kgMonth)} sub="khối lượng thực cân trong tháng" />
-        <Kpi tone="signal" label="Phiếu lệch" value={<span className="text-signal">{lech}</span>} onClick={() => setFs('Lệch — chờ ký')}
-          sub={<span className="text-signal">lệch quá ±{tol} kg — chờ Quản lý ký</span>} />
+        <Kpi tone="signal" label="Chờ Quản lý duyệt" value={<span className="text-signal">{lech}</span>} onClick={() => setFs('Chờ QL duyệt')}
+          sub={<span className="text-signal">hụt quá {pct}% hoặc dư so với lệnh xuất</span>} />
         <Kpi tone="signal" label="Thiếu ảnh / số cân" value={<span className="text-signal">{miss}</span>} onClick={() => setFs('miss')}
           sub={<span className="text-signal">phiếu chưa đủ số kg + ảnh ký 3 bên{overdue > 0 && <> · <a className="text-signal" style={{ fontWeight: 700, textDecoration: 'underline' }} onClick={(e) => { e.stopPropagation(); setFs('overdue') }}>{overdue} quá hạn {PC_FILL_HOURS}h</a></>}</span>} />
       </KpiGrid>
@@ -170,7 +177,7 @@ export default function Weighings() {
           <Select value={fs} onChange={setFs} style={{ minWidth: 190 }}
             options={[
               { value: '', label: 'Tất cả trạng thái' },
-              ...['Chờ cân', 'Đã cân', 'Lệch — chờ ký'].map((s) => ({ value: s, label: s })),
+              ...['Chờ cân', 'Đã cân', 'Chờ QL duyệt', 'QL từ chối'].map((s) => ({ value: s, label: s })),
               { value: 'miss', label: 'Thiếu ảnh / số cân' },
               { value: 'overdue', label: `Quá hạn ${PC_FILL_HOURS}h` },
             ]} />
@@ -178,7 +185,7 @@ export default function Weighings() {
         <Table<Weighing> rowKey="id" size="middle" loading={isLoading} dataSource={rows} columns={columns}
           pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false} scroll={{ x: 1250 }}
           locale={{ emptyText: 'Không có phiếu cân phù hợp bộ lọc.' }}
-          rowClassName={(p) => 'clickable-row' + (isOverdue(p) || p.status === 'Lệch — chờ ký' ? ' row-alert' : '')}
+          rowClassName={(p) => 'clickable-row' + (isOverdue(p) || waitQl(p) ? ' row-alert' : '')}
           onRow={(p) => ({ onClick: () => open('pc', p.id) })} />
       </Card>
 
