@@ -227,12 +227,14 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
         seg = svc.contract_ids_for_customers(db, svc.customer_ids_for_segment(db, segment))
         keep = seg if keep is None else keep & seg
     delivered = svc.delivered_by_contract(db)
+    ext_wait = {e["contractId"]: e for e in svc.pending_extensions(db)}
     for c in db.scalars(select(Contract).order_by(Contract.sent_to_kt_at.desc())):
         if keep is not None and c.id not in keep:
             continue
         d = S.contract(c)
         d["customerId"] = cust_of.get(c.order_id)
         d["adv"] = svc.advance_info(c)
+        d["pendingExtension"] = ext_wait.get(c.id)  # đang xin gia hạn trả HĐ, chờ Quản lý duyệt
         d["complete"] = svc.complete_info(c)
         d["deliver"] = svc.deliver_info(c, delivered.get(c.id, 0))
         d["billedKg"], d["billPendingKg"] = svc.billed_kg(db, c.id)  # công nợ theo cân xuất đã duyệt
@@ -317,6 +319,22 @@ def put_seller(body: dict, db: Session = DB):
 @router.get("/payments/pending", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
 def pending_payments(db: Session = DB):
     return svc.pending_payments(db)
+
+
+@router.post("/contracts/{cid}/extensions", dependencies=[Depends(require("hop-dong", "edit"))])
+def request_extension(cid: str, body: SC.ReasonIn, db: Session = DB):
+    """Kế toán xin gia hạn trả hợp đồng (lý do bắt buộc) → chờ Quản lý duyệt."""
+    return S.contract(svc.request_extension(db, cid, body.reason))
+
+
+@router.post("/contract-extensions/{eid}/approve", dependencies=[Depends(require_roles("admin"))])
+def approve_extension(eid: int, db: Session = DB):
+    return S.contract(svc.approve_extension(db, eid))
+
+
+@router.post("/contract-extensions/{eid}/reject", dependencies=[Depends(require_roles("admin"))])
+def reject_extension(eid: int, body: SC.ReasonIn, db: Session = DB):
+    return S.contract(svc.reject_extension(db, eid, body.reason))
 
 
 @router.post("/payments/{pid}/approve", dependencies=[Depends(require_roles("admin"))])

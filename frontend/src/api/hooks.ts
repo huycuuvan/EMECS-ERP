@@ -92,6 +92,9 @@ export const useContractReturned = () => useAction((id: ID) => post<Contract>(`/
 export const useContractSigned = () => useAction((id: ID) => post<Contract>(`/contracts/${id}/signed`), (c) => `${c.id}: đã nhận về hợp đồng khách ký`)
 export const useContractCompleted = () => useAction((id: ID) => post<Contract>(`/contracts/${id}/completed`), (c) => `${c.id}: đã hoàn thành`)
 export const useRecordPayment = () => useAction(({ id, ...v }: { id: ID; amount: number; type: string; note?: string }) => post<Contract>(`/contracts/${id}/payments`, v), 'Đã ghi tiền về — chờ Quản lý duyệt')
+export const useRequestExtension = () => useAction(({ cid, reason }: { cid: ID; reason: string }) => post<Contract>(`/contracts/${cid}/extensions`, { reason }), 'Đã gửi Quản lý duyệt gia hạn')
+export const useApproveExtension = () => useAction((eid: number) => post<Contract>(`/contract-extensions/${eid}/approve`), (c) => `Đã gia hạn trả HĐ ${c.id}`)
+export const useRejectExtension = () => useAction(({ eid, reason }: { eid: number; reason: string }) => post<Contract>(`/contract-extensions/${eid}/reject`, { reason }), 'Đã từ chối gia hạn')
 export const useApprovePayment = () => useAction((pid: number) => post<Contract>(`/payments/${pid}/approve`), 'Đã duyệt tiền về')
 export const useRejectPayment = () => useAction(({ pid, reason }: { pid: number; reason: string }) => post<Contract>(`/payments/${pid}/reject`, { reason }), 'Đã từ chối khoản tiền về')
 

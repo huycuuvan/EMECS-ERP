@@ -275,3 +275,32 @@ def test_two_deadlines_contract_return_and_delivery(c):
     assert ct["completeBy"].startswith("2099-01-05") and ct["deliverBy"].startswith("2099-02-20")
     login(c, "kt")
     assert c.patch(f"/api/contracts/{ct['id']}", json={"deliverBy": "2099-03-01T12:00:00Z"}).status_code == 403
+
+
+def test_contract_return_extension_flow(c):
+    """Quá / sắp tới hạn trả HĐ: kế toán nhập lý do xin gia hạn → Quản lý duyệt (+5 ngày) hoặc từ chối."""
+    from datetime import datetime, timedelta
+    cid = "HD-2609-03"  # chờ soạn thảo, đã quá hạn trả HĐ
+    old = datetime.fromisoformat(c.get(f"/api/contracts/{cid}").json()["contract"]["completeBy"].replace("Z", "+00:00"))
+    login(c, "kt")
+    assert c.post(f"/api/contracts/{cid}/extensions", json={"reason": " "}).status_code in (400, 422)
+    assert c.post(f"/api/contracts/{cid}/extensions", json={"reason": "Khách đi công tác, chưa ký"}).status_code == 200
+    assert c.post(f"/api/contracts/{cid}/extensions", json={"reason": "lần 2"}).status_code == 400  # đang chờ duyệt
+    row = next(x for x in c.get("/api/contracts").json() if x["id"] == cid)
+    eid = row["pendingExtension"]["id"]
+    assert c.post(f"/api/contract-extensions/{eid}/approve").status_code == 403  # kế toán không tự duyệt
+    login(c, "ql")
+    assert [e["id"] for e in c.get("/api/dashboard").json()["pendingExtensions"]] == [eid]
+    ct = c.post(f"/api/contract-extensions/{eid}/approve").json()
+    new = datetime.fromisoformat(ct["completeBy"].replace("Z", "+00:00"))
+    assert new - old == timedelta(days=5)
+    g = c.get(f"/api/contracts/{cid}").json()
+    assert g["extensions"][0]["status"] == "Đã duyệt" and g["extensions"][0]["newBy"]
+    login(c, "kt")
+    c.post(f"/api/contracts/{cid}/extensions", json={"reason": "Xin thêm"})
+    eid2 = next(x for x in c.get("/api/contracts").json() if x["id"] == cid)["pendingExtension"]["id"]
+    login(c, "ql")
+    c.post(f"/api/contract-extensions/{eid2}/reject", json={"reason": "Đã gia hạn rồi"})
+    g = c.get(f"/api/contracts/{cid}").json()
+    assert g["contract"]["completeBy"] == ct["completeBy"] and g["extensions"][-1]["status"] == "Từ chối"
+    assert c.post("/api/contracts/HD-2609-06/extensions", json={"reason": "x"}).status_code == 400  # đã nhận về

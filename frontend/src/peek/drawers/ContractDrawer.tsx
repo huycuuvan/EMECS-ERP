@@ -3,7 +3,7 @@
    Thanh 4 bước kế toán (Đã soạn thảo → Đã gửi khách hàng → Đã nhận về → Đã hoàn thành) · ngày hoàn thành ·
    Thao tác: Soạn thảo / Tải Word · chuyển bước · + Tiền về (chờ QL duyệt) · Phát lệnh SX · Sửa. */
 import { App, Button, Steps } from 'antd'
-import { ArrowLeftRight, BadgeCheck, Banknote, CircleCheckBig, Download, Factory, FilePen, Info, Pencil, Scale, Send } from 'lucide-react'
+import { ArrowLeftRight, BadgeCheck, Banknote, CalendarPlus, CircleCheckBig, Download, Factory, FilePen, Info, Pencil, Scale, Send } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { blobError, downloadFile } from '@/api/hooksEdit'
@@ -21,6 +21,7 @@ import { committedKg } from './contract/utils'
 import MoneyTab from './contract/MoneyTab'
 import OverviewTab from './contract/OverviewTab'
 import PaymentApprovals from './contract/PaymentApprovals'
+import ExtensionsBlock, { canAskExtension, useAskExtension } from './contract/Extensions'
 import RelatedLinks from './contract/RelatedLinks'
 import './contract/contract.css'
 
@@ -52,6 +53,9 @@ export default function ContractDrawer({ id }: { id: string }) {
   const showDone = !!c && canEdit && c.status === 'Đã nhận về'
   const showLsx = !!c && canLsx && lsxRemain > 0  // phát lệnh SX độc lập với bước hợp đồng
   const step = c ? CONTRACT_STEPS.indexOf(c.status) : -1
+  const askExt = useAskExtension()
+  const extPending = !!g?.extensions.some((e) => e.status === 'Chờ duyệt')
+  const showExt = !!c && !!g && canEdit && canAskExtension(c, g.complete, extPending)
   const word = () => c && downloadFile(`/contracts/${c.id}/document.docx`, `Hop-dong_${c.id}.docx`).catch(async (e) => message.error(await blobError(e)))
 
   const actions = c && canEdit
@@ -87,6 +91,7 @@ export default function ContractDrawer({ id }: { id: string }) {
               {showReturned && <Button size="small" icon={<Send size={13} />} onClick={() => flow.askReturned(c)}>Đã gửi khách hàng</Button>}
               {showSigned && <Button size="small" icon={<BadgeCheck size={13} />} onClick={() => flow.askSigned(c)}>Đã nhận về</Button>}
               {showDone && <Button size="small" icon={<CircleCheckBig size={13} />} onClick={() => flow.askCompleted(c, g)}>Đã hoàn thành</Button>}
+              {showExt && <Button size="small" danger={g.complete.state === 'overdue'} icon={<CalendarPlus size={13} />} onClick={() => askExt(c)}>Xin gia hạn +5 ngày</Button>}
               {canPay && <Button size="small" type="primary" icon={<Banknote size={13} />} onClick={() => setDialog('pay')}>+ Tiền về</Button>}
               {showLsx && (
                 <>
@@ -97,6 +102,7 @@ export default function ContractDrawer({ id }: { id: string }) {
             </div>
           )}
 
+          <ExtensionsBlock list={g.extensions} />
           <PaymentApprovals payments={c.payments} />
 
           <div className="hdtabs">

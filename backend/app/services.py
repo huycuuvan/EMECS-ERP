@@ -11,11 +11,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import serializers as S
-from .config import (PC_TOLERANCE_PCT, COMPLETE_WARN_DAYS, CT_DONE, CT_RECEIVED, CT_SENT, CT_WAIT, FILL_HOURS, PAY_OK,
+from .config import (PC_TOLERANCE_PCT, COMPLETE_WARN_DAYS, CONTRACT_EXTEND_DAYS, CT_DONE, CT_RECEIVED, CT_SENT, CT_WAIT, FILL_HOURS, PAY_OK,
                      PAY_PENDING, PAY_REJECTED, PC_FILL_HOURS, PEOPLE, TOLERANCE_KG)
 from .db import utcnow
 from .security import actor
-from .models import (Contract, Customer, Lsx, LsxDaily, LsxLog, Mismatch, Notification, Order, OrderItem, Payment, Receipt,
+from .models import (Contract, ContractExtension, Customer, Lsx, LsxDaily, LsxLog, Mismatch, Notification, Order, OrderItem, Payment, Receipt,
                      Sequence, Task, VLoss, Weighing, customer_tags)
 from .utils import VN_TZ, add_days, add_hours, fmt_d, fmt_kg, money, money_short
 
@@ -128,6 +128,7 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
         "deliveredValue": delivered_value, "paidTotal": paid_total, "debt": debt, "pendingPayment": pending_pay,
         "billedKg": bill_kg, "billPendingKg": bill_pending,
         "complete": complete_info(c), "deliver": deliver_info(c, delivered_kg),
+        "extensions": [S.extension(e) for e in contract_extensions(db, cid)],
         "pctProduced": round(produced_kg / tk * 100) if tk else 0,
         "pctDelivered": round(delivered_kg / tk * 100) if tk else 0,
         "pctPaid": round(paid_total / c.value * 100) if c.value else 0,
@@ -356,6 +357,7 @@ def dashboard(db: Session, tag: int | None = None, segment: str | None = None) -
         "activeContracts": len(active), "deliveredKgTotal": delivered_total,
         "contractAlerts": [a for a in contract_alerts(db) if keep(a["contract"]["id"])],
         "pendingPayments": [p for p in pending_payments(db) if keep(p["contractId"])],
+        "pendingExtensions": [e for e in pending_extensions(db) if keep(e["contractId"])],
         "overdueDocs": [o for o in overdue_docs(db) if keep(o["contractId"])],
         "pendingMismatches": [S.mismatch(m) for m in pending_sl],
         "pendingMismatchKg": _sum(pending_sl, lambda m: abs(m.delta)),
@@ -511,6 +513,78 @@ def mark_contract_signed(db: Session, cid: str) -> Contract:
     if o:
         o.status = "Đã có hợp đồng"
     notify(db, f"HĐ {c.id} đã nhận về (khách đã ký)", f"{c.customer} — hợp đồng khách đã ký", "success", roles="admin,kt")
+    db.commit()
+    return c
+
+
+# ---------------------------------------------------------------- gia hạn trả hợp đồng
+EXT_WAIT, EXT_OK, EXT_NO = "Chờ duyệt", "Đã duyệt", "Từ chối"
+
+
+def contract_extensions(db: Session, cid: str) -> list[ContractExtension]:
+    return list(db.scalars(select(ContractExtension).where(ContractExtension.contract_id == cid)
+                           .order_by(ContractExtension.requested_at)))
+
+
+def pending_extensions(db: Session) -> list[dict]:
+    out = []
+    for e in db.scalars(select(ContractExtension).where(ContractExtension.status == EXT_WAIT).order_by(ContractExtension.requested_at)):
+        c = db.get(Contract, e.contract_id)
+        out.append({**S.extension(e), "customer": c.customer if c else "", "complete": complete_info(c) if c else None})
+    return out
+
+
+def request_extension(db: Session, cid: str, reason: str) -> Contract:
+    """Kế toán: hạn trả HĐ sắp tới / đã quá mà khách chưa ký trả về → nhập lý do, xin Quản lý gia hạn."""
+    c = get_or_404(db, Contract, cid)
+    if c.status in (CT_RECEIVED, CT_DONE):
+        raise HTTPException(400, f"Hợp đồng {cid} đã nhận về — không cần gia hạn")
+    if not c.complete_by:
+        raise HTTPException(400, f"Hợp đồng {cid} chưa có hạn trả — Quản lý nhập hạn trước")
+    if not (reason or "").strip():
+        raise HTTPException(400, "Nhập lý do xin gia hạn")
+    if any(e.status == EXT_WAIT for e in contract_extensions(db, cid)):
+        raise HTTPException(400, f"Hợp đồng {cid} đang có yêu cầu gia hạn chờ Quản lý duyệt")
+    who = actor(KT)
+    db.add(ContractExtension(contract_id=cid, reason=reason.strip(), requested_by=who, requested_at=utcnow(),
+                             status=EXT_WAIT, days=CONTRACT_EXTEND_DAYS, old_by=c.complete_by))
+    notify(db, f"Xin gia hạn trả HĐ {cid} thêm {CONTRACT_EXTEND_DAYS} ngày", f"{c.customer} · {who}: {reason.strip()} · "
+           f"hạn hiện tại {fmt_d(c.complete_by)}", "warning", roles="admin", ref=cid)
+    db.commit()
+    return c
+
+
+def _extension(db: Session, eid: int) -> ContractExtension:
+    e = get_or_404(db, ContractExtension, eid)
+    if e.status != EXT_WAIT:
+        raise HTTPException(400, f"Yêu cầu gia hạn đã được xử lý ({e.status})")
+    return e
+
+
+def approve_extension(db: Session, eid: int) -> Contract:
+    """Quản lý duyệt → hạn trả HĐ cộng thêm N ngày (tính từ hạn hiện tại)."""
+    e = _extension(db, eid)
+    c = get_or_404(db, Contract, e.contract_id)
+    new_by = add_days(c.complete_by or utcnow(), e.days)
+    e.status, e.decided_by, e.decided_at, e.old_by, e.new_by = EXT_OK, actor(QL), utcnow(), c.complete_by, new_by
+    c.complete_by = c.due_at = new_by
+    o = db.get(Order, c.order_id)
+    if o:
+        o.complete_by = new_by
+    notify(db, f"Quản lý duyệt gia hạn trả HĐ {c.id} +{e.days} ngày", f"Hạn mới {fmt_d(new_by)} · {c.customer}", "success",
+           roles="kt,admin", ref=c.id)
+    db.commit()
+    return c
+
+
+def reject_extension(db: Session, eid: int, reason: str) -> Contract:
+    e = _extension(db, eid)
+    if not (reason or "").strip():
+        raise HTTPException(400, "Nhập lý do từ chối")
+    c = get_or_404(db, Contract, e.contract_id)
+    e.status, e.decided_by, e.decided_at, e.reject_reason = EXT_NO, actor(QL), utcnow(), reason.strip()
+    notify(db, f"Quản lý không duyệt gia hạn trả HĐ {c.id}", f"{reason.strip()} · hạn vẫn {fmt_d(c.complete_by)}", "error",
+           roles="kt,admin", ref=c.id)
     db.commit()
     return c
 

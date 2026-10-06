@@ -27,6 +27,7 @@ ALLOW_DEMO_RESET = os.getenv("ALLOW_DEMO_RESET", "1") == "1"
 TOLERANCE_KG = 30   # dung sai cân xe tải — lệch quá mức này thì tạo sai lệch
 FILL_HOURS = 24     # hạn lái xe điền kg + ảnh phiếu kể từ khi xuất phát
 CONTRACT_DAYS = 5   # hạn kế toán trả hợp đồng kể từ khi nhận đơn
+CONTRACT_EXTEND_DAYS = int(os.getenv("CONTRACT_EXTEND_DAYS", "5"))  # mỗi lần Quản lý duyệt gia hạn trả HĐ
 PC_TOLERANCE_PCT = float(os.getenv("PC_TOLERANCE_PCT", "5"))  # cân xuất THIẾU quá 5% (hoặc DƯ bất kỳ) so với số QL giao → lý do + QL duyệt
 COMPLETE_WARN_DAYS = int(os.getenv("COMPLETE_WARN_DAYS", "7"))  # cảnh báo khi còn ≤ N ngày tới ngày hoàn thành đơn
 

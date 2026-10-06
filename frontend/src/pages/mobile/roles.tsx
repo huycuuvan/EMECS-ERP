@@ -413,6 +413,7 @@ export function QlView({ tab, setTab, onRoleSheet }: RoleViewProps) {
       }
       if (a.adv.state === 'missing') out.push({ ic: Banknote, t: `${a.contract.id} tạm ứng ${a.adv.label}`, s: a.contract.customer, red: true, open: ['hd', a.contract.id] })
     })
+    dash.pendingExtensions.forEach((e) => out.push({ ic: FileClock, t: `${e.contractId} xin gia hạn trả HĐ +${e.days} ngày — chờ duyệt`, s: `${e.customer} · ${e.reason}`, open: ['hd', e.contractId] }))
     dash.lsxMissedYesterday.forEach((x) => out.push({ ic: Factory, t: `${x.id} — hôm qua ${ddmm(x.missedDays[0])} xưởng KHÔNG cập nhật sản lượng`, s: x.name, red: true, open: ['lsx', x.id] }))
     dash.pendingLSX.forEach((x) => out.push({ ic: Factory, t: x.id + (x.status === 'Từ chối' ? ' bị xưởng TỪ CHỐI' : ' chờ xưởng nhận'), s: x.rejectReason || x.name, red: x.status === 'Từ chối', open: ['lsx', x.id] }))
     dash.pendingTasks.forEach((t) => out.push({ ic: Truck, t: t.id + (t.status === 'Từ chối' ? ' bị lái xe từ chối' : ' chờ lái xe xác nhận'), s: t.driver + (t.rejectReason ? ' · ' + t.rejectReason : ''), red: t.status === 'Từ chối', open: ['vc', t.id] }))

@@ -3,7 +3,7 @@
 import { App, Button, Result, Select, Skeleton, Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  AlarmClock, Banknote, AlertTriangle, ArrowRight, BarChart3, BellRing, ClipboardX, Factory, FileSignature, Hourglass, Info, RotateCcw, Scale,
+  AlarmClock, Banknote, AlertTriangle, ArrowRight, BarChart3, BellRing, CalendarPlus, ClipboardX, Factory, FileSignature, Hourglass, Info, RotateCcw, Scale,
   Smartphone, TimerOff, XCircle,
 } from 'lucide-react'
 import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
@@ -15,6 +15,7 @@ import { AdvChip, CompleteChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/co
 import { useAuth } from '@/lib/auth'
 import { fmtDelta, fmtDT, fmtKg, fmtT, money, relTime } from '@/lib/format'
 import { PaymentDecision } from '@/peek/drawers/contract/PaymentApprovals'
+import { ExtensionDecision } from '@/peek/drawers/contract/Extensions'
 import { ddmm } from './lsx/lsxUtil'
 import RecordLink from '@/peek/RecordLink'
 import { usePeek } from '@/peek/context'
@@ -117,6 +118,17 @@ export default function Dashboard() {
             )) : <AlertEmpty>Không còn sai lệch chờ Quản lý ký.</AlertEmpty>}
           </AlertCard>
         </div>
+
+        {d.pendingExtensions.length > 0 && (
+          <AlertCard icon={<CalendarPlus size={15} color="var(--amber)" />} title="Xin gia hạn trả hợp đồng chờ duyệt" count={d.pendingExtensions.length} bad>
+            {d.pendingExtensions.map((e) => (
+              <AlertItem key={e.id} onClick={() => open('hd', e.contractId)}
+                t1={<><span className="mono" style={{ fontWeight: 700 }}>{e.contractId}</span> · {e.customer}</>}
+                t2={<>{e.requestedBy}: {e.reason} · {e.complete?.label}</>}
+                right={<ExtensionDecision e={e} />} />
+            ))}
+          </AlertCard>
+        )}
 
         <AlertCard icon={<Banknote size={15} color="var(--amber)" />} title="Tiền về chờ Quản lý duyệt" count={pays.length} bad={pays.length > 0}>
           {pays.length ? pays.map((p) => (

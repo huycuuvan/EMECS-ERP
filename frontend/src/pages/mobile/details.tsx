@@ -11,6 +11,7 @@ import {
 import type { LedgerKey } from '@/api/types'
 import { fmtD, fmtDT, fmtT, hoursOver, moneyShort } from '@/lib/format'
 import { ddmm } from '@/pages/lsx/lsxUtil'
+import { ExtensionDecision } from '@/peek/drawers/contract/Extensions'
 import { ContractEditForm, LsxExtendForm, LsxProgressForm, PcFillForm } from './forms'
 import { fmtN, isOverdueTask, type Kind, lsxDeadline, signed, useMob } from './core'
 import { Btn, DGrid, DItem, DLink, Empty, Loading, PgRow, PhotoManage, SecTitle, StatusChip, TypeChip } from './kit'
@@ -277,6 +278,12 @@ function HdOverview({ id }: { id: string }) {
         <DItem k="Khối lượng">{fmtT(c.totalKg)} · {fmtN(c.totalQty)} {c.unit}</DItem>
         <DItem k="Hạn trả HĐ"><span className={cls(comp)}>{comp.label}</span></DItem>
         <DItem k="Hạn giao hàng"><span className={cls(dlv)}>{dlv.label}</span></DItem>
+        {g.extensions.filter((e) => e.status === 'Chờ duyệt').map((e) => (
+          <DItem key={e.id} k={`Xin gia hạn +${e.days} ngày`} full small>
+            <span className="amber-txt">{e.requestedBy}: {e.reason}</span>
+            <div style={{ marginTop: 6 }}><ExtensionDecision e={e} /></div>
+          </DItem>
+        ))}
         <DItem k="Ngày ký">{c.signDate ? fmtD(c.signDate) : <span className="red-txt">Chưa ký</span>}</DItem>
         <DItem k={`Tạm ứng ${c.advance ? c.advance.pct + '%' : ''}`} small>
           <span className={adv.state === 'missing' ? 'red-txt' : adv.state === 'ok' ? 'moss-txt' : ''}>{adv.label}</span>

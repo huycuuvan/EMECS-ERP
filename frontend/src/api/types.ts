@@ -19,6 +19,12 @@ export interface OrderExcelImport {
 
 /** Tiền về: kế toán nhập → Quản lý duyệt mới tính vào tiền đã về / tạm ứng / công nợ. */
 export type PaymentStatus = 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'
+/** Xin gia hạn trả hợp đồng: kế toán nhập lý do → Quản lý duyệt (+5 ngày) / từ chối. */
+export interface ContractExtension {
+  id: number; contractId: ID; reason: string; requestedBy: string; requestedAt: string
+  status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; days: number; oldBy: string | null; newBy: string | null
+  decidedBy: string | null; decidedAt: string | null; rejectReason: string | null
+}
 export interface Payment {
   id: number; date: string; amount: number; type: string; note: string
   status: PaymentStatus; createdBy: string; approvedBy: string | null; approvedAt: string | null; rejectReason: string | null
@@ -39,7 +45,7 @@ export interface Contract {
 export interface CompleteInfo { state: 'none' | 'ok' | 'fine' | 'soon' | 'overdue'; label: string; days: number | null }
 export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label: string }
 /** GET /contracts trả kèm adv + 2 mốc: complete = hạn trả hợp đồng (kế toán), deliver = hạn giao hàng cho khách */
-export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo; billedKg: number; billPendingKg: number }
+export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo; pendingExtension: ContractExtension | null; billedKg: number; billPendingKg: number }
 
 export type LsxStatus = 'Chờ nhận' | 'Đang SX' | 'Từ chối' | 'Hoàn thành'
 /** Sản lượng 1 ngày xưởng báo (kg; không làm = 0) + giờ nhập / sửa. */
@@ -126,6 +132,7 @@ export interface ContractAgg {
   producedKg: number; producedQty: number; receivedKg: number; weighedKg: number; sentGalvKg: number
   inTransitToGalvKg: number; atGalvKg: number; pickedKg: number; deliveredKg: number; stockKg: number
   deliveredValue: number; paidTotal: number; debt: number; pendingPayment: number; complete: CompleteInfo; deliver: CompleteInfo
+  extensions: ContractExtension[]
   /** công nợ tính theo kg cân xuất đã đạt / đã duyệt; kg đang chờ QL duyệt */
   billedKg: number; billPendingKg: number
   pctProduced: number; pctDelivered: number; pctPaid: number
@@ -149,6 +156,7 @@ export interface Dashboard {
   activeContracts: number; deliveredKgTotal: number
   contractAlerts: { contract: Contract; adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo }[]
   pendingPayments: (Payment & { contractId: ID; customer: string })[]
+  pendingExtensions: (ContractExtension & { customer: string; complete: CompleteInfo })[]
   overdueDocs: OverdueDoc[]; pendingMismatches: Mismatch[]; pendingMismatchKg: number
   pendingLSX: Lsx[]; pendingTasks: Task[]; contracts: ContractAggLite[]
   /** lệnh đang SX mà hôm qua xưởng không nhập sản lượng */

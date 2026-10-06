@@ -24,6 +24,12 @@ def order(o: Order) -> dict:
     }
 
 
+def extension(e) -> dict:
+    return {"id": e.id, "contractId": e.contract_id, "reason": e.reason, "requestedBy": e.requested_by,
+            "requestedAt": iso(e.requested_at), "status": e.status, "days": e.days, "oldBy": iso(e.old_by),
+            "newBy": iso(e.new_by), "decidedBy": e.decided_by, "decidedAt": iso(e.decided_at), "rejectReason": e.reject_reason}
+
+
 def payment(p) -> dict:
     return {"id": p.id, "date": iso(p.date), "amount": p.amount, "type": p.type, "note": p.note,
             "status": p.status or "Đã duyệt", "createdBy": p.created_by or "", "approvedBy": p.approved_by,

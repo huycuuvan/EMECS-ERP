@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/auth'
 import { fmtD, fmtNum, fmtT, moneyShort } from '@/lib/format'
 import { usePeek } from '@/peek/context'
 import { PaymentModal } from '@/peek/drawers/contract/modals'
+import { canAskExtension, useAskExtension } from '@/peek/drawers/contract/Extensions'
 import { useContractFlow } from '@/peek/drawers/contract/useContractFlow'
 import RecordLink from '@/peek/RecordLink'
 import { aggregateRows } from './contracts/aggregate'
@@ -73,6 +74,7 @@ export default function Contracts() {
     return { advMiss, advSum, debtSum, payN, paySum, late }
   }, [contracts, agg])
 
+  const askExt = useAskExtension()
   const stop = (f: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); f() }
   const rowActions = (c: ContractRow) => {
     if (!canEdit) return null
@@ -82,6 +84,8 @@ export default function Contracts() {
       onClick={stop(() => navigate(`/hop-dong/${c.id}/soan-thao`))}>{draftLbl}</Button>)
     if (c.status === 'Đã soạn thảo') btns.push(<Button key="r" size="small" onClick={stop(() => flow.askReturned(c))}>Đã gửi KH</Button>)
     if (c.status === 'Đã gửi khách hàng') btns.push(<Button key="s" size="small" onClick={stop(() => flow.askSigned(c))}>Đã nhận về</Button>)
+    if (canAskExtension(c, c.complete, !!c.pendingExtension))
+      btns.push(<Button key="e" size="small" danger={c.complete.state === 'overdue'} onClick={stop(() => askExt(c))}>Xin gia hạn</Button>)
     // tiền về độc lập với bước hợp đồng — khách có thể chuyển trước khi soạn / ký xong
     btns.push(<Button key="p" size="small" type={c.status === 'Đã nhận về' ? 'primary' : 'default'} onClick={stop(() => setPaying(c))}>+ Tiền về</Button>)
     return <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{btns}</div>
@@ -108,7 +112,10 @@ export default function Contracts() {
     {
       title: 'Hạn trả HĐ', key: 'complete', width: 140,
       sorter: (a, b) => (a.completeBy ? new Date(a.completeBy).getTime() : 9e15) - (b.completeBy ? new Date(b.completeBy).getTime() : 9e15),
-      render: (_, c) => <DeadlineCell info={c.complete} date={c.completeBy} okText="Đã nhận về" />,
+      render: (_, c) => <>
+        <DeadlineCell info={c.complete} date={c.completeBy} okText="Đã nhận về" />
+        {c.pendingExtension && <div className="caption" style={{ color: 'var(--amber)', fontWeight: 600, marginTop: 2 }}>Chờ duyệt gia hạn +{c.pendingExtension.days} ngày</div>}
+      </>,
     },
     {
       title: 'Hạn giao hàng', key: 'deliver', width: 140,

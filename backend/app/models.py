@@ -130,6 +130,23 @@ class Payment(Base):
     contract: Mapped[Contract] = relationship(back_populates="payments")
 
 
+class ContractExtension(Base):
+    """Xin gia hạn trả hợp đồng: kế toán nhập lý do → Quản lý duyệt (+5 ngày) / từ chối."""
+    __tablename__ = "contract_extensions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    contract_id: Mapped[str] = mapped_column(String(32), index=True)
+    reason: Mapped[str] = mapped_column(Text)
+    requested_by: Mapped[str] = mapped_column(String(120), default="")
+    requested_at = mapped_column(UTCDateTime)
+    status: Mapped[str] = mapped_column(String(20), default="Chờ duyệt")  # Chờ duyệt | Đã duyệt | Từ chối
+    days: Mapped[int] = mapped_column(Integer, default=5)
+    old_by = mapped_column(UTCDateTime, nullable=True)  # hạn trả HĐ trước khi gia hạn
+    new_by = mapped_column(UTCDateTime, nullable=True)  # hạn sau khi duyệt
+    decided_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    decided_at = mapped_column(UTCDateTime, nullable=True)
+    reject_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class Lsx(Base):
     __tablename__ = "lsx"
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
