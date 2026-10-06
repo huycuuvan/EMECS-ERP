@@ -29,7 +29,7 @@ def test_delete_chain_backwards(c):
     login(c, "ql")
     assert c.request("DELETE", f"/api/orders/{o['id']}", json={"reason": ""}).status_code == 422  # bắt lý do
     # còn chứng từ phía sau → chặn, báo cần xóa gì trước
-    for url, need in [(f"/api/orders/{o['id']}", "xóa hợp đồng"), (f"/api/contracts/{hd['id']}", "lệnh SX"),
+    for url, need in [(f"/api/orders/{o['id']}", "lệnh SX"), (f"/api/contracts/{hd['id']}", "lệnh SX"),
                       (f"/api/lsx/{x['id']}", "phiếu chuẩn bị hàng"), (f"/api/receipts/{r['id']}", "thẻ lái xe"),
                       (f"/api/weighings/{w['id']}", "phiếu chuẩn bị hàng")]:
         res = c.request("DELETE", url, json=R)
@@ -42,10 +42,8 @@ def test_delete_chain_backwards(c):
     login(c, "kt")
     c.post(f"/api/contracts/{hd['id']}/payments", json={"amount": 1_000_000, "type": "Tạm ứng", "note": ""})
     login(c, "ql")
-    res = c.request("DELETE", f"/api/contracts/{hd['id']}", json=R)
-    assert res.status_code == 400 and "tiền về" in res.json()["detail"]
-    pid = c.get(f"/api/contracts/{hd['id']}").json()["contract"]["payments"][0]["id"]
-    assert c.request("DELETE", f"/api/payments/{pid}", json=R).status_code == 200
+    pv = c.get(f"/api/delete-preview/hd/{hd['id']}").json()
+    assert pv["block"] is None and any("khoản tiền về" in x for x in pv["cascade"])  # tiền về xóa kèm, không bắt xóa trước
     assert c.request("DELETE", f"/api/contracts/{hd['id']}", json=R).status_code == 200
     od = c.get(f"/api/orders/{o['id']}").json()
     assert od["contractId"] is None and od["status"] == "Chốt đơn"  # đơn quay về, chuyển kế toán lại được
@@ -58,3 +56,19 @@ def test_delete_galv_task_blocked_by_delivery(c):
     giao = next(t for t in c.get("/api/tasks").json() if t["type"] == "giao_khach" and t["refId"])
     res = c.request("DELETE", f"/api/tasks/{giao['refId']}", json=R)
     assert res.status_code == 400 and "thẻ giao khách" in res.json()["detail"]
+
+
+def test_delete_order_takes_contract_and_payments(c):
+    """Xóa đơn (chưa có hàng đi) → xóa kèm hợp đồng + tiền về, không phải xóa từng cái."""
+    o = c.post("/api/orders", json={"customer": "Cty Xóa Đơn", "items": [
+        {"name": "Cột", "qty": 1, "unit": "Bộ", "kg": 100, "price": 1000}]}).json()
+    hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
+    login(c, "kt")
+    c.post(f"/api/contracts/{hd['id']}/payments", json={"amount": 50_000, "type": "Tạm ứng", "note": ""})
+    login(c, "ql")
+    pv = c.get(f"/api/delete-preview/dh/{o['id']}").json()
+    assert pv["block"] is None and pv["cascade"][0] == f"hợp đồng {hd['id']}"
+    assert c.request("DELETE", f"/api/orders/{o['id']}", json=R).status_code == 200
+    assert c.get(f"/api/contracts/{hd['id']}").status_code == 404 and c.get(f"/api/orders/{o['id']}").status_code == 404
+    pv = c.get("/api/delete-preview/dh/DH-2609-01").json()  # đơn có hàng đi thật → báo trước lý do chặn
+    assert pv["block"] and "lệnh SX" in pv["block"]

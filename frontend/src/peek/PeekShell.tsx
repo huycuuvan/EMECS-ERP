@@ -38,7 +38,8 @@ export default function PeekShell({ type, id, status, sub, actions, loading, not
           <Space size={6}>
             {actions}
             {DELETE_API[type] && !loading && !notFound && (
-              <DeleteButton ghost url={`${DELETE_API[type]}/${encodeURIComponent(id)}`} label={`${meta.label.toLowerCase()} ${id}`} onDone={close} />
+              <DeleteButton ghost url={`${DELETE_API[type]}/${encodeURIComponent(id)}`} label={`${meta.label.toLowerCase()} ${id}`} onDone={close}
+                preview={type === 'dh' || type === 'hd' ? { kind: type, id } : undefined} />
             )}
             <Button shape="circle" size="small" ghost icon={<X size={14} />} onClick={close} aria-label="Đóng" />
           </Space>
