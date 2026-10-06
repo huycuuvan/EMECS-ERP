@@ -3,7 +3,7 @@
 import { App, Button, Result, Select, Skeleton, Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  AlarmClock, Banknote, AlertTriangle, ArrowRight, BarChart3, BellRing, ClipboardX, FileSignature, Hourglass, Info, RotateCcw, Scale,
+  AlarmClock, Banknote, AlertTriangle, ArrowRight, BarChart3, BellRing, ClipboardX, Factory, FileSignature, Hourglass, Info, RotateCcw, Scale,
   Smartphone, TimerOff, XCircle,
 } from 'lucide-react'
 import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
@@ -15,6 +15,7 @@ import { AdvChip, CompleteChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/co
 import { useAuth } from '@/lib/auth'
 import { fmtDelta, fmtDT, fmtKg, fmtT, money, relTime } from '@/lib/format'
 import { PaymentDecision } from '@/peek/drawers/contract/PaymentApprovals'
+import { ddmm } from './lsx/lsxUtil'
 import RecordLink from '@/peek/RecordLink'
 import { usePeek } from '@/peek/context'
 import { Donut, GroupedBar, LegendRow } from './dashboard/charts'
@@ -122,6 +123,18 @@ export default function Dashboard() {
               right={<PaymentDecision p={p} />} />
           )) : <AlertEmpty>Không có khoản tiền về chờ duyệt.</AlertEmpty>}
         </AlertCard>
+
+        {d.lsxMissedYesterday.length > 0 && (
+          <AlertCard icon={<Factory size={15} color="var(--signal)" />} title="Xưởng không cập nhật sản lượng hôm qua" count={d.lsxMissedYesterday.length} bad>
+            {d.lsxMissedYesterday.map((x) => (
+              <AlertItem key={x.id} onClick={() => open('lsx', x.id)}
+                t1={<><span className="mono text-signal" style={{ fontWeight: 700 }}>{x.id}</span> · {x.name}</>}
+                t2={<>HĐ <RecordLink id={x.contractId} type="hd" /> · lũy kế {fmtKg(x.kgDone)} / {fmtKg(x.kgPlan)}
+                  {x.lastUpdateAt ? <> · nhập gần nhất {fmtDT(x.lastUpdateAt)}</> : ' · chưa nhập lần nào'}</>}
+                right={<Chip tone="over" icon={<AlertTriangle size={11} />}>{x.missedDays.length > 1 ? `Bỏ trống ${x.missedDays.length} ngày` : `Hôm qua ${ddmm(x.missedDays[0])}`}</Chip>} />
+            ))}
+          </AlertCard>
+        )}
 
         <AlertCard icon={<Hourglass size={15} color="var(--amber)" />} title="Chờ xác nhận công việc" count={nPending}>
           {d.pendingLSX.map((x) => x.status === 'Chờ nhận' ? (

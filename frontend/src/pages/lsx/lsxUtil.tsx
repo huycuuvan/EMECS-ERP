@@ -56,19 +56,25 @@ function MiniBar({ pct, color }: { pct: number; color: string }) {
 
 /** Giờ cảnh báo xưởng chưa nhập sản lượng ngày (khớp END_OF_DAY_HOUR ở backend). */
 export const DAILY_DEADLINE_HOUR = 20
-const hhmm = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '')
+/** dd/MM của ngày ISO (yyyy-mm-dd) */
+export const ddmm = (day: string) => `${day.slice(8, 10)}/${day.slice(5, 7)}`
 
-/** Sản lượng hôm nay của lệnh đang SX: số kg + GIỜ nhập/sửa (để Quản lý biết số mới tới đâu), hoặc cảnh báo chưa nhập. */
+/** Sản lượng hôm nay + hôm qua của lệnh đang SX: số kg + NGÀY GIỜ nhập/sửa (để Quản lý biết số mới tới đâu),
+ *  cảnh báo chưa nhập hôm nay, và cảnh báo đỏ khi HÔM QUA xưởng không cập nhật. */
 export function TodayOutput({ x }: { x: Lsx }) {
   if (x.status !== 'Đang SX') return null
   const st: CSSProperties = { fontSize: 11, marginTop: 4, fontVariantNumeric: 'tabular-nums' }
-  if (x.today) return (
-    <div style={{ ...st, color: C.ink3 }}>
-      Hôm nay <b>{fmtNum(x.today.kg)} kg</b> · {x.today.edited ? 'sửa' : 'nhập'} lúc <b>{hhmm(x.today.at)}</b>
-    </div>
-  )
   const late = new Date().getHours() >= DAILY_DEADLINE_HOUR
-  return <div style={{ ...st, color: late ? C.signal : C.amber, fontWeight: 700 }}>Chưa nhập sản lượng hôm nay{late ? ' — quá 20h' : ''}</div>
+  return (
+    <>
+      {x.today
+        ? <div style={{ ...st, color: C.ink3 }}>Hôm nay <b>{fmtNum(x.today.kg)} kg</b> · {x.today.edited ? 'sửa' : 'nhập'} lúc <b>{fmtDT(x.today.at)}</b></div>
+        : <div style={{ ...st, color: late ? C.signal : C.amber, fontWeight: 700 }}>Chưa nhập sản lượng hôm nay{late ? ' — quá 20h' : ''}</div>}
+      {x.missedYesterday
+        ? <div style={{ ...st, color: C.signal, fontWeight: 700 }}>Hôm qua ({ddmm(x.missedDays[0])}) xưởng KHÔNG cập nhật sản lượng{x.missedDays.length > 1 ? ` · bỏ trống ${x.missedDays.length} ngày` : ''}</div>
+        : x.yesterday && <div style={{ ...st, color: C.ash }}>Hôm qua {fmtNum(x.yesterday.kg)} kg · {x.yesterday.edited ? 'sửa' : 'nhập'} lúc {fmtDT(x.yesterday.at)}</div>}
+    </>
+  )
 }
 
 /** Tiến độ theo khối lượng (kg) — xanh khi hoàn thành, đỏ khi trễ, vàng khi đang chạy — kèm sản lượng hôm nay. */

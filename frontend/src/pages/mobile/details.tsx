@@ -10,6 +10,7 @@ import {
 } from '@/api/hooks'
 import type { LedgerKey } from '@/api/types'
 import { fmtD, fmtDT, fmtT, hoursOver, moneyShort } from '@/lib/format'
+import { ddmm } from '@/pages/lsx/lsxUtil'
 import { ContractEditForm, LsxExtendForm, LsxProgressForm, PcFillForm } from './forms'
 import { fmtN, isOverdueTask, type Kind, lsxDeadline, signed, useMob } from './core'
 import { Btn, DGrid, DItem, DLink, Empty, Loading, PgRow, PhotoManage, SecTitle, StatusChip, TypeChip } from './kit'
@@ -57,6 +58,22 @@ function DetailLsx({ id }: { id: string }) {
         {x.extension && <DItem k="Lý do gia hạn" full small>{x.extension.reason} — duyệt bởi {x.extension.approvedBy}</DItem>}
       </DGrid>
       <PgRow label="Khối lượng" done={x.kgDone} plan={x.kgPlan} unit="kg" tone="success" />
+      {(x.daily.length > 0 || x.missedDays.length > 0) && (
+        <>
+          <SecTitle icon={CalendarClock}>Sản lượng theo ngày</SecTitle>
+          {x.missedDays.length > 0 && (
+            <div className="log-line red-txt" style={{ fontWeight: 700 }}>
+              <span className="lt">Bỏ trống</span><span>{x.missedDays.map(ddmm).join(', ')} — xưởng chưa nhập (không làm thì nhập 0)</span>
+            </div>
+          )}
+          {x.daily.map((d) => (
+            <div key={d.id} className="log-line">
+              <span className="lt">{ddmm(d.day)}</span>
+              <span><b>{fmtN(d.kg)} kg</b> · {d.updatedAt ? `sửa lúc ${fmtDT(d.updatedAt)} (${fmtN(d.prevKg ?? 0)} → ${fmtN(d.kg)})` : `nhập lúc ${fmtDT(d.createdAt)}`}{d.note ? ` · ${d.note}` : ''}</span>
+            </div>
+          ))}
+        </>
+      )}
       <div className="btn-row">
         {x.status === 'Đang SX' && (
           <Btn variant="primary" icon={Gauge} onClick={() => m.sheet({ icon: Gauge, title: `Cập nhật tiến độ ${x.id}`, body: <LsxProgressForm x={x} /> })}>Cập nhật tiến độ</Btn>

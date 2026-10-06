@@ -53,8 +53,11 @@ export interface Lsx {
   rejectReason: string | null; qtyPlan: number; kgPlan: number; qtyDone: number; kgDone: number
   extension: { to: string; reason: string; approvedBy: string; at: string } | null
   log: { at: string; text: string }[]
-  daily: LsxDay[]; lastUpdateAt: string | null; today: { kg: number; at: string | null; edited: boolean } | null
+  daily: LsxDay[]; lastUpdateAt: string | null; today: LsxDayEntry | null
+  /** sản lượng hôm qua; missedYesterday = hôm qua xưởng KHÔNG nhập (kể cả 0); missedDays = các ngày bỏ trống (mới → cũ) */
+  yesterday: LsxDayEntry | null; missedYesterday: boolean; missedDays: string[]
 }
+export interface LsxDayEntry { kg: number; at: string | null; edited: boolean }
 
 export interface ReceiptLine { itemId: number; name: string; unit: string; qty: number; kgPerUnit: number; kg: number }
 /** kgStock: KG tính tồn kho — đã cân thì = số cân (chênh với số QL giao do Quản lý tự xử lý, không theo dõi) */
@@ -148,6 +151,8 @@ export interface Dashboard {
   pendingPayments: (Payment & { contractId: ID; customer: string })[]
   overdueDocs: OverdueDoc[]; pendingMismatches: Mismatch[]; pendingMismatchKg: number
   pendingLSX: Lsx[]; pendingTasks: Task[]; contracts: ContractAggLite[]
+  /** lệnh đang SX mà hôm qua xưởng không nhập sản lượng */
+  lsxMissedYesterday: Lsx[]
 }
 
 export interface Notification { id: number; at: string; title: string; sub: string; type: 'info' | 'success' | 'warning' | 'error'; read: boolean }

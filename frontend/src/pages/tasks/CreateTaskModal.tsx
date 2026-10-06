@@ -84,9 +84,11 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, cid, customers.length])
   const kgRef = refOptions.find((o) => o.value === refId)?.kg
+  const noStock = type === 'giao_khach' && !!agg && agg.atGalvKg <= 0.5
 
   const submit = async () => {
     const v = await form.validateFields()
+    if (noStock) return
     await create.mutateAsync({
       ...v, refId: v.refId || null, galvanizerId: v.type === 'di_ma' ? v.galvanizerId ?? null : null,
       arriveAt: v.arriveAt!.format(), fillDeadline: v.fillDeadline?.format(),
@@ -134,7 +136,10 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
           })]}>
           <DatePicker showTime={{ format: 'HH:mm', minuteStep: 15 }} format="HH:mm — DD/MM/YYYY" style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item name="contractId" label="Hợp đồng" rules={[{ required: true, message: 'Chưa chọn hợp đồng' }]}>
+        <Form.Item name="contractId" label={type === 'giao_khach' ? 'Hợp đồng (hàng của khách nào)' : 'Hợp đồng'}
+          rules={[{ required: true, message: 'Chưa chọn hợp đồng' }]}
+          validateStatus={noStock ? 'error' : undefined}
+          help={noStock ? `HĐ ${cid} không còn hàng tại xưởng mạ — không giao việc lấy hàng được` : undefined}>
           <Select showSearch={{ optionFilterProp: 'label' }} options={cs.map((c) => ({ value: c.id, label: `${c.id} — ${c.customer}` }))} />
         </Form.Item>
         <Form.Item name="refId" label={type === 'di_ma' ? 'Chứng từ gốc — phiếu cân xuất (PC)' : 'Chứng từ gốc — thẻ gửi mạ (VC)'}
@@ -147,9 +152,9 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
         </p>
         {type === 'giao_khach' && (
           <div style={{ border: '1px solid var(--rule)', borderRadius: 10, padding: '10px 12px 0', marginBottom: 12, background: 'var(--paper)' }}>
-            <Form.Item name="deliverCustomerId" label="Giao cho khách hàng" extra="Chọn khách → tự điền thông tin; sửa được cho riêng chuyến này.">
-              <Select showSearch={{ optionFilterProp: 'label' }} allowClear placeholder="Chọn khách hàng"
-                options={customers.map((x) => ({ value: x.id, label: x.name }))} onChange={(id) => fillCustomer(id)} />
+            <Form.Item name="deliverCustomerId" label="Giao cho khách hàng (theo hợp đồng)"
+              extra="Hàng tại mạ của khách nào chỉ giao cho khách đó — đổi khách thì chọn hợp đồng khác. Địa chỉ, người nhận sửa được cho riêng chuyến này.">
+              <Select disabled placeholder="Theo khách của hợp đồng" options={customers.map((x) => ({ value: x.id, label: x.name }))} />
             </Form.Item>
             <Form.Item name="deliverName" label="Tên khách / đơn vị nhận"><Input /></Form.Item>
             <Form.Item name="deliverAddress" label="Địa chỉ giao hàng" rules={[{ required: true, whitespace: true, message: 'Nhập địa chỉ giao hàng' }]}>

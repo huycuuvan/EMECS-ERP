@@ -202,14 +202,17 @@ function FillDeliveryModal({ t, onClose }: { t: Task; onClose: () => void }) {
   const [form] = Form.useForm<{ kgPicked: number; kgDelivered: number; photo: string | null; reason?: string; reasonNote?: string }>()
   const kp = Form.useWatch('kgPicked', form)
   const kd = Form.useWatch('kgDelivered', form)
+  const left = agg ? agg.atGalvKg + (t.kgPicked ?? 0) : null  // hàng của HĐ này còn tại mạ
+  const over = typeof kp === 'number' && left != null && kp > left + tol
   const msgs: string[] = []
-  if (typeof kp === 'number' && Math.abs(kp - t.kgRequired) > tol)
+  if (t.kgRequired > 0 && typeof kp === 'number' && Math.abs(kp - t.kgRequired) > tol)
     msgs.push(`KG ký với mạ lệch ${fmtDelta(Math.round((kp - t.kgRequired) * 100) / 100)} so với yêu cầu (${fmtKg(t.kgRequired)})`)
   if (typeof kp === 'number' && typeof kd === 'number' && Math.abs(kd - kp) > 0.5)
     msgs.push(`Khách ký ${fmtKg(kd)} ≠ mạ ký ${fmtKg(kp)} — hàng để lại trên xe / thất thoát dọc đường?`)
   const lech = msgs.length > 0
   const submit = async () => {
     const v = await form.validateFields()
+    if (over) return
     await m.mutateAsync({ id: t.id, kgPicked: v.kgPicked, kgDelivered: v.kgDelivered, photo: v.photo,
       reason: lech ? v.reason : undefined, reasonNote: lech ? v.reasonNote : undefined })
     onClose()
@@ -218,12 +221,14 @@ function FillDeliveryModal({ t, onClose }: { t: Task; onClose: () => void }) {
     <Modal open zIndex={MODAL_Z} title={`Điền phiếu giao nhận — ${t.id}`} okText="Lưu phiếu giao nhận" cancelText="Hủy"
       confirmLoading={m.isPending} onCancel={onClose} onOk={submit} destroyOnHidden width={560}>
       <p style={hint}>
-        Yêu cầu lấy: <b style={strong}>{fmtKg(t.kgRequired)}</b> · Đang tại mạ của HĐ này: <b style={strong}>{fmtKg(agg?.atGalvKg ?? 0)}</b>
+        {t.kgRequired > 0 && <>Yêu cầu lấy: <b style={strong}>{fmtKg(t.kgRequired)}</b> · </>}Hàng của HĐ {t.contractId} còn tại mạ: <b style={strong}>{fmtKg(left ?? 0)}</b>
         {t.refId && <> (đối ứng lượng đã gửi trước đó — thẻ gửi <RecordLink id={t.refId} style={{ color: 'var(--rust)' }} />)</>}. Một tờ phiếu, cả bên mạ và khách cùng ký.
       </p>
       <Form form={form} layout="vertical">
-        <Form.Item name="kgPicked" label="KG ký nhận với xưởng mạ" rules={kgRule('Phải nhập KG ký với mạ')}>
-          <InputNumber {...NUM} style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(t.kgRequired)}`} suffix="kg" />
+        <Form.Item name="kgPicked" label="KG ký nhận với xưởng mạ" rules={kgRule('Phải nhập KG ký với mạ')}
+          validateStatus={over ? 'error' : undefined}
+          help={over ? `Vượt hàng của HĐ còn tại mạ (${fmtKg(left ?? 0)}) — không lấy hàng của khách khác` : undefined}>
+          <InputNumber {...NUM} style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(left ?? t.kgRequired)}`} suffix="kg" />
         </Form.Item>
         <Form.Item name="kgDelivered" label="KG khách ký nhận" rules={kgRule('Phải nhập KG khách ký')}>
           <InputNumber {...NUM} style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(t.kgRequired)}`} suffix="kg" />

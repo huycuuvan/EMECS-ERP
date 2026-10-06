@@ -16,6 +16,7 @@ import { fmtD, fmtDT, fmtKg, fmtT, hoursOver, moneyShort, relTime } from '@/lib/
 import { TaskRoute } from './route'
 import { useSignFlow } from './sign'
 import AssignedGoods from '../weighings/AssignedGoods'
+import { ddmm } from '@/pages/lsx/lsxUtil'
 import { DelivForm, GalvForm, LsxProgressForm, MaterialForm, PcFillForm, ReceiptForm, RejectForm } from './forms'
 import { useMaterials } from '@/api/hooksMaster'
 import {
@@ -192,6 +193,7 @@ function sxAlerts(xs: Lsx[]): MAlert[] {
     if (x.status === 'Chờ nhận') out.push({ ic: Hourglass, t: `${x.id} chờ xưởng nhận lệnh`, s: `Phát ${relTime(x.assignedAt)} · hạn ${fmtD(x.deadline)}`, open: ['lsx', x.id] })
     else if (x.status === 'Đang SX') {
       const { dl } = lsxDeadline(x)
+      if (x.missedYesterday) out.push({ ic: AlarmClock, t: `${x.id} — hôm qua ${ddmm(x.missedDays[0])} KHÔNG cập nhật sản lượng`, s: 'Nhập bù ngày hôm qua (không làm thì nhập 0)', red: true, open: ['lsx', x.id] })
       if (dl < 0) out.push({ ic: AlarmClock, t: `${x.id} TRỄ hạn ${Math.abs(dl)} ngày`, s: x.name, red: true, open: ['lsx', x.id] })
       else if (dl <= 1) out.push({ ic: Clock, t: `${x.id} còn ${dl} ngày tới hạn`, s: x.name, open: ['lsx', x.id] })
     }
@@ -236,8 +238,11 @@ function LsxCard({ x }: { x: Lsx }) {
       </Line>
       <PgRow label="Khối lượng" done={x.kgDone} plan={x.kgPlan} unit="kg" tone="success" />
       {x.status === 'Đang SX' && (x.today
-        ? <Line k="Hôm nay" vClass="sm">{fmtN(x.today.kg)} kg · {x.today.edited ? 'sửa' : 'nhập'} lúc {x.today.at ? new Date(x.today.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}</Line>
+        ? <Line k="Hôm nay" vClass="sm">{fmtN(x.today.kg)} kg · {x.today.edited ? 'sửa' : 'nhập'} lúc {fmtDT(x.today.at)}</Line>
         : <Line k="Hôm nay" vClass={'sm ' + (new Date().getHours() >= 20 ? 'red-txt' : '')}>Chưa nhập sản lượng</Line>)}
+      {x.status === 'Đang SX' && (x.missedYesterday
+        ? <Line k={`Hôm qua ${ddmm(x.missedDays[0])}`} vClass="sm red-txt">KHÔNG cập nhật{x.missedDays.length > 1 ? ` · bỏ trống ${x.missedDays.length} ngày` : ''}</Line>
+        : x.yesterday && <Line k="Hôm qua" vClass="sm">{fmtN(x.yesterday.kg)} kg · {x.yesterday.edited ? 'sửa' : 'nhập'} lúc {fmtDT(x.yesterday.at)}</Line>)}
       {x.status === 'Chờ nhận' && (
         <div className="btn-row">
           <Btn variant="accept" icon={CheckCheck} loading={accept.isPending} onClick={() => accept.mutate(x.id)}>NHẬN LỆNH</Btn>
@@ -377,6 +382,7 @@ export function QlView({ tab, setTab, onRoleSheet }: RoleViewProps) {
         out.push({ ic: FileClock, t: `${a.contract.id} — ${a.complete.label}`, s: a.contract.customer, red: a.complete.state === 'overdue', open: ['hd', a.contract.id] })
       if (a.adv.state === 'missing') out.push({ ic: Banknote, t: `${a.contract.id} tạm ứng ${a.adv.label}`, s: a.contract.customer, red: true, open: ['hd', a.contract.id] })
     })
+    dash.lsxMissedYesterday.forEach((x) => out.push({ ic: Factory, t: `${x.id} — hôm qua ${ddmm(x.missedDays[0])} xưởng KHÔNG cập nhật sản lượng`, s: x.name, red: true, open: ['lsx', x.id] }))
     dash.pendingLSX.forEach((x) => out.push({ ic: Factory, t: x.id + (x.status === 'Từ chối' ? ' bị xưởng TỪ CHỐI' : ' chờ xưởng nhận'), s: x.rejectReason || x.name, red: x.status === 'Từ chối', open: ['lsx', x.id] }))
     dash.pendingTasks.forEach((t) => out.push({ ic: Truck, t: t.id + (t.status === 'Từ chối' ? ' bị lái xe từ chối' : ' chờ lái xe xác nhận'), s: t.driver + (t.rejectReason ? ' · ' + t.rejectReason : ''), red: t.status === 'Từ chối', open: ['vc', t.id] }))
     return out
@@ -403,11 +409,13 @@ function QlHome({ dash }: { dash: Dash }) {
   const als = dash.contractAlerts, ods = dash.overdueDocs
   const pms = dash.pendingMismatches
   const pl = dash.pendingLSX, pt = dash.pendingTasks
-  const nWarn = als.length + ods.length
+  const nMiss = dash.lsxMissedYesterday
+  const nWarn = als.length + ods.length + nMiss.length
   return (
     <>
       <SecTitle icon={Siren} count={nWarn} red={nWarn > 0}>Cảnh báo</SecTitle>
       {!nWarn && <Empty icon={ShieldCheck}>Không có cảnh báo — hệ thống sạch.</Empty>}
+      {nMiss.map((x) => <AlertRow key={x.id} a={{ ic: Factory, t: `${x.id} — hôm qua ${ddmm(x.missedDays[0])} xưởng KHÔNG cập nhật sản lượng`, s: `${x.name}${x.missedDays.length > 1 ? ` · bỏ trống ${x.missedDays.length} ngày` : ''}`, red: true, open: ['lsx', x.id] }} />)}
       {ods.map((d) => <AlertRow key={d.id} a={{ ic: AlarmClock, t: `${d.kind} ${d.id} — QUÁ HẠN ${d.hoursOver}h`, s: `${d.person} (${d.dept}) còn thiếu: ${d.missing} · HĐ ${d.contractId}`, red: true, open: [d.type, d.id] }} />)}
       {als.map((a) => (
         <div key={a.contract.id}>

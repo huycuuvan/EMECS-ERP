@@ -8,6 +8,7 @@ import {
 } from '@/api/hooks'
 import type { Contract, Lsx, Task, Weighing } from '@/api/types'
 import { fmtD, fmtDT, fmtKg } from '@/lib/format'
+import { ddmm } from '@/pages/lsx/lsxUtil'
 import { fmtN, num, signed, useMob } from './core'
 import { perUnit, useContractGoods } from '../receipts/ContractGoods'
 import AssignedGoods from '../weighings/AssignedGoods'
@@ -76,6 +77,13 @@ export function LsxProgressForm({ x }: { x: Lsx }) {
       <div className="f-hint" style={{ marginTop: 0, marginBottom: 8 }}>{x.name} — kế hoạch <b>{fmtN(x.kgPlan)} kg</b> · đã làm <b>{fmtN(x.kgDone)} kg</b>.</div>
       <label className="f-lbl">Ngày</label>
       <input type="date" className="inp" value={day} max={localDay()} onChange={(e) => pick(e.target.value)} />
+      {x.missedDays.length > 0 && (
+        <div className="f-hint red-txt">Ngày bỏ trống — bấm để nhập bù:{' '}
+          {x.missedDays.slice(0, 7).map((d) => (
+            <button key={d} type="button" className="m-chip bad" style={{ margin: '2px 4px 0 0', border: 0, cursor: 'pointer' }} onClick={() => pick(d)}>{ddmm(d)}</button>
+          ))}
+        </div>
+      )}
       <label className="f-lbl">Khối lượng làm được trong ngày (kg)</label>
       <NumInput big value={kg} onChange={setKg} />
       <div className="f-hint">Hôm nào không làm thì nhập <b>0</b>. Hạn nhập trước <b>20h</b> mỗi ngày.</div>
@@ -280,14 +288,18 @@ export function DelivForm({ t }: { t: Task }) {
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
   const p = num(kgp), d = num(kgd)
+  // hàng của HĐ này còn tại mạ (cộng lại phần thẻ này đã khai nếu đang điền lại) — không được lấy hàng của khách khác
+  const left = agg ? agg.atGalvKg + (t.kgPicked ?? 0) : null
+  const over = left != null && p > left + m.tol
   const d1 = p - t.kgRequired, d2 = d - p
-  const bad1 = p > 0 && Math.abs(d1) > m.tol
+  const bad1 = t.kgRequired > 0 && p > 0 && Math.abs(d1) > m.tol
   const bad2 = p > 0 && d > 0 && Math.abs(d2) > 0.5
   const lech = bad1 || bad2
   const msg = bad2 ? `Khách ký lệch ${signed(d2)} kg so với số ký với mạ — bắt buộc chọn lý do`
     : `Ký với mạ lệch ${signed(d1)} kg so với yêu cầu — bắt buộc chọn lý do`
   const submit = async () => {
     if (!(p > 0)) { message.error('Nhập kg ký nhận với xưởng mạ.'); return }
+    if (over) { message.error(`Vượt hàng của HĐ còn tại mạ (${fmtKg(left!)}) — không lấy hàng của khách khác.`); return }
     if (!(d > 0)) { message.error('Nhập kg khách ký nhận.'); return }
     if (!photo) { message.error('Bắt buộc ảnh phiếu giao nhận — chụp hoặc dùng ảnh demo.'); return }
     if (lech && !reason) { message.error('Có sai lệch — bắt buộc chọn lý do.'); return }
@@ -296,8 +308,12 @@ export function DelivForm({ t }: { t: Task }) {
   return (
     <div className="m-form no-open">
       <label className="f-lbl">Kg ký nhận với xưởng mạ</label>
-      <NumInput big value={kgp} onChange={setKgp} bad={bad1} />
-      <div className="f-hint">Gợi ý: còn tại mạ <b>{agg ? fmtKg(agg.atGalvKg) : '…'}</b> · thẻ yêu cầu {fmtKg(t.kgRequired)}.</div>
+      <NumInput big value={kgp} onChange={setKgp} bad={bad1 || over} />
+      <div className="f-hint">
+        Hàng của HĐ {t.contractId} còn tại mạ: <b>{left != null ? fmtKg(left) : '…'}</b>
+        {t.kgRequired > 0 && <> · thẻ yêu cầu {fmtKg(t.kgRequired)}</>}.
+        {over && <div className="red-txt" style={{ fontWeight: 700 }}>Vượt số còn tại mạ — không được lấy hàng của khách khác.</div>}
+      </div>
       <label className="f-lbl">Kg khách ký nhận</label>
       <NumInput big value={kgd} onChange={setKgd} bad={bad2} />
       <PhotoPicker label="Ảnh phiếu giao nhận (ký mạ + ký khách)" value={photo} onChange={setPhoto} demo={{ label: `Phiếu giao nhận · ${t.id}`, kg: d || t.kgRequired }} />

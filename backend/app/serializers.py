@@ -1,4 +1,6 @@
 """ORM → JSON camelCase, giữ đúng shape bản demo để FE dùng thẳng."""
+from datetime import timedelta
+
 from .models import (Contract, Lsx, Mismatch, Notification, Order, Receipt, Task, VLoss, Weighing)
 from .files import sign_photo
 from .utils import iso
@@ -70,8 +72,22 @@ def daily_info(x: Lsx) -> dict:
                     "updatedBy": d.updated_by, "prevKg": d.prev_kg})
     last = max((d.updated_at or d.created_at for d in rows if d.created_at), default=None)
     t = next((d for d in rows if d.day == today), None)
-    return {"daily": out[::-1], "lastUpdateAt": iso(last),
-            "today": ({"kg": t.kg, "at": iso(t.updated_at or t.created_at), "edited": bool(t.updated_at)} if t else None)}
+    yday = today - timedelta(days=1)
+    y = next((d for d in rows if d.day == yday), None)
+    # ngày đã qua tới hôm qua mà xưởng KHÔNG nhập sản lượng (kể cả 0 cũng phải nhập). Đếm từ lần nhập đầu tiên
+    # (trước đó là số dư chuyển sang khi chưa có nhập theo ngày); chưa nhập lần nào → từ ngày nhận lệnh.
+    missed = []
+    if x.status == "Đang SX" and (x.accepted_at or x.assigned_at):
+        start = rows[0].day if rows else (x.accepted_at or x.assigned_at).astimezone(VN_TZ).date()
+        have = {d.day for d in rows}
+        day = yday
+        while day >= start and len(missed) < 30:
+            if day not in have:
+                missed.append(day.isoformat())
+            day -= timedelta(days=1)
+    entry = lambda d: {"kg": d.kg, "at": iso(d.updated_at or d.created_at), "edited": bool(d.updated_at)}  # noqa: E731
+    return {"daily": out[::-1], "lastUpdateAt": iso(last), "today": entry(t) if t else None,
+            "yesterday": entry(y) if y else None, "missedYesterday": yday.isoformat() in missed, "missedDays": missed}
 
 
 def receipt(r: Receipt) -> dict:

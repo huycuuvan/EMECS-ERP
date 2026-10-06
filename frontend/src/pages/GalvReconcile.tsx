@@ -1,5 +1,6 @@
 /* 08 — Đối ứng gửi / nhận mạ kẽm: mạ thuê ngoài, chỉ đối ứng kg gửi vào = kg lấy ra + kg còn tại mạ.
-   Theo hợp đồng (4 ô tổng + kiểm tra tự động) và theo từng chuyến (cân xuất công ty ↔ cân đến mạ ↔ lấy từ mạ ↔ khách ký). */
+   "Tất cả hợp đồng" (mặc định): tổng hợp mọi khách + bảng từng HĐ (hàng mỗi khách tách riêng, không lấy lẫn).
+   Chọn 1 HĐ: 4 ô tổng + kiểm tra tự động + từng chuyến (cân xuất công ty ↔ cân đến mạ ↔ lấy từ mạ ↔ khách ký). */
 import { Button, Select, Skeleton, Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { AlertTriangle, ArrowLeftFromLine, ArrowRightToLine, Check, CheckCircle2, Scale, Truck } from 'lucide-react'
@@ -39,6 +40,7 @@ const byAssigned = (a: Task, b: Task) => a.assignedAt.localeCompare(b.assignedAt
 export default function GalvReconcile() {
   const { data: contracts = [] } = useContracts()
   const { data: diMa = [] } = useTasks({ type: 'di_ma' })
+  const { data: giao = [] } = useTasks({ type: 'giao_khach' })
   const [params, setParams] = useSearchParams()
   const { open } = usePeek()
   const { hasRole } = useAuth()
@@ -51,8 +53,7 @@ export default function GalvReconcile() {
     return contracts.filter((c) => ids.has(c.id))
   }, [contracts, diMa])
   const hd = params.get('hd')
-  const cid = hd && galvContracts.some((c) => c.id === hd) ? hd
-    : galvContracts.some((c) => c.id === 'HD-2609-01') ? 'HD-2609-01' : galvContracts[0]?.id
+  const cid = hd && galvContracts.some((c) => c.id === hd) ? hd : null  // null = tất cả hợp đồng
   const { data: g, isLoading } = useContract(cid)
   const pcById = useMemo(() => new Map<string, Weighing>((g?.weighings ?? []).map((p) => [p.id, p])), [g])
   const canAssign = hasRole('admin') // server: chỉ Quản lý giao thẻ
@@ -85,15 +86,18 @@ export default function GalvReconcile() {
   ]
 
   const select = (
-    <Select value={cid} onChange={(v) => setParams({ hd: v }, { replace: true })} style={{ minWidth: 320 }} placeholder="Chọn hợp đồng"
-      showSearch={{ optionFilterProp: 'label' }} options={galvContracts.map((c) => ({ value: c.id, label: `${c.id} — ${c.customer}` }))} />
+    <Select value={cid ?? ALL} onChange={(v) => setParams(v === ALL ? {} : { hd: v }, { replace: true })} style={{ minWidth: 320 }}
+      showSearch={{ optionFilterProp: 'label' }}
+      options={[{ value: ALL, label: `Tất cả hợp đồng (${galvContracts.length})` },
+        ...galvContracts.map((c) => ({ value: c.id, label: `${c.id} — ${c.customer}` }))]} />
   )
   const header = (
     <PageHeader title="Đối ứng gửi / nhận mạ kẽm"
       desc={<>Mạ thuê ngoài — không quản lý sản xuất của bên mạ, chỉ đối ứng <b>kg gửi vào = kg lấy ra + kg còn tại mạ</b></>}
       extra={select} />
   )
-  if (!g) return <div>{header}{isLoading || !cid ? <Skeleton active /> : null}{!cid && !isLoading && <p className="caption">Chưa có hợp đồng nào gửi mạ.</p>}</div>
+  if (!cid) return <div>{header}<AllContracts contracts={galvContracts} diMa={diMa} giao={giao} onPick={(id) => setParams({ hd: id }, { replace: true })} /></div>
+  if (!g) return <div>{header}{isLoading ? <Skeleton active /> : null}</div>
 
   const c = g.contract
   const send = [...g.tasksDiMa].sort(byAssigned)
@@ -158,6 +162,68 @@ export default function GalvReconcile() {
 
       {canAssign && <CreateTaskModal open={creating} onClose={() => setCreating(false)} initial={{ type: 'giao_khach', contractId: c.id }} />}
     </div>
+  )
+}
+
+const ALL = '__all__'
+
+interface Row { id: string; customer: string; sent: number; nSent: number; transit: number; picked: number; nPicked: number; delivered: number; left: number; pending: number }
+
+/** Tổng hợp tất cả hợp đồng đã gửi mạ: mỗi dòng = hàng của 1 khách tại mạ (không cộng lẫn). */
+function AllContracts({ contracts, diMa, giao, onPick }: {
+  contracts: { id: string; customer: string }[]; diMa: Task[]; giao: Task[]; onPick: (id: string) => void
+}) {
+  const rows: Row[] = contracts.map((c) => {
+    const s = diMa.filter((t) => t.contractId === c.id)
+    const p = giao.filter((t) => t.contractId === c.id)
+    const done = s.filter((t) => t.kgAtGalv != null), got = p.filter((t) => t.kgPicked != null)
+    const sent = done.reduce((a, t) => a + (t.kgAtGalv ?? 0), 0)
+    const picked = got.reduce((a, t) => a + (t.kgPicked ?? 0), 0)
+    return {
+      id: c.id, customer: c.customer, sent, nSent: done.length,
+      transit: s.filter((t) => t.kgAtGalv == null && t.status !== 'Từ chối').reduce((a, t) => a + t.kgRequired, 0),
+      picked, nPicked: got.length, delivered: got.reduce((a, t) => a + (t.kgDelivered ?? 0), 0), left: sent - picked,
+      pending: p.filter((t) => t.kgPicked == null && t.status !== 'Từ chối').length,
+    }
+  }).sort((a, b) => b.left - a.left)
+  const sum = (k: 'sent' | 'transit' | 'picked' | 'delivered' | 'left') => rows.reduce((a, r) => a + r[k], 0)
+  const cols: ColumnsType<Row> = [
+    { title: 'Hợp đồng', dataIndex: 'id', render: (v: string) => <RecordLink id={v} style={{ color: 'var(--rust)' }} /> },
+    { title: 'Khách hàng', dataIndex: 'customer' },
+    { title: 'Đã gửi vào mạ', key: 'sent', align: 'right', render: (_, r) => <div>{big(fmtKg(r.sent))}<div className="caption" style={{ fontSize: 11 }}>{r.nSent} chuyến</div></div> },
+    { title: 'Đang tới mạ', dataIndex: 'transit', align: 'right', render: (v: number) => (v > 0 ? big(fmtKg(v)) : dash) },
+    { title: 'Đã lấy ra', key: 'picked', align: 'right', render: (_, r) => <div>{big(fmtKg(r.picked))}<div className="caption" style={{ fontSize: 11 }}>{r.nPicked} chuyến{r.pending ? ` · ${r.pending} đang đi lấy` : ''}</div></div> },
+    { title: 'Khách ký nhận', dataIndex: 'delivered', align: 'right', render: (v: number) => big(fmtKg(v)) },
+    { title: 'Còn tại mạ', dataIndex: 'left', align: 'right', sorter: (a, b) => a.left - b.left, render: (v: number) => (
+      v < -0.5 ? <span className="mono" style={{ color: 'var(--signal)', fontWeight: 800 }}><AlertTriangle size={12} style={{ verticalAlign: -2 }} /> {fmtKg(v)} lấy quá</span>
+        : <span className="mono num" style={{ fontWeight: 800, color: v > 0.5 ? 'var(--rust-deep)' : 'var(--moss)' }}>{v > 0.5 ? fmtKg(v) : 'đã lấy hết'}</span>) },
+  ]
+  return (
+    <>
+      <KpiGrid>
+        <Kpi tone="steel" label="Đã gửi vào mạ" value={<span className="mono">{fmtKg(sum('sent'))}</span>} sub={`${rows.length} hợp đồng · ${rows.reduce((a, r) => a + r.nSent, 0)} chuyến mạ đã cân`} />
+        <Kpi tone="amber" label="Đang trên đường tới mạ" value={<span className="mono">{fmtKg(sum('transit'))}</span>} sub="mạ chưa xác nhận cân" />
+        <Kpi tone="moss" label="Đã lấy ra khỏi mạ" value={<span className="mono">{fmtKg(sum('picked'))}</span>} sub={`khách ký nhận ${fmtKg(sum('delivered'))}`} />
+        <Kpi tone="rust" label="Còn tại xưởng mạ" value={<span className="mono" style={{ color: 'var(--rust-deep)', fontWeight: 800 }}>{fmtKg(sum('left'))}</span>}
+          sub={`${rows.filter((r) => r.left > 0.5).length} hợp đồng còn hàng tại mạ`} />
+      </KpiGrid>
+      <div style={panel}>
+        <div style={h5}><Scale size={15} /> Hàng tại mạ theo từng hợp đồng / khách <span className="caption" style={{ fontWeight: 400 }}>· hàng mỗi khách tách riêng, chỉ lấy trong phần của HĐ đó — bấm dòng để xem từng chuyến</span></div>
+        <Table<Row> rowKey="id" size="middle" dataSource={rows} columns={cols} pagination={false} scroll={{ x: 900 }}
+          locale={{ emptyText: 'Chưa có hợp đồng nào gửi mạ.' }}
+          rowClassName={(r) => 'clickable-row' + (r.left < -0.5 ? ' row-alert' : '')} onRow={(r) => ({ onClick: () => onPick(r.id) })}
+          summary={() => rows.length > 1 ? (
+            <Table.Summary.Row style={{ fontWeight: 700 }}>
+              <Table.Summary.Cell index={0} colSpan={2}>Tổng {rows.length} hợp đồng</Table.Summary.Cell>
+              <Table.Summary.Cell index={2} align="right">{big(fmtKg(sum('sent')))}</Table.Summary.Cell>
+              <Table.Summary.Cell index={3} align="right">{big(fmtKg(sum('transit')))}</Table.Summary.Cell>
+              <Table.Summary.Cell index={4} align="right">{big(fmtKg(sum('picked')))}</Table.Summary.Cell>
+              <Table.Summary.Cell index={5} align="right">{big(fmtKg(sum('delivered')))}</Table.Summary.Cell>
+              <Table.Summary.Cell index={6} align="right">{big(fmtKg(sum('left')))}</Table.Summary.Cell>
+            </Table.Summary.Row>
+          ) : null} />
+      </div>
+    </>
   )
 }
 

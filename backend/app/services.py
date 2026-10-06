@@ -337,6 +337,9 @@ def dashboard(db: Session, tag: int | None = None, segment: str | None = None) -
                        if keep(x.contract_id)],
         "pendingTasks": [S.task(t, photo=False) for t in db.scalars(select(Task).where(Task.status.in_(("Chờ xác nhận", "Từ chối"))))
                          if keep(t.contract_id)],
+        # lệnh đang SX mà HÔM QUA xưởng không nhập sản lượng (kể cả 0)
+        "lsxMissedYesterday": [d for d in (S.lsx(x) for x in db.scalars(select(Lsx).where(Lsx.status == "Đang SX"))
+                                           if keep(x.contract_id)) if d["missedYesterday"]],
         "contracts": [contract_agg(db, c.id, detail=False) for c in contracts],
     }
 
@@ -820,6 +823,21 @@ def _kg_from_ref(db: Session, type_: str, ref_id: str | None) -> float:
     return (t.kg_at_galv if t and t.kg_at_galv is not None else (t.kg_required if t else 0)) or 0
 
 
+def galv_remaining_kg(db: Session, cid: str, exclude_task: str | None = None) -> float:
+    """Hàng CỦA HỢP ĐỒNG NÀY còn tại xưởng mạ = mạ đã cân nhận (thẻ đi mạ) − đã lấy ra (thẻ giao khách).
+    Hàng mỗi khách khác nhau → chỉ được lấy trong phần này, không lấy lẫn hàng của khách khác."""
+    vcs = db.scalars(select(Task).where(Task.contract_id == cid)).all()
+    sent = _sum([t for t in vcs if t.type == "di_ma" and t.kg_at_galv is not None], lambda t: t.kg_at_galv)
+    picked = _sum([t for t in vcs if t.type == "giao_khach" and t.kg_picked is not None and t.id != exclude_task],
+                  lambda t: t.kg_picked)
+    return sent - picked
+
+
+def contract_customer_id(db: Session, c: Contract) -> int | None:
+    o = db.get(Order, c.order_id)
+    return o.customer_id if o else None
+
+
 def _galv_of_ref(db: Session, ref_id: str | None) -> int | None:
     """Giao khách: điểm lấy hàng = xưởng mạ của thẻ đi mạ gốc."""
     t = db.get(Task, ref_id) if ref_id else None
@@ -831,7 +849,16 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
                 fill_deadline=None, **deliver) -> Task:
     if type_ not in ("di_ma", "giao_khach"):
         raise HTTPException(400, "Loại thẻ phải là di_ma hoặc giao_khach")
-    get_or_404(db, Contract, cid)
+    c = get_or_404(db, Contract, cid)
+    if type_ == "giao_khach":
+        # hàng của khách nào giao cho khách đó: khách nhận = khách của hợp đồng, và HĐ phải còn hàng tại mạ
+        own = contract_customer_id(db, c)
+        if own and deliver.get("deliver_customer_id") and deliver["deliver_customer_id"] != own:
+            raise HTTPException(400, f"Hàng tại mạ của HĐ {cid} thuộc khách {c.customer} — không giao cho khách khác")
+        deliver["deliver_customer_id"] = deliver.get("deliver_customer_id") or own
+        left = galv_remaining_kg(db, cid)
+        if left <= 0.5:
+            raise HTTPException(400, f"HĐ {cid} ({c.customer}) không còn hàng tại xưởng mạ — không giao việc lấy hàng được")
     if not arrive_at:
         raise HTTPException(400, "Chưa nhập ngày giờ lái xe phải có mặt")
     if arrive_at.tzinfo is None:
@@ -937,6 +964,11 @@ def task_fill_delivery(db: Session, tid: str, kg_picked: float, kg_delivered: fl
         raise HTTPException(400, "Thẻ này không phải thẻ giao khách")
     if t.status not in ("Đang chạy", "Chờ QL duyệt"):
         raise HTTPException(400, f"Thẻ đang \"{t.status}\" — xuất phát trước khi điền phiếu")
+    left = galv_remaining_kg(db, t.contract_id, exclude_task=t.id)
+    if (kg_picked or 0) > left + TOLERANCE_KG:
+        c = db.get(Contract, t.contract_id)
+        raise HTTPException(400, f"Lấy {fmt_kg(kg_picked)} vượt số hàng của HĐ {t.contract_id}"
+                                 f"{f' ({c.customer})' if c else ''} còn tại mạ: {fmt_kg(max(left, 0))} — không lấy hàng của khách khác")
     t.kg_picked, t.kg_delivered = kg_picked or 0, kg_delivered or 0
     if photo:
         t.photo = photo

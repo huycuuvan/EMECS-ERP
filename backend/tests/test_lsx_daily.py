@@ -74,9 +74,9 @@ def test_receipt_kg_only_and_task_auto_kg_arrival_delivery(c):
     d = c.post("/api/tasks", json={**base, "refId": None, "arriveAt": "2099-01-01T07:30:00+07:00"}).json()
     assert d["fillDeadline"].startswith("2099-01-02T07:30")  # mặc định có mặt + 24h
     assert t["kgRequired"] > 0 and t["arriveAt"].startswith("2099-01-01") and t["deliver"] is None  # KG lấy từ phiếu cân
-    g = c.post("/api/tasks", json={"type": "giao_khach", "driver": "Lê Đức Vận", "contractId": "HD-2609-06",
-                                   "arriveAt": "2099-01-02T08:00:00+07:00", "deliverCustomerId": 1,
-                                   "deliverName": "Cty Xây lắp Sông Đà 9", "deliverAddress": "Công trường KCN Yên Phong",
+    g = c.post("/api/tasks", json={"type": "giao_khach", "driver": "Lê Đức Vận", "contractId": "HD-2609-01",
+                                   "arriveAt": "2099-01-02T08:00:00+07:00",
+                                   "deliverName": "Cty CP Kết cấu thép FECON", "deliverAddress": "Công trường KCN Yên Phong",
                                    "receiverName": "Anh Hùng", "receiverPhone": "0912000111",
                                    "contactName": "Chị Lan", "contactPhone": "0913000222"}).json()
     assert g["deliver"]["receiverName"] == "Anh Hùng" and g["deliver"]["address"] == "Công trường KCN Yên Phong"
@@ -182,3 +182,46 @@ def test_kho_ao_records_all_deviations_including_prep(c):
     assert a["source"] == "Cân xuất (chuẩn bị hàng)" and a["kg"] == -500 and a["reason"] == "Dư bản mã"
     assert "= 500 kg dư" in a["formula"]["text"]
     assert c.get(f"/api/contracts/{hd['id']}").json()["stockKg"] == 0  # vẫn không thành tồn kho
+
+
+def test_galvanizer_stock_per_customer(c):
+    """Hàng tại mạ theo từng hợp đồng / khách: không giao HĐ hết hàng, không giao cho khách khác, không lấy quá phần còn lại."""
+    base = {"type": "giao_khach", "driver": "Lê Đức Vận", "arriveAt": "2099-01-02T08:00:00+07:00", "deliverAddress": "CT"}
+    r = c.post("/api/tasks", json={**base, "contractId": "HD-2609-06"})  # Sông Đà 9 không còn hàng tại mạ
+    assert r.status_code == 400 and "không còn hàng tại xưởng mạ" in r.json()["detail"]
+    other = next(x["id"] for x in c.get("/api/customers").json() if x["name"] != "Cty CP Kết cấu thép FECON")
+    r = c.post("/api/tasks", json={**base, "contractId": "HD-2609-01", "deliverCustomerId": other})
+    assert r.status_code == 400 and "không giao cho khách khác" in r.json()["detail"]
+    left = c.get("/api/contracts/HD-2609-01").json()["atGalvKg"]
+    t = c.post("/api/tasks", json={**base, "contractId": "HD-2609-01"}).json()
+    assert t["deliver"]["customerId"]  # tự gán khách của hợp đồng
+    login(c, "lx1" if t["driver"] != "Lê Đức Vận" else "lx2")
+    c.post(f"/api/tasks/{t['id']}/accept"); c.post(f"/api/tasks/{t['id']}/depart")
+    photo = "data:image/png;base64,iVBORw0KGgo="
+    r = c.post(f"/api/tasks/{t['id']}/fill-delivery", json={"kgPicked": left + 1000, "kgDelivered": left + 1000, "photo": photo})
+    assert r.status_code == 400 and "không lấy hàng của khách khác" in r.json()["detail"]
+    r = c.post(f"/api/tasks/{t['id']}/fill-delivery", json={"kgPicked": left, "kgDelivered": left, "photo": photo})
+    assert r.status_code == 200 and r.json()["status"] == "Hoàn thành"  # không còn đối chiếu với kg yêu cầu = 0
+    login(c, "ql")
+    assert c.get("/api/contracts/HD-2609-01").json()["atGalvKg"] == 0
+
+
+def test_missed_yesterday_flag(c):
+    """Hôm qua xưởng không nhập sản lượng → cờ missedYesterday + danh sách trên dashboard; nhập bù (kể cả 0) thì hết."""
+    from datetime import timedelta
+    from app.db import SessionLocal, utcnow
+    from app.models import Lsx
+    lid = next(x["id"] for x in c.get("/api/lsx").json() if x["status"] == "Đang SX")
+    with SessionLocal() as db:  # lệnh nhận từ 3 ngày trước
+        x = db.get(Lsx, lid)
+        x.accepted_at = utcnow() - timedelta(days=3)
+        x.daily.clear()
+        db.commit()
+    x = c.get(f"/api/lsx/{lid}").json()
+    assert x["missedYesterday"] and len(x["missedDays"]) >= 2 and x["yesterday"] is None
+    assert lid in [d["id"] for d in c.get("/api/dashboard").json()["lsxMissedYesterday"]]
+    login(c, "sx")
+    yday = x["missedDays"][0]
+    assert c.post(f"/api/lsx/{lid}/daily", json={"day": yday, "kg": 0}).status_code == 200
+    x = c.get(f"/api/lsx/{lid}").json()
+    assert not x["missedYesterday"] and x["yesterday"]["kg"] == 0 and yday not in x["missedDays"]
