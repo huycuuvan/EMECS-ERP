@@ -155,7 +155,7 @@ export interface Dashboard {
   lsxMissedYesterday: Lsx[]
 }
 
-export interface Notification { id: number; at: string; title: string; sub: string; type: 'info' | 'success' | 'warning' | 'error'; read: boolean }
+export interface Notification { id: number; at: string; title: string; sub: string; type: 'info' | 'success' | 'warning' | 'error'; read: boolean; refId: string | null }
 
 export type RoleId = 'admin' | 'kt' | 'sx' | 'kho' | 'lx'
 export type AccessLevel = 'full' | 'limited' | 'view'

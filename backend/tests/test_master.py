@@ -201,11 +201,12 @@ def test_end_of_day_alerts_role_targeted_once_per_day(c):
     assert any("lệnh SX chưa nhập sản lượng" in t for t in titles) and not any("hợp đồng sắp tới / quá ngày hoàn thành" in t for t in titles)
     login(c, "lx1")
     assert any("thẻ lái xe" in n["title"] for n in c.get("/api/notifications").json())
-    # đánh dấu đã đọc chỉ tác động thông báo người đó thấy
+    # đã đọc tính riêng từng người: lái xe đọc hết không làm Quản lý mất thông báo chưa đọc
     c.post("/api/notifications/read-all")
+    assert all(n["read"] for n in c.get("/api/notifications").json())
     login(c, "ql")
     ns = {n["title"]: n["read"] for n in c.get("/api/notifications").json()}
-    assert ns["Cuối ngày: 1 thẻ lái xe quá hạn điền phiếu"] is True
+    assert ns["Cuối ngày: 1 thẻ lái xe quá hạn điền phiếu"] is False
     assert ns["Cuối ngày: 1 hợp đồng sắp tới / quá ngày hoàn thành"] is False
     # force=1 chạy lại trong ngày
     assert c.post("/api/alerts/run-end-of-day", params={"force": 1}).json()["created"] == 3
@@ -296,3 +297,28 @@ def test_manager_sees_all_pages(c):
     from app.config import ALL_PAGES
     perms = c.get("/api/auth/me").json()["permissions"]
     assert set(ALL_PAGES) <= set(perms) and all(v == "full" for v in perms.values())
+
+
+def test_notifications_targeted_with_ref_and_per_user_read(c):
+    """Thẻ việc chỉ báo cho đúng lái xe được giao (+ Quản lý); thông báo mang mã bản ghi; đã đọc theo từng người."""
+    t = c.post("/api/tasks", json={"type": "di_ma", "driver": "Lê Đức Vận", "contractId": "HD-2609-06",
+                                   "arriveAt": "2099-01-01T07:30:00+07:00"}).json()
+    title = f"Thẻ công việc mới {t['id']}"
+    n = next(x for x in c.get("/api/notifications").json() if x["title"] == title)
+    assert n["refId"] == t["id"] and n["read"] is False
+    login(c, "lx2")  # Lê Đức Vận
+    mine = next(x for x in c.get("/api/notifications").json() if x["title"] == title)
+    assert c.post(f"/api/notifications/{mine['id']}/read").status_code == 200
+    assert next(x for x in c.get("/api/notifications").json() if x["title"] == title)["read"] is True
+    login(c, "lx1")  # Phạm Văn Tài — không thấy thẻ của người khác
+    assert all(x["title"] != title for x in c.get("/api/notifications").json())
+    assert c.post(f"/api/notifications/{mine['id']}/read").status_code == 404
+    login(c, "kho")
+    assert all(x["title"] != title for x in c.get("/api/notifications").json())
+    login(c, "ql")
+    assert next(x for x in c.get("/api/notifications").json() if x["title"] == title)["read"] is False
+
+
+def test_notification_stream_requires_token(c):
+    assert c.get("/api/notifications/stream", params={"token": "sai"}).status_code == 401
+    assert c.get("/api/push/key").json()["publicKey"]

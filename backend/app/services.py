@@ -3,6 +3,7 @@
 ĐỐI ỨNG 3 SỐ CÂN: kg cân xuất tại công ty = kg cân đến xưởng mạ = kg lấy từ mạ đi giao khách.
 Mọi sai lệch vượt dung sai phải có lý do và Quản lý ký xác nhận.
 """
+import re
 from datetime import datetime
 
 from fastapi import HTTPException
@@ -39,9 +40,18 @@ def next_id(db: Session, prefix: str, key: str, month_code: bool = False) -> str
     return f"{prefix}-{seq.value:04d}"
 
 
-def notify(db: Session, title: str, sub: str = "", type_: str = "warning", roles: str | None = None) -> None:
-    """roles: vai trò nhận ("admin", "kt,admin"…); None = mọi người."""
-    db.add(Notification(at=utcnow(), title=title, sub=sub, type=type_, roles=roles))
+_REF_RE = re.compile(r"\b(?:DH|HD|LSX|PTN|PC|VC|SL|VK|NL)-[0-9A-Z]+(?:-[0-9A-Z]+)*\b")
+
+
+def notify(db: Session, title: str, sub: str = "", type_: str = "warning", roles: str | None = None,
+           ref: str | None = None, to_user: str | None = None) -> None:
+    """roles: vai trò nhận ("admin", "kt,admin"…); None = mọi người. to_user: chỉ đúng 1 người (+ Quản lý).
+    ref: mã bản ghi để bấm thông báo mở thẳng; không truyền thì lấy mã đầu tiên trong tiêu đề.
+    Ghi DB xong (commit) thì realtime.py đẩy ngay xuống app + gửi thông báo đẩy."""
+    if ref is None:
+        m = _REF_RE.search(title) or _REF_RE.search(sub or "")
+        ref = m.group(0) if m else None
+    db.add(Notification(at=utcnow(), title=title, sub=sub, type=type_, roles=roles, to_user=to_user, ref_id=ref))
 
 
 def approved(payments) -> list:
@@ -372,7 +382,8 @@ def create_order(db: Session, customer: str, items: list[dict], file: str | None
               contract_id=None, note=note or "", customer_id=cu.id)
     _set_items(o, items)
     db.add(o)
-    notify(db, f"Đơn hàng mới {o.id}", f"{customer} — chờ chuyển kế toán làm hợp đồng", "info")
+    notify(db, f"Đơn hàng mới {o.id}", f"{customer} — chờ chuyển kế toán làm hợp đồng", "info",
+           roles="admin,kt", ref=o.id)
     db.commit()
     return o
 
@@ -416,7 +427,7 @@ def send_order_to_kt(db: Session, oid: str, complete_by: datetime | None) -> Con
     o.contract_id, o.status = c.id, "Đã chuyển kế toán"
     notify(db, f"Đơn {o.id} đã chuyển kế toán — soạn hợp đồng {c.id}",
            f"Ngày hoàn thành: {fmt_d(complete_by)}", "info",
-           roles="kt,admin")
+           roles="kt,admin", ref=c.id)
     db.commit()
     return c
 
@@ -548,7 +559,7 @@ def create_lsx(db: Session, cid: str, name: str | None, qty: float | None, kg: f
             kg_plan=kg, qty_done=0, kg_done=0)
     _log(x, f"{actor(QL)} phát lệnh — tiến độ {lead:02d} ngày")
     db.add(x)
-    notify(db, f"Lệnh SX mới {x.id}", f"Chờ xưởng xác nhận — hạn {fmt_d(x.deadline)}", "info")
+    notify(db, f"Lệnh SX mới {x.id}", f"Chờ xưởng xác nhận — hạn {fmt_d(x.deadline)}", "info", roles="sx,admin", ref=x.id)
     db.commit()
     return x
 
@@ -569,7 +580,7 @@ def lsx_reject(db: Session, lid: str, reason: str) -> Lsx:
         raise HTTPException(400, "Bắt buộc chọn lý do từ chối")
     x.status, x.reject_reason = "Từ chối", reason
     _log(x, f"Xưởng TỪ CHỐI ({actor(SX)}): {reason}")
-    notify(db, f"LSX {lid} bị từ chối", reason, "error")
+    notify(db, f"LSX {lid} bị từ chối", reason, "error", roles="admin", ref=lid)
     db.commit()
     return x
 
@@ -693,7 +704,8 @@ def create_mismatch(db: Session, source, ref_type, ref_id, cid, expected, actual
                  date=utcnow(), expected=expected, actual=actual, delta=actual - expected, reason=reason,
                  reason_note=reason_note or "", reported_by=reported_by, dept=dept, status="Chờ QL ký")
     db.add(m)
-    notify(db, f"SAI LỆCH {actual - expected:+g} kg tại {source}", f"{ref_id} · {reason} — chờ Quản lý ký", "error")
+    notify(db, f"SAI LỆCH {actual - expected:+g} kg tại {source}", f"{ref_id} · {reason} — chờ Quản lý ký", "error",
+           roles="admin", ref=m.id)
     return m
 
 
@@ -793,7 +805,7 @@ def _billed_notify(db: Session, p: Weighing) -> None:
     c = db.get(Contract, p.contract_id)
     if c:
         notify(db, f"{p.id}: cân xuất {fmt_kg(p.kg_actual)} — đã tính vào công nợ HĐ {c.id}",
-               f"Ghi tăng {money_short((p.kg_actual or 0) * (c.unit_price or 0))}", "success", roles="admin,kt")
+               f"Ghi tăng {money_short((p.kg_actual or 0) * (c.unit_price or 0))}", "success", roles="admin,kt", ref=c.id)
 
 
 def billed_kg(db: Session, cid: str) -> tuple[float, float]:
@@ -881,7 +893,7 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
     notify(db, f"Thẻ công việc mới {t.id}",
            f"{'Chở hàng đi mạ' if type_ == 'di_ma' else 'Lấy hàng mạ giao khách'} — gán {driver} · có mặt "
            f"{arrive_at.astimezone(VN_TZ):%H:%M %d/%m} · trả phiếu trước {fill_deadline.astimezone(VN_TZ):%H:%M %d/%m}"
-           + (f" · {where}" if where else ""), "info")
+           + (f" · {where}" if where else ""), "info", to_user=driver, ref=t.id)
     db.commit()
     return t
 
@@ -900,7 +912,7 @@ def task_reject(db: Session, tid: str, reason: str) -> Task:
     if not reason:
         raise HTTPException(400, "Bắt buộc chọn lý do từ chối")
     t.status, t.reject_reason = "Từ chối", reason
-    notify(db, f"Lái xe từ chối thẻ {tid}", f"{t.driver}: {reason}", "error")
+    notify(db, f"Lái xe từ chối thẻ {tid}", f"{t.driver}: {reason}", "error", roles="admin", ref=tid)
     db.commit()
     return t
 
@@ -976,8 +988,8 @@ def task_fill_delivery(db: Session, tid: str, kg_picked: float, kg_delivered: fl
     _task_result(db, t, abs(delta) > 0.5 or off_req, what, reason, reason_note)
     if t.status == "Hoàn thành":
         c = db.get(Contract, t.contract_id)
-        notify(db, f"Đã giao {fmt_kg(t.kg_delivered)} cho khách", f"HĐ {t.contract_id}" + (f" · {c.customer}" if c else ""),
-               "success")
+        notify(db, f"Đã giao {fmt_kg(t.kg_delivered)} cho khách", f"HĐ {t.contract_id}" + (f" · {c.customer}" if c else "")
+               + f" · {t.driver}", "success", roles="admin,kt", ref=t.id)
     db.commit()
     return t
 
@@ -990,7 +1002,7 @@ def approve_task(db: Session, tid: str) -> Task:
     # kho ảo chỉ để thống kê: khoản lệch Quản lý đã chấp nhận ghi luôn vào kho ảo
     kg, source = _task_delta(t)
     record_vloss(db, "vc", t, kg, source, (t.reason or "") + (f" — {t.reason_note}" if t.reason_note else ""), actor(QL))
-    notify(db, f"Quản lý chấp nhận phiếu {tid}", f"{t.driver} · {t.reason}", "success", roles="lx,admin")
+    notify(db, f"Quản lý chấp nhận phiếu {tid}", f"{t.driver} · {t.reason}", "success", to_user=t.driver, ref=tid)
     db.commit()
     return t
 
@@ -1001,7 +1013,7 @@ def reject_task(db: Session, tid: str, reason: str) -> Task:
     if t.status != "Chờ QL duyệt":
         raise HTTPException(400, f"Thẻ {tid} không ở trạng thái chờ duyệt")
     t.status, t.reject_reason_ql, t.approved_by, t.approved_at = "Đang chạy", reason, actor(QL), utcnow()
-    notify(db, f"Quản lý không chấp nhận phiếu {tid} — điền lại", f"{t.driver}: {reason}", "error", roles="lx,admin")
+    notify(db, f"Quản lý không chấp nhận phiếu {tid} — điền lại", f"{t.driver}: {reason}", "error", to_user=t.driver, ref=tid)
     db.commit()
     return t
 
@@ -1042,7 +1054,7 @@ def accept_loss(db: Session, ref_type: str, ref_id: str, note: str | None) -> VL
             if ref_type == "pc" and rec.status == "Lệch — chờ ký":
                 rec.status = "Đã cân"
     notify(db, f"Đã duyệt rơi rớt {fmt_kg(abs(kg))}", f"{ref_id} → chuyển kho ảo {e.id} — tổng cân đối hợp lý",
-           "success")
+           "success", roles="admin", ref=e.id)
     db.commit()
     return e
 
@@ -1097,7 +1109,7 @@ def resolve_vloss(db: Session, vid: str, resolution: str, note: str | None) -> V
     if e.status == "Đã xử lý":
         raise HTTPException(400, f"{vid} đã xử lý")
     e.status, e.resolution, e.resolved_at, e.resolved_note = "Đã xử lý", resolution, utcnow(), note or ""
-    notify(db, f"Kho ảo: đã xử lý {e.id}", f"{fmt_kg(abs(e.kg))} — {resolution}", "success")
+    notify(db, f"Kho ảo: đã xử lý {e.id}", f"{fmt_kg(abs(e.kg))} — {resolution}", "success", roles="admin", ref=e.id)
     db.commit()
     return e
 

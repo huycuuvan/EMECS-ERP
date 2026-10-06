@@ -20,7 +20,8 @@ from .db import get_db
 from .history import contract_snapshot, order_snapshot, track
 from .security import (R_CONTRACT_FULL, R_CONTRACTS, R_CUSTOMERS, R_LSX, R_MISMATCHES, R_ORDERS, R_OVERDUE,
                        R_RECEIPTS, R_REPORTS, R_TASKS, R_VLOSS, R_WEIGHINGS, can, get_current_user, require, require_any, require_roles)
-from .models import (Contract, Lsx, Mismatch, Notification, Order, Receipt, Task, User, VLoss, Weighing)
+from .models import (Contract, Lsx, Mismatch, Notification, NotificationRead, Order, Receipt, Task, User, VLoss,
+                     Weighing)
 from .alerts import visible_to
 from .seed import reset_db
 from .files import sign_photo
@@ -558,13 +559,30 @@ def overdue_docs(db: Session = DB):
 # ---------------------------------------------------------------- thông báo
 @router.get("/notifications")
 def list_notifications(db: Session = DB, user: User = Depends(get_current_user)):
-    q = visible_to(select(Notification), user)  # thông báo nhắm theo vai trò (cảnh báo cuối ngày)
-    return [S.notification(n) for n in db.scalars(q.order_by(Notification.at.desc()).limit(50))]
+    """50 thông báo mới nhất người này được thấy (theo vai trò / gửi riêng); đã đọc tính riêng từng người."""
+    q = visible_to(select(Notification), user)
+    rows = db.scalars(q.order_by(Notification.at.desc(), Notification.id.desc()).limit(50)).all()
+    seen = set(db.scalars(select(NotificationRead.notification_id).where(
+        NotificationRead.user_id == user.id, NotificationRead.notification_id.in_([n.id for n in rows])))) if rows else set()
+    return [{**S.notification(n), "read": n.id in seen} for n in rows]
+
+
+def _mark_read(db: Session, user: User, ids: list[int]) -> None:
+    have = set(db.scalars(select(NotificationRead.notification_id).where(
+        NotificationRead.user_id == user.id, NotificationRead.notification_id.in_(ids)))) if ids else set()
+    db.add_all([NotificationRead(user_id=user.id, notification_id=i) for i in ids if i not in have])
+    db.commit()
 
 
 @router.post("/notifications/read-all")
 def read_all(db: Session = DB, user: User = Depends(get_current_user)):
-    for n in db.scalars(visible_to(select(Notification).where(Notification.read.is_(False)), user)):
-        n.read = True
-    db.commit()
+    _mark_read(db, user, list(db.scalars(visible_to(select(Notification.id), user))))
+    return {"ok": True}
+
+
+@router.post("/notifications/{nid}/read")
+def read_one(nid: int, db: Session = DB, user: User = Depends(get_current_user)):
+    if db.scalar(visible_to(select(Notification.id).where(Notification.id == nid), user)) is None:
+        raise HTTPException(404, "Không tìm thấy thông báo")
+    _mark_read(db, user, [nid])
     return {"ok": True}

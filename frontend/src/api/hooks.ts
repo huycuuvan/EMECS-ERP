@@ -63,7 +63,7 @@ export const useMovementLog = (p?: { contractId?: ID; from?: string; to?: string
   useQuery({ queryKey: qk.movement(p), queryFn: () => get<MovementRow[]>('/reports/movement-log', { contract_id: p?.contractId, date_from: p?.from, date_to: p?.to }) })
 export const useOverdueDocs = () => useQuery({ queryKey: qk.overdue, queryFn: () => get<OverdueDoc[]>('/reports/overdue-docs') })
 
-export const useNotifications = () => useQuery({ queryKey: qk.notifications, queryFn: () => get<Notification[]>('/notifications'), refetchInterval: 30_000 })
+export const useNotifications = () => useQuery({ queryKey: qk.notifications, queryFn: () => get<Notification[]>('/notifications'), refetchInterval: 60_000 })  // realtime qua SSE; 60s chỉ là dự phòng
 
 /* ---------------------------------------------------------------- mutations */
 /** Tạo mutation có toast lỗi chuẩn + invalidate toàn bộ cache. `success` là text toast khi thành công. */

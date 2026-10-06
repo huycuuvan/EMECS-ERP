@@ -154,4 +154,4 @@ def vloss(e: VLoss) -> dict:
 
 
 def notification(n: Notification) -> dict:
-    return {"id": n.id, "at": iso(n.at), "title": n.title, "sub": n.sub, "type": n.type, "read": n.read}
+    return {"id": n.id, "at": iso(n.at), "title": n.title, "sub": n.sub, "type": n.type, "read": n.read, "refId": n.ref_id}

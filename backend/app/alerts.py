@@ -13,7 +13,7 @@ import asyncio
 import logging
 from datetime import datetime
 
-from sqlalchemy import String, literal, or_, select
+from sqlalchemy import String, and_, literal, or_, select
 from sqlalchemy.orm import Session
 
 from . import services as svc
@@ -33,7 +33,8 @@ def visible_to(q, user: User):
     if "admin" in roles:
         return q
     padded = literal(",", String) + Notification.roles + literal(",", String)
-    return q.where(or_(Notification.roles.is_(None), *[padded.like(f"%,{r},%") for r in roles]))
+    by_role = and_(Notification.to_user.is_(None), or_(Notification.roles.is_(None), *[padded.like(f"%,{r},%") for r in roles]))
+    return q.where(or_(Notification.to_user == user.name, by_role))
 
 
 def _ids(items: list[str], limit: int = 6) -> str:

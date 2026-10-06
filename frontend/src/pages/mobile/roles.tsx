@@ -8,7 +8,8 @@ import {
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  useDashboard, useLsxAccept, useLsxList, useMismatches, useMovementLog, useOverdueDocs, useReceipts, useTaskAccept,
+  useDashboard, useLsxAccept, useLsxList, useMismatches, useMovementLog, useNotifications, useOverdueDocs, useReadAllNotifications,
+  useReceipts, useTaskAccept,
   useTaskDepart, useTasks, useWeighings,
 } from '@/api/hooks'
 import type { Lsx, Mismatch, OverdueDoc, Receipt, Task, Weighing } from '@/api/types'
@@ -17,6 +18,8 @@ import { TaskRoute } from './route'
 import { useSignFlow } from './sign'
 import AssignedGoods from '../weighings/AssignedGoods'
 import { ddmm } from '@/pages/lsx/lsxUtil'
+import PushToggle from '@/notify/PushToggle'
+import { useOpenNotification } from '@/notify/Realtime'
 import { DelivForm, GalvForm, LsxProgressForm, MaterialForm, PcFillForm, ReceiptForm, RejectForm } from './forms'
 import { useMaterials } from '@/api/hooksMaster'
 import {
@@ -33,9 +36,11 @@ export function Shell({ role, sub, alerts, tab, setTab, badges = {}, loading, ch
   const m = useMob()
   const R = ROLES[role]
   const red = alerts.filter((a) => a.red).length
+  const { data: notifs = [] } = useNotifications()
+  const unread = notifs.filter((n) => !n.read).length
   const openBell = () => m.sheet({
     icon: BellRing, title: `Thông báo — ${R.label}`,
-    body: alerts.length ? <>{alerts.map((a, i) => <AlertRow key={i} a={a} />)}</> : <Empty icon={ShieldCheck}>Không có thông báo nào.</Empty>,
+    body: <NotifSheet alerts={alerts} />,
   })
   return (
     <>
@@ -46,7 +51,7 @@ export function Shell({ role, sub, alerts, tab, setTab, badges = {}, loading, ch
         </button>
         <Link to="/dashboard" className="m-iconbtn phone-only" aria-label="Về bản desktop"><Monitor /></Link>
         <button type="button" className="m-iconbtn" onClick={openBell} aria-label="Thông báo">
-          <Bell />{alerts.length > 0 && <span className="bdg">{alerts.length > 9 ? '9+' : alerts.length}</span>}
+          <Bell />{unread + alerts.length > 0 && <span className="bdg">{unread + alerts.length > 9 ? '9+' : unread + alerts.length}</span>}
         </button>
       </div>
       <div className="m-body" key={role + tab}>{loading ? <Loading /> : children}</div>
@@ -60,6 +65,30 @@ export function Shell({ role, sub, alerts, tab, setTab, badges = {}, loading, ch
           )
         })}
       </nav>
+    </>
+  )
+}
+
+/** Sheet chuông: thông báo mới (realtime, bấm mở thẳng phiếu) + cảnh báo của vai trò. */
+function NotifSheet({ alerts }: { alerts: MAlert[] }) {
+  const m = useMob()
+  const { data: notifs = [] } = useNotifications()
+  const readAll = useReadAllNotifications()
+  const openN = useOpenNotification()
+  const unread = notifs.filter((n) => !n.read).length
+  return (
+    <>
+      <PushToggle />
+      <SecTitle icon={Bell} count={unread} red={unread > 0}>Thông báo mới</SecTitle>
+      {unread > 0 && <button type="button" className="m-linkbtn" onClick={() => readAll.mutate(undefined)}>Đánh dấu đã đọc hết</button>}
+      {notifs.length ? notifs.slice(0, 30).map((n) => (
+        <button key={n.id} type="button" className={'m-notif' + (n.read ? ' read' : '') + ` t-${n.type}`}
+          onClick={() => { m.close(); openN(n) }}>
+          <b>{n.title}</b>{n.sub && <span>{n.sub}</span>}<small>{relTime(n.at)}</small>
+        </button>
+      )) : <Empty icon={ShieldCheck}>Chưa có thông báo.</Empty>}
+      <SecTitle icon={BellRing} count={alerts.length} red={alerts.some((a) => a.red)}>Cảnh báo</SecTitle>
+      {alerts.length ? alerts.map((a, i) => <AlertRow key={i} a={a} />) : <Empty icon={ShieldCheck}>Không có cảnh báo nào.</Empty>}
     </>
   )
 }

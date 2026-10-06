@@ -49,13 +49,9 @@ def create_token(user: User) -> str:
     return jwt.encode({"sub": user.id, "iat": now, "exp": now + timedelta(hours=TOKEN_HOURS)}, SECRET_KEY, "HS256")
 
 
-async def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    # async: chạy trong context của request để contextvar truyền xuống endpoint (sync, threadpool)
-    auth = request.headers.get("authorization", "")
-    if not auth.lower().startswith("bearer "):
-        raise HTTPException(401, "Chưa đăng nhập")
+def user_from_token(db: Session, token: str) -> User:
     try:
-        payload = jwt.decode(auth[7:], SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
     except jwt.ExpiredSignatureError:
         raise HTTPException(401, "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại")
     except jwt.PyJWTError:
@@ -63,6 +59,15 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)) -> U
     user = db.get(User, payload.get("sub"))
     if not user or not user.active:
         raise HTTPException(401, "Tài khoản không tồn tại hoặc đã bị khóa")
+    return user
+
+
+async def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    # async: chạy trong context của request để contextvar truyền xuống endpoint (sync, threadpool)
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer "):
+        raise HTTPException(401, "Chưa đăng nhập")
+    user = user_from_token(db, auth[7:])
     request.state.user = user
     current_user_var.set(user)
     return user

@@ -1,6 +1,10 @@
 import { Spin } from 'antd'
 import { lazy, Suspense, type ReactNode } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { api } from '@/api/client'
+import RealtimeBridge from '@/notify/Realtime'
+import { notifTarget } from '@/notify/target'
 import { useAuth } from '@/lib/auth'
 import AppLayout from '@/layout/AppLayout'
 import Login from '@/pages/Login'
@@ -35,14 +39,27 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+/** /xem/<mã>?n=<id thông báo> — link mở từ thông báo đẩy: đánh dấu đã đọc rồi chuyển tới đúng bản ghi theo vai trò. */
+function OpenFromNotification() {
+  const { id = '' } = useParams()
+  const [params] = useSearchParams()
+  const { user, roles } = useAuth()
+  const n = params.get('n')
+  useEffect(() => { if (n) api.post(`/notifications/${n}/read`).catch(() => undefined) }, [n])
+  return <Navigate to={notifTarget(id === '-' ? null : id, user?.permissions, roles)} replace />
+}
+
 const PageLoading = () => <div style={{ minHeight: '60vh', display: 'grid', placeItems: 'center' }}><Spin size="large" /></div>
 
 export default function App() {
+  const { user } = useAuth()
   return (
     <Suspense fallback={<PageLoading />}>
+    {user && <RealtimeBridge />}
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/mobile" element={<RequireAuth><Mobile /></RequireAuth>} />
+      <Route path="/xem/:id" element={<RequireAuth><OpenFromNotification /></RequireAuth>} />
       <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />

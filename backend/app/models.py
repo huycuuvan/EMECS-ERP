@@ -327,6 +327,27 @@ class Notification(Base):
     read: Mapped[bool] = mapped_column(Boolean, default=False)
     # vai trò nhận thông báo, ngăn cách dấu phẩy ("sx,admin"); None = mọi người
     roles: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    # gửi riêng 1 người (vd lái xe được giao thẻ) — có thì chỉ người đó + Quản lý thấy
+    to_user: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    ref_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # mã bản ghi được báo → bấm mở thẳng
+
+
+class NotificationRead(Base):
+    """Đã đọc tính RIÊNG từng người (trước đây cờ `read` dùng chung cho mọi người)."""
+    __tablename__ = "notification_reads"
+    user_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    notification_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+
+class PushSubscription(Base):
+    """Đăng ký nhận thông báo đẩy (Web Push) của 1 trình duyệt / điện thoại."""
+    __tablename__ = "push_subscriptions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(32), index=True)
+    endpoint: Mapped[str] = mapped_column(Text)
+    p256dh: Mapped[str] = mapped_column(String(255))
+    auth: Mapped[str] = mapped_column(String(255))
+    created_at = mapped_column(UTCDateTime)
 
 
 class FieldChange(Base):

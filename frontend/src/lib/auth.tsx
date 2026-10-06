@@ -4,6 +4,7 @@
    role = vai trò chính (admin nếu có, không thì vai trò đầu tiên) · hasRole(r) để kiểm khi người giữ nhiều vai trò. */
 import { useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { disablePush } from '@/notify/push'
 import { api, tokenStore } from '@/api/client'
 import type { AccessLevel, AuthUser, RoleId } from '@/api/types'
 
@@ -56,7 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user)
         return data.user
       },
-      logout: () => { tokenStore.clear(); qc.clear(); setUser(null) },
+      logout: () => {
+        // hủy nhận thông báo đẩy của tài khoản này trên máy (cần token nên gọi trước khi xóa)
+        disablePush().finally(() => { tokenStore.clear(); qc.clear(); setUser(null) })
+      },
       refresh,
     }
   }, [user, loading, qc, refresh])

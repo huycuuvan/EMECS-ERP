@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
+from . import realtime
 from .alerts import end_of_day_loop
 from .api import router
 from .auth_api import public as auth_public
@@ -36,6 +37,7 @@ async def lifespan(app: FastAPI):
     with SessionLocal() as db:
         if db.scalar(select(User).limit(1)) is None:
             seed(db)
+    realtime.bind_loop(asyncio.get_running_loop())  # đẩy thông báo từ threadpool xuống các kết nối SSE
     # cảnh báo cuối ngày (asyncio task nền) — tắt bằng ALERTS_ENABLED=0
     alerts_task = asyncio.create_task(end_of_day_loop()) if ALERTS_ENABLED else None
     yield
@@ -52,6 +54,7 @@ app.include_router(auth_router)
 app.include_router(router)
 app.include_router(edit_router)
 app.include_router(master_router)
+app.include_router(realtime.router)  # /api/notifications/stream (SSE) + /api/push/* (Web Push)
 
 
 @app.middleware("http")

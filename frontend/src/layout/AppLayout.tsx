@@ -10,6 +10,8 @@ import { useAuth } from '@/lib/auth'
 import { relTime } from '@/lib/format'
 import { C } from '@/theme'
 import { homeFor, NAV, NAV_FLAT } from './nav'
+import PushToggle from '@/notify/PushToggle'
+import { useOpenNotification } from '@/notify/Realtime'
 
 const { Sider, Header, Content } = Layout
 
@@ -64,11 +66,16 @@ function NotificationBell() {
   const readAll = useReadAllNotifications()
   const unread = data.filter((n) => !n.read).length
   const color = { info: C.steel, success: C.moss, warning: C.amber, error: C.signal }
+  const openN = useOpenNotification()
+  const [open, setOpen] = useState(false)
   const content = (
-    <div style={{ width: 360, maxHeight: 440, overflowY: 'auto' }}>
+    <div style={{ width: 'min(360px, 86vw)', maxHeight: 460, overflowY: 'auto' }}>
+      <PushToggle compact />
       {data.length === 0 ? <Empty description="Chưa có thông báo" /> : data.map((n) => (
-        <div key={n.id} style={{ display: 'flex', gap: 10, padding: '10px 4px', borderBottom: `1px solid ${C.ruleHair}`, opacity: n.read ? .65 : 1 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 4, background: color[n.type], marginTop: 6, flex: 'none' }} />
+        <div key={n.id} role="button" tabIndex={0} className="notif-row"
+          onClick={() => { setOpen(false); openN(n) }} onKeyDown={(e) => { if (e.key === 'Enter') { setOpen(false); openN(n) } }}
+          style={{ display: 'flex', gap: 10, padding: '10px 4px', borderBottom: `1px solid ${C.ruleHair}`, opacity: n.read ? .6 : 1, cursor: 'pointer' }}>
+          <span style={{ width: 8, height: 8, borderRadius: 4, background: n.read ? C.ash3 : color[n.type], marginTop: 6, flex: 'none' }} />
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 13 }}>{n.title}</div>
             <div className="caption">{n.sub}</div>
@@ -79,7 +86,7 @@ function NotificationBell() {
     </div>
   )
   return (
-    <Popover trigger="click" placement="bottomRight" content={content}
+    <Popover trigger="click" placement="bottomRight" content={content} open={open} onOpenChange={setOpen}
       title={<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>Thông báo
         {unread > 0 && <Button type="link" size="small" onClick={() => readAll.mutate(undefined)}>Đánh dấu đã đọc</Button>}</div>}>
       <Badge count={unread} size="small" color={C.rust}>

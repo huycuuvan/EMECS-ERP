@@ -188,7 +188,7 @@ def edit_task(db: Session, tid: str, data: dict) -> tuple[Task, dict]:
         changed += apply_changes(db, t, "vc", t.id, {"status": ("status", "Chờ xác nhận"),
                                                      "acceptedAt": ("accepted_at", None),
                                                      "rejectReason": ("reject_reason", None)}, reason)
-        svc.notify(db, f"Thẻ {t.id} đổi tài xế", f"Gán {t.driver} — chờ xác nhận", "info")
+        svc.notify(db, f"Thẻ {t.id} đổi tài xế", f"Gán {t.driver} — chờ xác nhận", "info", to_user=t.driver, ref=t.id)
 
     action, mid, msg = None, t.mismatch_id, ""
     if set(changed) & {"kgAtGalv", "kgPicked", "kgDelivered"}:
@@ -223,7 +223,8 @@ def reassign_task(db: Session, tid: str, driver: str, kg_required: float | None,
         ch["kgRequired"] = ("kg_required", float(kg_required))
     changed = apply_changes(db, t, "vc", t.id, ch, reason)
     svc.notify(db, f"Giao lại thẻ {t.id} cho {t.driver}",
-               f"{fmt_kg(t.kg_required)} — chờ tài xế xác nhận" + (f" · {note}" if note else ""), "info")
+               f"{fmt_kg(t.kg_required)} — chờ tài xế xác nhận" + (f" · {note}" if note else ""), "info",
+               to_user=t.driver, ref=t.id)
     db.commit()
     return t, _outcome(changed, f"Đã giao lại {t.id} cho {t.driver} — chờ xác nhận")
 
@@ -329,6 +330,7 @@ def reissue_lsx(db: Session, lid: str, data: dict) -> tuple[Lsx, dict]:
     x.ext_reason = x.ext_approved_by = x.ext_at = None
     svc._log(x, f"{actor(svc.QL)} phát lại lệnh — tiến độ {lead:02d} ngày, hạn {fmt_d(x.deadline)}"
              + (f" — {note}" if note else ""))
-    svc.notify(db, f"Phát lại lệnh SX {x.id}", f"Chờ xưởng xác nhận — hạn {fmt_d(x.deadline)}", "info")
+    svc.notify(db, f"Phát lại lệnh SX {x.id}", f"Chờ xưởng xác nhận — hạn {fmt_d(x.deadline)}", "info",
+               roles="sx,admin", ref=x.id)
     db.commit()
     return x, _outcome(changed, f"Đã phát lại lệnh {x.id} — chờ xưởng nhận")

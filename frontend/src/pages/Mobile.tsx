@@ -9,7 +9,7 @@ import type { RoleId } from '@/api/types'
 import { useAuth } from '@/lib/auth'
 import { homeFor } from '@/layout/nav'
 import { Detail } from './mobile/details'
-import { Ctx, KIND_META, type Kind, type MobCtx, type MRole, ROLE_ORDER, ROLES, type SheetSpec } from './mobile/core'
+import { Ctx, KIND_META, type Kind, type MobCtx, type MRole, refKindOf, ROLE_ORDER, ROLES, type SheetSpec } from './mobile/core'
 import { DriverView, KhoView, QlView, SxView } from './mobile/roles'
 import './mobile/mobile.css'
 
@@ -71,6 +71,16 @@ function MobileInner() {
     open: (kind: Kind, id: string) => push({ icon: KIND_META[kind].icon, title: `${KIND_META[kind].label} ${id}`, body: <Detail kind={kind} id={id} /> }),
     sheet: push, pop, close, zoom: setZoomSrc,
   }), [role, meta, push, pop, close])
+
+  // mở từ thông báo: /mobile?xem=<mã> → mở thẳng chi tiết bản ghi
+  useEffect(() => {
+    const id = params.get('xem')
+    if (!id) return
+    ctx.open(refKindOf(id), id)
+    const next = new URLSearchParams(params)
+    next.delete('xem')
+    setParams(next, { replace: true })
+  }, [params, setParams, ctx])
 
   useEffect(() => {
     const prev = document.title
