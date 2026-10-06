@@ -1,5 +1,5 @@
 /* Chuyển kế toán làm HĐ — popup xác nhận + NGÀY HOÀN THÀNH đơn (bắt buộc). Hệ thống dùng ngày này để cảnh báo
-   hợp đồng sắp tới hạn / quá hạn hoàn thành mà chưa giao đủ. Dùng ở trang Đơn hàng và drawer Đơn hàng. */
+   hợp đồng sắp tới / quá ngày hoàn thành mà hợp đồng chưa xong. Dùng ở trang Đơn hàng và drawer Đơn hàng. */
 import { DatePicker, Form, Modal } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useState } from 'react'
@@ -31,8 +31,8 @@ function SendKTModal({ order: o, onClose }: { order: Order; onClose: () => void 
       onOk={submit} onCancel={onClose} confirmLoading={send.isPending} destroyOnHidden>
       <p>Chuyển đơn của <b>{o.customer}</b> ({fmtT(o.totalKg)} · {moneyShort(o.value)}) sang kế toán soạn hợp đồng?</p>
       <Form form={form} layout="vertical" requiredMark={false} initialValues={{ completeBy: o.completeBy ? dayjs(o.completeBy) : undefined }}>
-        <Form.Item name="completeBy" label="Ngày hoàn thành đơn hàng" rules={[{ required: true, message: 'Chọn ngày hoàn thành' }]}
-          extra="Hệ thống cảnh báo khi còn ≤ 7 ngày tới ngày này mà chưa giao đủ hàng, và báo đỏ khi quá hạn.">
+        <Form.Item name="completeBy" label="Ngày hoàn thành hợp đồng" rules={[{ required: true, message: 'Chọn ngày hoàn thành' }]}
+          extra="Hạn để kế toán làm xong hợp đồng (bước Đã hoàn thành). Cảnh báo khi còn ≤ 7 ngày mà hợp đồng chưa xong, báo đỏ khi quá hạn.">
           <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Chọn ngày"
             disabledDate={(d) => d.isBefore(dayjs().startOf('day').add(1, 'day'))} />
         </Form.Item>

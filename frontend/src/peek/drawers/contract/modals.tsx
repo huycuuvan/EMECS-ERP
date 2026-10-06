@@ -126,7 +126,7 @@ export function LsxFromContractModal({ contract: c, lsxs, onClose }: { contract:
           </Form.Item>
           <Form.Item name="lead" label="Tiến độ (số ngày)"><InputNumber<number> style={{ width: '100%' }} min={1} /></Form.Item>
         </div>
-        <LeadHint completeBy={c.completeBy} lead={lead} onFit={(d) => form.setFieldValue('lead', d)} />
+        <LeadHint lead={lead} />
       </Form>
       {over && (
         <Alert type="error" showIcon

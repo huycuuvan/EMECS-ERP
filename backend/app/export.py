@@ -120,7 +120,7 @@ def _contracts(db: Session, f: Filters, _u: User) -> list[Row]:
     for c in db.scalars(q):
         adv = svc.advance_info(c)
         delivered = sum(giao[c.id])
-        comp = svc.complete_info(c, delivered)
+        comp = svc.complete_info(c)
         if f.due and comp["state"] != f.due:
             continue
         dval = round(svc.billed_kg(db, c.id)[0] * (c.unit_price or 0))  # công nợ theo cân xuất đã duyệt

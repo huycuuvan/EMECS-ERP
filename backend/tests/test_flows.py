@@ -252,3 +252,16 @@ def test_attach_signed_documents(c):
     assert c.patch(f"/api/contracts/{ct['id']}", json={"signedFile": ""}).json()["signedFile"] is None
     login(c, "kho")
     assert c.post("/api/uploads/doc", files={"file": ("a.pdf", pdf, "application/pdf")}).status_code == 403
+
+
+def test_completion_date_is_contract_deadline_not_delivery(c):
+    """Ngày hoàn thành = hạn để hợp đồng xong (bước "Đã hoàn thành"), không tính theo giao hàng."""
+    from app.db import SessionLocal
+    from app.models import Contract
+    a = next(x for x in c.get("/api/dashboard").json()["contractAlerts"] if x["contract"]["id"] == "HD-2609-06")
+    assert a["complete"]["state"] == "soon"
+    with SessionLocal() as db:
+        db.get(Contract, "HD-2609-06").status = "Đã hoàn thành"
+        db.commit()
+    row = next(x for x in c.get("/api/contracts").json() if x["id"] == "HD-2609-06")
+    assert row["complete"]["state"] == "ok"

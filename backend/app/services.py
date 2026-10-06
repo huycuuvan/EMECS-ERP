@@ -117,7 +117,7 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
         "pickedKg": picked_kg, "deliveredKg": delivered_kg, "stockKg": stock_kg,
         "deliveredValue": delivered_value, "paidTotal": paid_total, "debt": debt, "pendingPayment": pending_pay,
         "billedKg": bill_kg, "billPendingKg": bill_pending,
-        "complete": complete_info(c, delivered_kg),
+        "complete": complete_info(c),
         "pctProduced": round(produced_kg / tk * 100) if tk else 0,
         "pctDelivered": round(delivered_kg / tk * 100) if tk else 0,
         "pctPaid": round(paid_total / c.value * 100) if c.value else 0,
@@ -217,12 +217,12 @@ def movement_log(db: Session, cid: str | None, frm: datetime | None, to: datetim
 
 
 # ---------------------------------------------------------------- cảnh báo
-def complete_info(c: Contract, delivered_kg: float | None = None) -> dict:
-    """Cảnh báo theo NGÀY HOÀN THÀNH đơn (QL nhập khi chuyển kế toán): quá hạn / sắp tới hạn mà chưa giao đủ."""
+def complete_info(c: Contract) -> dict:
+    """Cảnh báo theo NGÀY HOÀN THÀNH hợp đồng (QL nhập khi chuyển kế toán) — hạn để HỢP ĐỒNG xong (bước "Đã hoàn thành"),
+    không liên quan sản xuất / giao hàng: quá hạn / sắp tới hạn mà hợp đồng chưa hoàn thành."""
     if not c.complete_by:
         return {"state": "none", "label": "Chưa có ngày hoàn thành", "days": None}
-    done = c.status == CT_DONE or (delivered_kg is not None and c.total_kg and delivered_kg >= c.total_kg - 0.5)
-    if done:
+    if c.status == CT_DONE:
         return {"state": "ok", "label": f"Đã hoàn thành · hạn {fmt_d(c.complete_by)}", "days": None}
     dl = _days_left(c.complete_by)
     if dl < 0:
@@ -273,9 +273,7 @@ def contract_alerts(db: Session) -> list[dict]:
     out = []
     for c in db.scalars(select(Contract)):
         adv = advance_info(c)
-        delivered = _sum(db.scalars(select(Task).where(Task.contract_id == c.id, Task.type == "giao_khach")).all(),
-                         lambda t: t.kg_delivered)
-        comp = complete_info(c, delivered)
+        comp = complete_info(c)
         if adv["state"] == "missing" or comp["state"] in ("overdue", "soon"):
             out.append({"contract": S.contract(c), "adv": adv, "complete": comp})
     return out

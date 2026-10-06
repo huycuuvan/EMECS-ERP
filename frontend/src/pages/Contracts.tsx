@@ -153,7 +153,7 @@ export default function Contracts() {
         <Kpi tone="signal" label="Hạn hoàn thành"
           value={<span className={kpi.late > 0 ? 'text-signal' : ''}>{kpi.late}</span>}
           onClick={kpi.late ? () => setQuick(quick === 'late' ? '' : 'late') : undefined}
-          sub="hợp đồng sắp tới hạn (≤ 7 ngày) / quá hạn mà chưa giao đủ" />
+          sub="hợp đồng sắp tới (≤ 7 ngày) / quá ngày hoàn thành mà chưa hoàn thành" />
         <Kpi tone="moss" label="Đối ứng hàng — tiền" value={moneyShort(kpi.debtSum)} sub="khách còn nợ theo hàng đã giao"
           onClick={kpi.debtSum > 0 ? () => setQuick(quick === 'debt' ? '' : 'debt') : undefined} />
       </KpiGrid>

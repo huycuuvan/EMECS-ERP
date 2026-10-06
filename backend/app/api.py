@@ -225,16 +225,13 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
     if segment:
         seg = svc.contract_ids_for_customers(db, svc.customer_ids_for_segment(db, segment))
         keep = seg if keep is None else keep & seg
-    delivered: dict[str, float] = {}
-    for t in db.scalars(select(Task).where(Task.type == "giao_khach")):
-        delivered[t.contract_id] = delivered.get(t.contract_id, 0) + (t.kg_delivered or 0)
     for c in db.scalars(select(Contract).order_by(Contract.sent_to_kt_at.desc())):
         if keep is not None and c.id not in keep:
             continue
         d = S.contract(c)
         d["customerId"] = cust_of.get(c.order_id)
         d["adv"] = svc.advance_info(c)
-        d["complete"] = svc.complete_info(c, delivered.get(c.id, 0))
+        d["complete"] = svc.complete_info(c)
         d["billedKg"], d["billPendingKg"] = svc.billed_kg(db, c.id)  # công nợ theo cân xuất đã duyệt
         out.append(d)
     return out if can(user, "hop-dong") else [contract_lite(d) for d in out]
