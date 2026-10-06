@@ -134,7 +134,7 @@ def _buyer_from_customer(cu: Customer | None, name: str) -> dict:
 
 
 def _defaults(c: Contract, o: Order | None) -> dict:
-    by = c.complete_by or (o.complete_by if o else None)
+    by = c.deliver_by or (o.deliver_by if o else None)  # "Thời gian giao hàng: trước ngày …" = hạn giao hàng
     return {
         "number": c.number or c.order_id, "date": None, "basis": [], "buyer": None,
         "scope": "Bên B cung cấp cho Bên A các hàng hóa theo bảng dưới đây:", "prices": {},
@@ -190,7 +190,7 @@ def document(db: Session, c: Contract) -> dict:
         "advances": [{"amount": a, "words": number_words(a)} for a in advances], "paymentRest": d["paymentRest"],
         "conditions": d["conditions"], "warranty": d["warranty"], "deliveryTime": d["deliveryTime"],
         "deliveryPlace": d["deliveryPlace"], "acceptancePlace": d["acceptancePlace"],
-        "completeBy": (c.complete_by or (o.complete_by if o else None)).isoformat() if (c.complete_by or (o and o.complete_by)) else None,
+        "completeBy": (c.deliver_by or (o.deliver_by if o else None)).isoformat() if (c.deliver_by or (o and o.deliver_by)) else None,
     }
 
 

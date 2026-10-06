@@ -261,19 +261,22 @@ function HdOverview({ id }: { id: string }) {
   const [edit, setEdit] = useState(false)
   if (isLoading) return <Loading />
   if (!g) return <NotFound id={id} />
-  const c = g.contract, comp = g.complete, adv = g.adv
+  const c = g.contract, comp = g.complete, dlv = g.deliver, adv = g.adv
+  const cls = (k: typeof comp) => (k.state === 'overdue' ? 'red-txt' : k.state === 'soon' ? 'amber-txt' : '')
   return (
     <>
       <div className="mc-top" style={{ marginBottom: 4 }}>
         <StatusChip status={c.status} />
-        {comp.state === 'overdue' && <span className="m-chip bad"><FileClock />Quá ngày hoàn thành</span>}
+        {comp.state === 'overdue' && <span className="m-chip bad"><FileClock />Quá hạn trả HĐ</span>}
+        {dlv.state === 'overdue' && <span className="m-chip bad"><FileClock />Quá hạn giao hàng</span>}
       </div>
       <DGrid>
         <DItem k="Khách hàng" full small>{c.customer}</DItem>
         <DItem k="Giá trị HĐ">{moneyShort(c.value)}</DItem>
         <DItem k="Đơn giá">{fmtN(c.unitPrice)} ₫/kg</DItem>
         <DItem k="Khối lượng">{fmtT(c.totalKg)} · {fmtN(c.totalQty)} {c.unit}</DItem>
-        <DItem k="Ngày hoàn thành"><span className={comp.state === 'overdue' ? 'red-txt' : comp.state === 'soon' ? 'amber-txt' : ''}>{comp.label}</span></DItem>
+        <DItem k="Hạn trả HĐ"><span className={cls(comp)}>{comp.label}</span></DItem>
+        <DItem k="Hạn giao hàng"><span className={cls(dlv)}>{dlv.label}</span></DItem>
         <DItem k="Ngày ký">{c.signDate ? fmtD(c.signDate) : <span className="red-txt">Chưa ký</span>}</DItem>
         <DItem k={`Tạm ứng ${c.advance ? c.advance.pct + '%' : ''}`} small>
           <span className={adv.state === 'missing' ? 'red-txt' : adv.state === 'ok' ? 'moss-txt' : ''}>{adv.label}</span>

@@ -126,7 +126,7 @@ def _contracts(db: Session, f: Filters, _u: User) -> list[Row]:
         dval = round(svc.billed_kg(db, c.id)[0] * (c.unit_price or 0))  # công nợ theo cân xuất đã duyệt
         paid = sum(p.amount for p in svc.approved(c.payments))  # chỉ tiền về đã được Quản lý duyệt
         out.append((c.id, [c.id, c.order_id, c.code, c.customer, c.total_qty, c.unit, c.total_kg, c.unit_price,
-                           c.value, c.sent_to_kt_at, c.complete_by, comp["label"], c.sign_date or "Chưa nhận về", c.advance_pct,
+                           c.value, c.sent_to_kt_at, c.complete_by, comp["label"], c.deliver_by, svc.deliver_info(c, delivered)["label"], c.sign_date or "Chưa nhận về", c.advance_pct,
                            c.advance_required, c.advance_received, adv["label"], delivered, len(giao[c.id]), dval,
                            paid, dval - paid, c.status, c.owner]))
     return out
@@ -236,7 +236,7 @@ SHEETS: dict[str, Sheet] = {
     "contracts": Sheet("Sổ hợp đồng & tạm ứng", "hop-dong", "hop-dong", [
         ("Mã HĐ", "text"), ("Mã đơn", "text"), ("Mã nội bộ", "text"), ("Khách hàng", "text"), ("Số lượng", "num"),
         ("Đơn vị", "text"), ("Khối lượng (kg)", "kg"), ("Đơn giá (₫/kg)", "money"), ("Giá trị HĐ", "money"),
-        ("Chuyển kế toán", "date"), ("Ngày hoàn thành", "date"), ("Tình trạng hạn", "text"), ("Ngày ký", "date"),
+        ("Chuyển kế toán", "date"), ("Hạn trả HĐ", "date"), ("Tình trạng hạn trả HĐ", "text"), ("Hạn giao hàng", "date"), ("Tình trạng giao hàng", "text"), ("Ngày ký", "date"),
         ("Tạm ứng %", "pct"), ("Tạm ứng yêu cầu", "money"), ("Tạm ứng đã về", "money"), ("Tình trạng tạm ứng", "text"),
         ("Đã giao (kg)", "kg"), ("Số chuyến đã giao", "num"), ("Giá trị hàng đã giao", "money"),
         ("Tiền về lũy kế", "money"), ("Công nợ", "money"), ("Trạng thái", "text"), ("Phụ trách", "text")], _contracts),

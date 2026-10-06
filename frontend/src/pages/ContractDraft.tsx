@@ -275,7 +275,7 @@ function Editor({ doc }: { doc: ContractDocument }) {
 
             <div className="b art">Điều 4: Thời gian giao nhận và nghiệm thu hàng hoá.</div>
             <div className="prow"><span className="pl">4.1 Thời gian giao hàng:</span> <Y wide><Input size="small" variant="borderless" disabled={ro} value={s.deliveryTime} onChange={(e) => set('deliveryTime', e.target.value)} /></Y></div>
-            {doc.completeBy && <div className="hint">Ngày hoàn thành đơn (Quản lý nhập khi chuyển kế toán): <b>{fmtD(doc.completeBy)}</b></div>}
+            {doc.completeBy && <div className="hint">Hạn giao hàng cho khách (Quản lý nhập khi chuyển kế toán): <b>{fmtD(doc.completeBy)}</b></div>}
             <div>4.2 Địa điểm giao hàng: <Y><Input size="small" variant="borderless" disabled={ro} value={s.deliveryPlace} onChange={(e) => set('deliveryPlace', e.target.value)} style={{ width: 260 }} /></Y></div>
             <div>4.3 Nghiệm thu: <Y><Input size="small" variant="borderless" disabled={ro} value={s.acceptancePlace} onChange={(e) => set('acceptancePlace', e.target.value)} style={{ width: 260 }} /></Y>.</div>
 
@@ -289,7 +289,8 @@ function Editor({ doc }: { doc: ContractDocument }) {
           <div className="hdd-card">
             <div className="lbl">Trạng thái</div>
             <StatusTag status={doc.status} />
-            {agg && <><div className="lbl" style={{ marginTop: 10 }}>Ngày hoàn thành</div><CompleteChip info={agg.complete} /></>}
+            {agg && <><div className="lbl" style={{ marginTop: 10 }}>Hạn trả hợp đồng</div><CompleteChip info={agg.complete} />
+              <div className="lbl" style={{ marginTop: 10 }}>Hạn giao hàng</div><CompleteChip info={agg.deliver} /></>}
           </div>
           <div className="hdd-card">
             <div className="kv"><span>Trước thuế</span><b className="num">{fmtNum(calc.total)}</b></div>

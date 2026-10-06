@@ -29,6 +29,8 @@ import { TagFilter } from './customers/tags'
 const DONUT_COLORS = ['#1e6b3a', '#4b5563', '#e30f1b', '#8a6100', '#d4d5d9']
 const tons1 = (kg: number) => Math.round(kg / 100) / 10
 
+const LATE = new Set(['soon', 'overdue'])
+
 export default function Dashboard() {
   const [tag, setTag] = useState<string>()
   const { data: d, isLoading, isError } = useDashboardByTag(tag)
@@ -49,8 +51,8 @@ export default function Dashboard() {
   if (isError || !d) return <>{header}<Result status="error" title="Không tải được dữ liệu dashboard" /></>
 
   const alerts = d.contractAlerts
-  const nOver = alerts.filter((a) => a.complete.state === 'overdue').length
-  const nSoon = alerts.filter((a) => a.complete.state === 'soon').length
+  const nOver = alerts.filter((a) => a.complete.state === 'overdue' || a.deliver.state === 'overdue').length
+  const nSoon = alerts.filter((a) => a.complete.state === 'soon' || a.deliver.state === 'soon').length
   const nAdv = alerts.filter((a) => a.adv.state === 'missing').length
   const pays = d.pendingPayments
   const pm = d.pendingMismatches
@@ -65,7 +67,7 @@ export default function Dashboard() {
         <Kpi tone="steel" label="Đang triển khai" value={d.activeContracts}
           sub={`hợp đồng · đã giao lũy kế ${fmtT(d.deliveredKgTotal)}`} onClick={() => open('hd', 'HD-2609-01')} />
         <Kpi tone="signal" label="Cảnh báo hợp đồng" value={<span className={alerts.length ? 'text-signal' : ''}>{alerts.length}</span>}
-          sub={<span className="text-signal">{nOver} quá ngày hoàn thành · {nSoon} sắp tới hạn · {nAdv} tạm ứng chưa về</span>} onClick={() => scrollTo(refContract)} />
+          sub={<span className="text-signal">{nOver} quá hạn (trả HĐ / giao hàng) · {nSoon} sắp tới hạn · {nAdv} tạm ứng chưa về</span>} onClick={() => scrollTo(refContract)} />
         <Kpi tone="signal" label="Thẻ / phiếu quá hạn" value={<span className={d.overdueDocs.length ? 'text-signal' : ''}>{d.overdueDocs.length}</span>}
           sub={<span className="text-signal">chưa điền số kg + ảnh phiếu</span>} onClick={() => scrollTo(refOverdue)} />
         <Kpi tone="rust" label="Sai lệch chờ QL ký" value={<span className={pm.length ? 'text-signal' : ''}>{pm.length}</span>}
@@ -77,15 +79,16 @@ export default function Dashboard() {
       <SectionLabel>Trung tâm cảnh báo</SectionLabel>
       <Grid>
         <div ref={refContract} style={{ scrollMarginTop: 80 }}>
-          <AlertCard icon={<AlarmClock size={15} color="var(--signal)" />} title="Hợp đồng: ngày hoàn thành · tạm ứng" count={alerts.length} bad>
+          <AlertCard icon={<AlarmClock size={15} color="var(--signal)" />} title="Hợp đồng: hạn trả HĐ · hạn giao hàng · tạm ứng" count={alerts.length} bad>
             {alerts.length ? alerts.map((x) => (
               <AlertItem key={x.contract.id} onClick={() => open('hd', x.contract.id)}
                 t1={<><span className="mono" style={{ fontWeight: 700 }}>{x.contract.id}</span> · {x.contract.customer}</>}
                 t2={<>{x.contract.code} · {fmtT(x.contract.totalKg)} · {x.adv.state === 'missing'
                   ? <span className="text-signal" style={{ fontWeight: 700 }}><AlertTriangle size={11} style={{ verticalAlign: -2 }} /> Tạm ứng {x.adv.label}</span>
                   : x.adv.label}
+                  {LATE.has(x.deliver.state) && <> · <span className={x.deliver.state === 'overdue' ? 'text-signal' : 'text-amber'} style={{ fontWeight: 700 }}>{x.deliver.label}</span></>}
                   </>}
-                right={<CompleteChip info={x.complete} />} />
+                right={LATE.has(x.complete.state) || !LATE.has(x.deliver.state) ? <CompleteChip info={x.complete} /> : <CompleteChip info={x.deliver} />} />
             )) : <AlertEmpty>Không có hợp đồng cần chú ý.</AlertEmpty>}
           </AlertCard>
         </div>

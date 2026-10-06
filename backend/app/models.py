@@ -58,7 +58,8 @@ class Order(Base):
     contract_id: Mapped[str | None] = mapped_column(String(32))
     note: Mapped[str] = mapped_column(Text, default="")
     customer_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # → customers.id
-    complete_by = mapped_column(UTCDateTime, nullable=True)  # ngày hoàn thành (QL nhập khi chuyển kế toán)
+    complete_by = mapped_column(UTCDateTime, nullable=True)  # hạn kế toán trả hợp đồng (QL nhập khi chuyển kế toán)
+    deliver_by = mapped_column(UTCDateTime, nullable=True)  # hạn giao hàng cho khách (sản xuất + giao)
     vat_pct: Mapped[float] = mapped_column(Float, default=10, server_default="10")  # thuế VAT % (file đặt hàng khách)
     items: Mapped[list["OrderItem"]] = relationship(
         back_populates="order", cascade="all, delete-orphan", order_by="OrderItem.id")
@@ -91,7 +92,8 @@ class Contract(Base):
     # Chờ soạn thảo | Đã soạn thảo | Đã gửi khách hàng | Đã nhận về | Đã hoàn thành (config.CONTRACT_STATUSES)
     status: Mapped[str] = mapped_column(String(40))
     number: Mapped[str] = mapped_column(String(64), default="", server_default="")  # Số HĐ in trên văn bản
-    complete_by = mapped_column(UTCDateTime, nullable=True)  # ngày hoàn thành đơn (từ đơn hàng)
+    complete_by = mapped_column(UTCDateTime, nullable=True)  # HẠN TRẢ HỢP ĐỒNG: kế toán soạn, gửi khách, khách ký trả về
+    deliver_by = mapped_column(UTCDateTime, nullable=True)  # HẠN GIAO HÀNG cho khách: sản xuất xong + giao đủ
     draft: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON bản soạn thảo (ô vàng KT nhập)
     signed_file: Mapped[str | None] = mapped_column(String(255), nullable=True)  # bản scan HĐ đã ký: /uploads/<tên>
     drafted_at = mapped_column(UTCDateTime, nullable=True)

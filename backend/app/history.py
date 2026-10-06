@@ -102,5 +102,5 @@ def order_snapshot(o) -> dict:
 
 
 def contract_snapshot(c) -> dict:
-    return {"owner": c.owner, "note": c.note, "completeBy": c.complete_by, "signedFile": c.signed_file, "unitPrice": c.unit_price, "value": c.value,
+    return {"owner": c.owner, "note": c.note, "completeBy": c.complete_by, "deliverBy": c.deliver_by, "signedFile": c.signed_file, "unitPrice": c.unit_price, "value": c.value,
             "advancePct": c.advance_pct, "advanceRequired": c.advance_required}

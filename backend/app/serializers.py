@@ -20,7 +20,7 @@ def order(o: Order) -> dict:
         "totalKg": o.total_kg, "value": o.value, "vatPct": o.vat_pct, "vatAmount": vat_amount(o),
         "valueAfterVat": o.value + vat_amount(o),
         "status": o.status, "contractId": o.contract_id, "note": o.note, "customerId": o.customer_id,
-        "completeBy": iso(o.complete_by),
+        "completeBy": iso(o.complete_by), "deliverBy": iso(o.deliver_by),
     }
 
 
@@ -40,7 +40,7 @@ def contract(c: Contract) -> dict:
                     "receivedAt": iso(c.advance_received_at)},
         "payments": [payment(p) for p in c.payments],
         "pendingPayment": sum(p.amount for p in c.payments if p.status == "Chờ duyệt"),
-        "note": c.note, "number": c.number or c.order_id, "signedFile": sign_photo(c.signed_file), "completeBy": iso(c.complete_by),
+        "note": c.note, "number": c.number or c.order_id, "signedFile": sign_photo(c.signed_file), "completeBy": iso(c.complete_by), "deliverBy": iso(c.deliver_by),
         "draftedAt": iso(c.drafted_at), "completedAt": iso(c.completed_at),
     }
 

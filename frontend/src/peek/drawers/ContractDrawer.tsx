@@ -69,7 +69,8 @@ export default function ContractDrawer({ id }: { id: string }) {
               items={CONTRACT_STEPS.map((s) => ({ title: s }))} />
             <div className="hd-steps-meta">
               <span>Số HĐ <b className="mono">{c.number || '—'}</b></span>
-              <span>Ngày hoàn thành <CompleteChip info={g.complete} /></span>
+              <span>Hạn trả HĐ <CompleteChip info={g.complete} /></span>
+              <span>Hạn giao hàng <CompleteChip info={g.deliver} /></span>
             </div>
           </div>
 
@@ -85,7 +86,7 @@ export default function ContractDrawer({ id }: { id: string }) {
               {c.draftedAt && <Button size="small" icon={<Download size={13} />} onClick={word}>Tải Word</Button>}
               {showReturned && <Button size="small" icon={<Send size={13} />} onClick={() => flow.askReturned(c)}>Đã gửi khách hàng</Button>}
               {showSigned && <Button size="small" icon={<BadgeCheck size={13} />} onClick={() => flow.askSigned(c)}>Đã nhận về</Button>}
-              {showDone && <Button size="small" icon={<CircleCheckBig size={13} />} onClick={() => flow.askCompleted(c)}>Đã hoàn thành</Button>}
+              {showDone && <Button size="small" icon={<CircleCheckBig size={13} />} onClick={() => flow.askCompleted(c, g)}>Đã hoàn thành</Button>}
               {canPay && <Button size="small" type="primary" icon={<Banknote size={13} />} onClick={() => setDialog('pay')}>+ Tiền về</Button>}
               {showLsx && (
                 <>

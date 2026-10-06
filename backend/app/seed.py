@@ -72,7 +72,8 @@ def _contract(cid, oid, code, cust, sent_days, returned, signed, status, qty, un
     value = kg * price
     status = SEED_STATUS.get(status, status)
     c = Contract(id=cid, order_id=oid, code=code, customer=cust, sent_to_kt_at=sent, number=oid,
-                 complete_by=add_days(sent, complete_days), completed_at=ago(10) if status == CT_DONE else None,
+                 # hạn trả HĐ = 05 ngày sau khi chuyển kế toán; hạn giao hàng = complete_days
+                 complete_by=add_days(sent, CONTRACT_DAYS), deliver_by=add_days(sent, complete_days), completed_at=ago(10) if status == CT_DONE else None,
                  due_at=add_days(sent, CONTRACT_DAYS), returned_at=returned, sign_date=signed, status=status,
                  owner=KT, total_qty=qty, unit=unit, total_kg=kg, unit_price=price, value=value, vat_pct=8,
                  advance_pct=adv_pct, advance_required=round(value * adv_pct / 100),

@@ -187,18 +187,19 @@ def test_material_receipts_and_stats(c):
 # ---------------------------------------------------------------- cảnh báo cuối ngày
 def test_end_of_day_alerts_role_targeted_once_per_day(c):
     r = c.post("/api/alerts/run-end-of-day").json()
-    assert r["ran"] and r["created"] == 3
+    assert r["ran"] and r["created"] == 4
     assert c.post("/api/alerts/run-end-of-day").json() == {**r, "ran": False, "created": 0, "titles": []}
     titles_ql = [n["title"] for n in c.get("/api/notifications").json()]
-    assert sum(t.startswith("Cuối ngày") for t in titles_ql) == 3
+    assert sum(t.startswith("Cuối ngày") for t in titles_ql) == 4
     login(c, "kt")
     titles = [n["title"] for n in c.get("/api/notifications").json()]
-    assert any("hợp đồng sắp tới / quá ngày hoàn thành" in t for t in titles)
-    assert not any("lệnh SX" in t or "thẻ lái xe" in t for t in titles)
+    assert any("quá hạn trả hợp đồng" in t for t in titles)
+    assert not any("lệnh SX" in t or "thẻ lái xe" in t or "hạn giao hàng" in t for t in titles)
     assert "Đơn hàng mới DH-2609-05" in titles  # thông báo chung (roles rỗng) vẫn thấy
     login(c, "sx")
     titles = [n["title"] for n in c.get("/api/notifications").json()]
-    assert any("lệnh SX chưa nhập sản lượng" in t for t in titles) and not any("hợp đồng sắp tới / quá ngày hoàn thành" in t for t in titles)
+    assert any("lệnh SX chưa nhập sản lượng" in t for t in titles) and not any("quá hạn trả hợp đồng" in t for t in titles)
+    assert any("quá hạn giao hàng cho khách" in t for t in titles)  # xưởng thấy hạn giao hàng
     login(c, "lx1")
     assert any("thẻ lái xe" in n["title"] for n in c.get("/api/notifications").json())
     # đã đọc tính riêng từng người: lái xe đọc hết không làm Quản lý mất thông báo chưa đọc
@@ -207,9 +208,9 @@ def test_end_of_day_alerts_role_targeted_once_per_day(c):
     login(c, "ql")
     ns = {n["title"]: n["read"] for n in c.get("/api/notifications").json()}
     assert ns["Cuối ngày: 1 thẻ lái xe quá hạn điền phiếu"] is False
-    assert ns["Cuối ngày: 1 hợp đồng sắp tới / quá ngày hoàn thành"] is False
+    assert ns["Cuối ngày: 2 hợp đồng sắp tới / quá hạn trả hợp đồng"] is False
     # force=1 chạy lại trong ngày
-    assert c.post("/api/alerts/run-end-of-day", params={"force": 1}).json()["created"] == 3
+    assert c.post("/api/alerts/run-end-of-day", params={"force": 1}).json()["created"] == 4
 
 
 def test_end_of_day_time_gate():

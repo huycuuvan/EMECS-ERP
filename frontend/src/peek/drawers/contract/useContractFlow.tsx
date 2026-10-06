@@ -17,7 +17,7 @@ export function useContractFlow() {
       content: (
         <>
           <p>Kế toán đã soạn xong và gửi hợp đồng cho <b>{c.customer}</b>?</p>
-          <p className="caption">Ngày hoàn thành: {c.completeBy ? fmtD(c.completeBy) : '—'}. Sau bước này hệ thống <b>báo Quản lý</b>; bản soạn thảo vẫn sửa được tới khi nhận về.</p>
+          <p className="caption">Hạn trả hợp đồng: {c.completeBy ? fmtD(c.completeBy) : '—'}. Sau bước này hệ thống <b>báo Quản lý</b>; bản soạn thảo vẫn sửa được tới khi nhận về.</p>
         </>
       ),
       zIndex: MODAL_Z, okText: 'Đã gửi khách hàng', cancelText: 'Hủy',
@@ -29,9 +29,23 @@ export function useContractFlow() {
       zIndex: MODAL_Z, okText: 'Đã nhận về', cancelText: 'Hủy',
       onOk: () => signed.mutateAsync(c.id).catch(() => undefined),
     }),
-    askCompleted: (c: Contract) => modal.confirm({
+    /** Kế toán tự bấm sau khi kiểm tra đủ hàng + tiền (anh Thắng chốt 06/10) — hiện số để đối chiếu, chưa đủ thì nhắc. */
+    askCompleted: (c: Contract, g?: { deliveredKg: number; paidTotal: number }) => modal.confirm({
       title: `Hoàn thành hợp đồng ${c.number || c.id}`,
-      content: <p>Xác nhận hợp đồng của <b>{c.customer}</b> đã hoàn thành?</p>,
+      content: (() => {
+        const kgOk = !g || g.deliveredKg >= c.totalKg - 0.5
+        const moneyOk = !g || g.paidTotal >= c.value - 1
+        return (
+          <>
+            <p>Xác nhận hợp đồng của <b>{c.customer}</b> đã hoàn thành? Kiểm tra trước khi bấm:</p>
+            {g && <ul style={{ margin: '0 0 8px', paddingLeft: 18 }}>
+              <li style={{ color: kgOk ? 'var(--moss)' : 'var(--signal)' }}>Hàng khách đã ký nhận: <b>{fmtNum(g.deliveredKg)} / {fmtNum(c.totalKg)} kg</b>{kgOk ? ' — đủ' : ' — CHƯA ĐỦ'}</li>
+              <li style={{ color: moneyOk ? 'var(--moss)' : 'var(--signal)' }}>Tiền về đã duyệt: <b>{money(g.paidTotal)} / {money(c.value)}</b>{moneyOk ? ' — đủ' : ' — CHƯA ĐỦ'}</li>
+            </ul>}
+            {(!kgOk || !moneyOk) && <p className="caption" style={{ color: 'var(--signal)' }}>Chưa đủ hàng hoặc tiền — vẫn hoàn thành được nếu đã thống nhất với khách.</p>}
+          </>
+        )
+      })(),
       zIndex: MODAL_Z, okText: 'Đã hoàn thành', cancelText: 'Hủy',
       onOk: () => completed.mutateAsync(c.id).catch(() => undefined),
     }),

@@ -18,7 +18,7 @@ def _contract(c):
     o = c.post("/api/orders", json={"customer": cu["name"], "customerId": cu["id"], "vatPct": 10, "items": [
         {"name": "Xà đỡ thẳng XĐ35-2L", "qty": 15, "unit": "Bộ", "kgPerUnit": 46.5, "price": 28000},
         {"name": "Xà néo XN35-3L", "qty": 14, "unit": "Bộ", "kgPerUnit": 137.4, "price": 28000}]}).json()
-    return o, c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-06-30"}).json()
+    return o, c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-06-05", "deliverBy": "2099-06-30"}).json()
 
 
 def test_seller_settings_admin_only(c):
@@ -39,7 +39,7 @@ def test_document_autofill_edit_and_docx(c):
         [("Xà đỡ thẳng XĐ35-2L", "Bộ", 15, 697.5), ("Xà néo XN35-3L", "Bộ", 14, 1923.6)]
     assert d["lines"][0]["unitPrice"] == 1_302_000 and d["lines"][0]["amount"] == 19_530_000
     assert d["total"] == o["value"] and d["vatPct"] == 10 and d["grandTotal"] == d["total"] + d["vat"]
-    assert d["deliveryTime"] == "trước ngày 30/06/2099."  # từ ngày hoàn thành đơn
+    assert d["deliveryTime"] == "trước ngày 30/06/2099."  # từ HẠN GIAO HÀNG (không phải hạn trả hợp đồng)
 
     login(c, "kt")
     first = d["lines"][0]["itemId"]

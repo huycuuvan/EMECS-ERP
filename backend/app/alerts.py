@@ -64,16 +64,23 @@ def collect(db: Session, now: datetime | None = None) -> list[dict]:
         out.append({"title": f"Cuối ngày: {len(late)} lệnh SX quá hạn tiến độ", "sub": _ids(late), "type": "error",
                     "roles": "sx,admin"})
 
-    hd = []
-    for a in svc.contract_alerts(db):  # theo ngày hoàn thành (= hạn hợp đồng)
-        comp = a["complete"]
-        if comp["state"] in ("overdue", "soon"):
+    hd, gh = [], []
+    for a in svc.contract_alerts(db):
+        comp, dlv = a["complete"], a["deliver"]
+        if comp["state"] in ("overdue", "soon"):  # hạn trả hợp đồng — việc của kế toán
             hd.append((comp["days"], f"{a['contract']['id']} {comp['label'].lower()}"))
+        if dlv["state"] in ("overdue", "soon"):  # hạn giao hàng cho khách — sản xuất + giao
+            gh.append((dlv["days"], f"{a['contract']['id']} {dlv['label'].lower()}"))
     if hd:
         hd.sort()
-        out.append({"title": f"Cuối ngày: {len(hd)} hợp đồng sắp tới / quá ngày hoàn thành",
+        out.append({"title": f"Cuối ngày: {len(hd)} hợp đồng sắp tới / quá hạn trả hợp đồng",
                     "sub": _ids([t for _, t in hd]), "type": "error" if hd[0][0] < 0 else "warning",
                     "roles": "kt,admin"})
+    if gh:
+        gh.sort()
+        out.append({"title": f"Cuối ngày: {len(gh)} hợp đồng sắp tới / quá hạn giao hàng cho khách",
+                    "sub": _ids([t for _, t in gh]), "type": "error" if gh[0][0] < 0 else "warning",
+                    "roles": "sx,admin"})
 
     docs = svc.overdue_docs(db)
     vc = [f"{d['id']} ({d['person']}, quá {d['hoursOver']}h)" for d in docs if d["type"] == "vc"]

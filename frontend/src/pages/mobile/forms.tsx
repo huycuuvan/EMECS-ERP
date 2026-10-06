@@ -323,19 +323,21 @@ export function DelivForm({ t }: { t: Task }) {
   )
 }
 
-/* ---------------------------------------------------------------- Quản lý: sửa đơn giá / tạm ứng / ngày hoàn thành */
+/* ---------------------------------------------------------------- Quản lý: sửa đơn giá / tạm ứng / hạn trả HĐ / hạn giao hàng */
 export function ContractEditForm({ c, onDone }: { c: Contract; onDone: () => void }) {
   const { message } = App.useApp()
   const update = useUpdateContract()
   const [price, setPrice] = useState(String(c.unitPrice))
   const [pct, setPct] = useState(String(c.advance?.pct ?? 0))
   const [due, setDue] = useState(dateVal(c.completeBy ?? c.dueAt))
+  const [dlv, setDlv] = useState(dateVal(c.deliverBy))
   const submit = async () => {
     const up = num(price), ap = num(pct)
     if (!(up > 0)) { message.error('Đơn giá phải lớn hơn 0.'); return }
     if (ap < 0 || ap > 100) { message.error('% tạm ứng phải trong khoảng 0–100.'); return }
     try {
-      await update.mutateAsync({ id: c.id, unitPrice: up, advancePct: ap, completeBy: due ? toIsoEndOfDay(due) : undefined })
+      await update.mutateAsync({ id: c.id, unitPrice: up, advancePct: ap, completeBy: due ? toIsoEndOfDay(due) : undefined,
+        deliverBy: dlv ? toIsoEndOfDay(dlv) : undefined })
       onDone()
     } catch { /* đã báo */ }
   }
@@ -345,8 +347,10 @@ export function ContractEditForm({ c, onDone }: { c: Contract; onDone: () => voi
       <NumInput big value={price} onChange={setPrice} />
       <label className="f-lbl">Tạm ứng theo HĐ (%)</label>
       <NumInput big value={pct} onChange={setPct} bad={num(pct) > 100} />
-      <label className="f-lbl">Ngày hoàn thành (hạn hợp đồng)</label>
+      <label className="f-lbl">Hạn trả hợp đồng (kế toán)</label>
       <input type="date" className="inp" value={due} onChange={(e) => setDue(e.target.value)} />
+      <label className="f-lbl">Hạn giao hàng cho khách</label>
+      <input type="date" className="inp" value={dlv} onChange={(e) => setDlv(e.target.value)} />
       <div className="btn-row">
         <Btn variant="primary" icon={Save} loading={update.isPending} onClick={submit}>Lưu thay đổi</Btn>
         <Btn flex={0.55} onClick={onDone}>Hủy</Btn>

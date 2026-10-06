@@ -1,5 +1,5 @@
 /* Hợp đồng & Tạm ứng (màn kế toán): KPI tạm ứng / tiền về chờ duyệt / công nợ · danh sách (bước hợp đồng, ngày hoàn thành,
-   ngày hoàn thành, tạm ứng, lũy kế giao — tiền) · thao tác theo 4 bước: Soạn thảo → Đã gửi khách hàng → Đã nhận về →
+   hạn trả HĐ, hạn giao hàng, tạm ứng, lũy kế giao — tiền) · thao tác theo 4 bước: Soạn thảo → Đã gửi khách hàng → Đã nhận về →
    Đã hoàn thành · + Tiền về (chờ Quản lý duyệt) · Xuất Excel · Đơn hàng chờ làm HĐ. */
 import { Button, Input, Select, Table, Tag, type TableColumnsType } from 'antd'
 import { AlarmClock, AlertTriangle, CheckCircle2, FilePen, Info, Search, ShoppingCart } from 'lucide-react'
@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTasks } from '@/api/hooks'
 import { useContractsByTag } from '@/api/hooksMaster'
-import { type Contract, type ContractRow, type ContractStatus } from '@/api/types'
+import { type CompleteInfo, type Contract, type ContractRow, type ContractStatus } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
@@ -51,9 +51,9 @@ export default function Contracts() {
     return contracts.filter((c) => {
       if (s && !(c.id + c.customer + c.code + c.orderId).toLowerCase().includes(s)) return false
       if (fs && c.status !== fs) return false
-      if (fd && c.complete.state !== fd) return false
+      if (fd && c.complete.state !== fd && c.deliver.state !== fd) return false
       if (quick === 'pay' && !(c.pendingPayment > 0)) return false
-      if (quick === 'late' && c.complete.state !== 'soon' && c.complete.state !== 'overdue') return false
+      if (quick === 'late' && !LATE.has(c.complete.state) && !LATE.has(c.deliver.state)) return false
       if (quick === 'adv' && c.adv.state !== 'missing') return false
       if (quick === 'debt' && !((agg[c.id]?.debt ?? 0) > 0)) return false
       return true
@@ -68,7 +68,7 @@ export default function Contracts() {
       const d = agg[c.id]?.debt ?? 0
       if (d > 0) debtSum += d
       if (c.pendingPayment > 0) { payN++; paySum += c.pendingPayment }
-      if (c.complete.state === 'soon' || c.complete.state === 'overdue') late++
+      if (LATE.has(c.complete.state) || LATE.has(c.deliver.state)) late++
     }
     return { advMiss, advSum, debtSum, payN, paySum, late }
   }, [contracts, agg])
@@ -106,9 +106,14 @@ export default function Contracts() {
       render: (_, c) => <span className="num"><b>{moneyShort(c.value)}</b><div className="sub-soft">{fmtNum(c.unitPrice)}₫/kg</div></span>,
     },
     {
-      title: 'Ngày hoàn thành', key: 'complete', width: 150,
+      title: 'Hạn trả HĐ', key: 'complete', width: 140,
       sorter: (a, b) => (a.completeBy ? new Date(a.completeBy).getTime() : 9e15) - (b.completeBy ? new Date(b.completeBy).getTime() : 9e15),
-      render: (_, c) => <CompleteCell c={c} />,
+      render: (_, c) => <DeadlineCell info={c.complete} date={c.completeBy} okText="Đã nhận về" />,
+    },
+    {
+      title: 'Hạn giao hàng', key: 'deliver', width: 140,
+      sorter: (a, b) => (a.deliverBy ? new Date(a.deliverBy).getTime() : 9e15) - (b.deliverBy ? new Date(b.deliverBy).getTime() : 9e15),
+      render: (_, c) => <DeadlineCell info={c.deliver} date={c.deliverBy} okText="Đã giao đủ" />,
     },
     { title: 'Tạm ứng', key: 'adv', width: 190, render: (_, c) => <AdvCell c={c} /> },
     {
@@ -136,7 +141,7 @@ export default function Contracts() {
   return (
     <>
       <PageHeader title="Hợp đồng & Tạm ứng"
-        desc="Kế toán soạn hợp đồng theo mẫu & gửi khách trước ngày hoàn thành · tiền về nhập tay, Quản lý duyệt · theo dõi lũy kế hàng — tiền"
+        desc="Kế toán soạn hợp đồng theo mẫu, khách ký trả về trước hạn trả HĐ · giao hàng trước hạn giao hàng · tiền về nhập tay, Quản lý duyệt · theo dõi lũy kế hàng — tiền"
         extra={<>
           <ExportButton kind="contracts" params={{ status: fs, due: fd }} ids={rows.map((c) => c.id)} total={contracts.length} />
           <Button type="primary" icon={<ShoppingCart size={14} />} onClick={() => navigate('/don-hang?status=' + encodeURIComponent('Chốt đơn'))}>Đơn hàng chờ làm HĐ</Button>
@@ -150,10 +155,10 @@ export default function Contracts() {
         <Kpi tone="rust" label="Tiền về chờ duyệt" value={moneyShort(kpi.paySum)}
           onClick={kpi.payN ? () => setQuick(quick === 'pay' ? '' : 'pay') : undefined}
           sub={kpi.payN ? `${kpi.payN} hợp đồng — Quản lý duyệt mới tính vào tiền đã về` : 'không có khoản chờ duyệt'} />
-        <Kpi tone="signal" label="Hạn hoàn thành"
+        <Kpi tone="signal" label="Sắp tới / quá hạn"
           value={<span className={kpi.late > 0 ? 'text-signal' : ''}>{kpi.late}</span>}
           onClick={kpi.late ? () => setQuick(quick === 'late' ? '' : 'late') : undefined}
-          sub="hợp đồng sắp tới (≤ 7 ngày) / quá ngày hoàn thành mà chưa hoàn thành" />
+          sub="hợp đồng sắp tới (≤ 7 ngày) / quá hạn trả HĐ hoặc hạn giao hàng mà chưa xong" />
         <Kpi tone="moss" label="Đối ứng hàng — tiền" value={moneyShort(kpi.debtSum)} sub="khách còn nợ theo hàng đã giao"
           onClick={kpi.debtSum > 0 ? () => setQuick(quick === 'debt' ? '' : 'debt') : undefined} />
       </KpiGrid>
@@ -166,15 +171,15 @@ export default function Contracts() {
             options={[{ value: '', label: 'Tất cả trạng thái' }, ...STATUSES.map((s) => ({ value: s, label: s }))]} />
           <Select value={fd} onChange={setFd} style={{ minWidth: 190 }}
             options={[
-              { value: '', label: 'Ngày hoàn thành: tất cả' }, { value: 'overdue', label: 'Quá ngày hoàn thành' },
-              { value: 'soon', label: 'Sắp tới hạn' }, { value: 'ok', label: 'Đã hoàn thành' },
+              { value: '', label: 'Hạn trả HĐ / giao hàng: tất cả' }, { value: 'overdue', label: 'Quá hạn' },
+              { value: 'soon', label: 'Sắp tới hạn (≤ 7 ngày)' },
             ]} />
           <TagFilter value={tag} onChange={setTag} />
           {quick && <Tag closable onClose={() => setQuick('')} color="volcano" style={{ margin: 0 }}>{QUICK_LABEL[quick]}</Tag>}
         </div>
         <Table<ContractRow> rowKey="id" size="middle" loading={isLoading} columns={columns} dataSource={rows}
-          scroll={{ x: 1600 }} tableLayout="fixed" pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false}
-          rowClassName={(c) => 'clickable-row' + (c.complete.state === 'overdue' ? ' row-alert' : '')}
+          scroll={{ x: 1730 }} tableLayout="fixed" pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false}
+          rowClassName={(c) => 'clickable-row' + (c.complete.state === 'overdue' || c.deliver.state === 'overdue' ? ' row-alert' : '')}
           onRow={(r) => ({ onClick: () => open('hd', r.id) })}
           locale={{ emptyText: 'Không có hợp đồng phù hợp bộ lọc.' }} />
       </div>
@@ -192,18 +197,19 @@ export default function Contracts() {
 /* Ô gọn 2 dòng (dòng chính đậm + dòng phụ nhỏ) — cùng kiểu cột lũy kế, không dùng chip dài để khỏi tràn cột. */
 const line1 = { fontWeight: 700, fontSize: 13, lineHeight: 1.35 } as const
 const line2 = { fontSize: 11.5, lineHeight: 1.35, marginTop: 2 } as const
+const LATE = new Set(['soon', 'overdue'])
 
-function CompleteCell({ c }: { c: ContractRow }) {
-  const k = c.complete
-  if (k.state === 'none' || !c.completeBy) return <span className="text-ash">Chưa có ngày</span>
+/** Ô 1 mốc hạn (hạn trả HĐ / hạn giao hàng): dòng 1 ngày, dòng 2 tình trạng có màu. */
+function DeadlineCell({ info: k, date, okText }: { info: CompleteInfo; date: string | null | undefined; okText: string }) {
+  if (k.state === 'none' || !date) return <span className="text-ash">Chưa có ngày</span>
   const d = k.days ?? 0
-  const [txt, color, icon] = k.state === 'ok' ? ['Đã hoàn thành', 'var(--moss)', <CheckCircle2 key="i" size={11} />]
+  const [txt, color, icon] = k.state === 'ok' ? [okText, 'var(--moss)', <CheckCircle2 key="i" size={11} />]
     : k.state === 'overdue' ? [`QUÁ HẠN ${Math.abs(d)} ngày`, 'var(--signal)', <AlertTriangle key="i" size={11} />]
       : k.state === 'soon' ? [d <= 0 ? 'Đến hạn hôm nay' : `Còn ${d} ngày`, 'var(--amber)', <AlarmClock key="i" size={11} />]
         : [`Còn ${d} ngày`, 'var(--ash)', null]
   return (
     <div>
-      <div className="num" style={line1}>{fmtD(c.completeBy)}</div>
+      <div className="num" style={line1}>{fmtD(date)}</div>
       <div className={k.state === 'overdue' ? 'chip-overdue' : undefined}
         style={{ ...line2, color, fontWeight: k.state === 'fine' ? 400 : 700, display: 'flex', alignItems: 'center', gap: 4 }}>{icon}{txt}</div>
     </div>

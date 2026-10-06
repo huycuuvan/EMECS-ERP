@@ -25,7 +25,7 @@ const LABEL: Record<string, string> = {
   assignedBy: 'Phát lệnh bởi', acceptedBy: 'Người nhận lệnh', extension: 'Gia hạn đến',
   // đơn hàng / hợp đồng
   customer: 'Khách hàng', code: 'Mã nội bộ', file: 'File ký chốt', items: 'Hàng hóa', totalKg: 'Tổng khối lượng',
-  value: 'Giá trị', owner: 'Phụ trách', dueAt: 'Hạn trả HĐ', completeBy: 'Ngày hoàn thành', unitPrice: 'Đơn giá/kg', advancePct: '% tạm ứng',
+  value: 'Giá trị', owner: 'Phụ trách', dueAt: 'Hạn trả HĐ', completeBy: 'Hạn trả HĐ', deliverBy: 'Hạn giao hàng', unitPrice: 'Đơn giá/kg', advancePct: '% tạm ứng',
   advanceRequired: 'Tạm ứng yêu cầu', vatPct: 'Thuế VAT (%)',
 }
 const LABEL_BY_TYPE: Partial<Record<HistoryEntity, Record<string, string>>> = {
@@ -34,7 +34,7 @@ const LABEL_BY_TYPE: Partial<Record<HistoryEntity, Record<string, string>>> = {
 }
 const KG = new Set(['kgExpected', 'kgActual', 'kg', 'kgRequired', 'kgAtGalv', 'kgPicked', 'kgDelivered', 'expected', 'actual', 'kgPlan', 'totalKg'])
 const MONEY = new Set(['value', 'unitPrice', 'advanceRequired'])
-const DATE_ONLY = new Set(['deadline', 'dueAt', 'completeBy', 'extension'])
+const DATE_ONLY = new Set(['deadline', 'dueAt', 'completeBy', 'deliverBy', 'extension'])
 const ISO = /^\d{4}-\d{2}-\d{2}T/
 
 function fmtValue(field: string, v: string | null): ReactNode {

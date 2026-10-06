@@ -41,13 +41,13 @@ export function PaymentModal({ contract: c, onClose }: { contract: Contract; onC
 }
 
 /* ---------- Sửa hợp đồng ---------- */
-interface EditVals { owner: string; complete: Dayjs | null; unitPrice: number; advPct: number; note: string }
+interface EditVals { owner: string; complete: Dayjs | null; deliver: Dayjs | null; unitPrice: number; advPct: number; note: string }
 
 export function ContractEditModal({ contract: c, onClose }: { contract: Contract; onClose: () => void }) {
   const [form] = Form.useForm<EditVals>()
   const upd = useUpdateContract()
   const { hasRole } = useAuth()
-  const isQl = hasRole('admin')  // chỉ Quản lý đổi ngày hoàn thành
+  const isQl = hasRole('admin')  // chỉ Quản lý đổi hạn trả HĐ / hạn giao hàng
   const { data: meta } = useMeta()
   const unitPrice = Form.useWatch('unitPrice', form) ?? c.unitPrice
   const advPct = Form.useWatch('advPct', form) ?? c.advance.pct
@@ -62,6 +62,7 @@ export function ContractEditModal({ contract: c, onClose }: { contract: Contract
     await upd.mutateAsync({
       id: c.id, owner: v.owner, unitPrice: v.unitPrice, advancePct: v.advPct, note: v.note ?? '',
       completeBy: isQl && v.complete ? `${v.complete.format('YYYY-MM-DD')}T12:00:00Z` : undefined,
+      deliverBy: isQl && v.deliver ? `${v.deliver.format('YYYY-MM-DD')}T12:00:00Z` : undefined,
     })
     onClose()
   }
@@ -69,12 +70,15 @@ export function ContractEditModal({ contract: c, onClose }: { contract: Contract
     <Modal open zIndex={MODAL_Z} title={`Chỉnh sửa hợp đồng ${c.id}`} okText="Lưu" cancelText="Hủy" onOk={submit} onCancel={onClose}
       confirmLoading={upd.isPending} destroyOnHidden width={560}>
       <Form form={form} layout="vertical" requiredMark={false}
-        initialValues={{ owner: c.owner, complete: c.completeBy ? dayjs(c.completeBy) : null, unitPrice: c.unitPrice, advPct: c.advance.pct, note: c.note }}>
+        initialValues={{ owner: c.owner, complete: c.completeBy ? dayjs(c.completeBy) : null, deliver: c.deliverBy ? dayjs(c.deliverBy) : null, unitPrice: c.unitPrice, advPct: c.advance.pct, note: c.note }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
           <Form.Item name="owner" label="Kế toán phụ trách" rules={[{ required: true, message: 'Nhập kế toán phụ trách' }]}>
             <AutoComplete options={owners} />
           </Form.Item>
-          <Form.Item name="complete" label="Ngày hoàn thành" extra={isQl ? undefined : 'Chỉ Quản lý được đổi'}>
+          <Form.Item name="complete" label="Hạn trả hợp đồng" extra={isQl ? undefined : 'Chỉ Quản lý được đổi'}>
+            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" allowClear={false} disabled={!isQl} />
+          </Form.Item>
+          <Form.Item name="deliver" label="Hạn giao hàng cho khách" extra={isQl ? undefined : 'Chỉ Quản lý được đổi'}>
             <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" allowClear={false} disabled={!isQl} />
           </Form.Item>
           <Form.Item name="unitPrice" label="Đơn giá (đ/kg) — theo giá thị trường" rules={[positive('Đơn giá phải lớn hơn 0')]}>
@@ -126,7 +130,7 @@ export function LsxFromContractModal({ contract: c, lsxs, onClose }: { contract:
           </Form.Item>
           <Form.Item name="lead" label="Tiến độ (số ngày)"><InputNumber<number> style={{ width: '100%' }} min={1} /></Form.Item>
         </div>
-        <LeadHint lead={lead} />
+        <LeadHint lead={lead} deliverBy={c.deliverBy} onFit={(d) => form.setFieldValue('lead', d)} />
       </Form>
       {over && (
         <Alert type="error" showIcon

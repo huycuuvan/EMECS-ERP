@@ -37,9 +37,9 @@ def test_seed_dashboard_matches_demo(c):
     d = c.get("/api/dashboard").json()
     assert d["activeContracts"] == 4
     assert d["deliveredKgTotal"] == 103880
-    assert len(d["contractAlerts"]) == 3  # chỉ theo ngày hoàn thành + tạm ứng (bỏ hạn gửi 05 ngày)
+    assert len(d["contractAlerts"]) == 5  # hạn trả HĐ + hạn giao hàng + tạm ứng
     sd06 = next(a for a in d["contractAlerts"] if a["contract"]["id"] == "HD-2609-06")
-    assert sd06["complete"]["state"] == "soon"  # còn ≤ 7 ngày tới ngày hoàn thành mà chưa giao đủ
+    assert sd06["deliver"]["state"] == "soon"  # còn ≤ 7 ngày tới hạn giao hàng mà chưa giao đủ
     assert [x["id"] for x in d["overdueDocs"]] == ["VC-0006"]
     assert d["pendingMismatchKg"] == 160
 
@@ -254,14 +254,24 @@ def test_attach_signed_documents(c):
     assert c.post("/api/uploads/doc", files={"file": ("a.pdf", pdf, "application/pdf")}).status_code == 403
 
 
-def test_completion_date_is_contract_deadline_not_delivery(c):
-    """Ngày hoàn thành = hạn để hợp đồng xong (bước "Đã hoàn thành"), không tính theo giao hàng."""
+def test_two_deadlines_contract_return_and_delivery(c):
+    """2 mốc (anh Thắng chốt 06/10): hạn trả hợp đồng = kế toán xong giấy tờ (khách ký trả về);
+    hạn giao hàng = sản xuất + giao đủ cho khách. "Đã hoàn thành" do kế toán tự bấm."""
     from app.db import SessionLocal
     from app.models import Contract
-    a = next(x for x in c.get("/api/dashboard").json()["contractAlerts"] if x["contract"]["id"] == "HD-2609-06")
-    assert a["complete"]["state"] == "soon"
+    al = {a["contract"]["id"]: a for a in c.get("/api/dashboard").json()["contractAlerts"]}
+    assert al["HD-2609-02"]["complete"]["state"] == "soon"      # chờ soạn thảo, sắp tới hạn trả HĐ
+    assert al["HD-2609-03"]["complete"]["state"] == "overdue"
+    assert al["HD-2609-06"]["complete"]["state"] == "ok"        # đã nhận về → xong hạn trả HĐ
+    assert al["HD-2609-06"]["deliver"]["state"] == "soon"       # nhưng sắp tới hạn giao hàng mà chưa giao đủ
     with SessionLocal() as db:
+        db.get(Contract, "HD-2609-02").status = "Đã nhận về"
         db.get(Contract, "HD-2609-06").status = "Đã hoàn thành"
         db.commit()
-    row = next(x for x in c.get("/api/contracts").json() if x["id"] == "HD-2609-06")
-    assert row["complete"]["state"] == "ok"
+    rows = {x["id"]: x for x in c.get("/api/contracts").json()}
+    assert rows["HD-2609-02"]["complete"]["state"] == "ok" and rows["HD-2609-06"]["deliver"]["state"] == "ok"
+    o = c.post("/api/orders", json={"customer": "Cty 2 mốc", "items": [{"name": "Dầm", "qty": 1, "unit": "bộ", "kg": 10, "price": 1}]}).json()
+    ct = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-05", "deliverBy": "2099-02-20"}).json()
+    assert ct["completeBy"].startswith("2099-01-05") and ct["deliverBy"].startswith("2099-02-20")
+    login(c, "kt")
+    assert c.patch(f"/api/contracts/{ct['id']}", json={"deliverBy": "2099-03-01T12:00:00Z"}).status_code == 403

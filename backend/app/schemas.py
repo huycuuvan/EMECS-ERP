@@ -47,12 +47,14 @@ class OrderUpdate(In):
 
 
 class SendToKtIn(In):
-    complete_by: datetime | None = None  # ngày hoàn thành đơn (bắt buộc — kiểm tra ở service để báo lỗi tiếng Việt)
+    complete_by: datetime | None = None  # hạn trả hợp đồng (bắt buộc — kiểm tra ở service để báo lỗi tiếng Việt)
+    deliver_by: datetime | None = None  # hạn giao hàng cho khách
 
 
 class ContractUpdate(In):
     owner: str | None = None
     complete_by: datetime | None = None
+    deliver_by: datetime | None = None
     signed_file: str | None = None  # "" = gỡ file
     unit_price: float | None = Field(default=None, ge=0)
     advance_pct: float | None = Field(default=None, ge=0, le=100)

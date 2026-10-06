@@ -99,7 +99,7 @@ export default function Orders() {
   return (
     <>
       <PageHeader title="Đơn hàng khách"
-        desc="Khách ký chốt đơn kèm file — Quản lý chuyển kế toán làm hợp đồng (nhập ngày hoàn thành), giá theo giá thị trường ngày chốt"
+        desc="Khách ký chốt đơn kèm file — Quản lý chuyển kế toán làm hợp đồng (nhập hạn trả HĐ + hạn giao hàng), giá theo giá thị trường ngày chốt"
         extra={<>
           <ExportButton kind="orders" params={{ status: fs }} ids={rows.map((o) => o.id)} total={orders.length} />
           <Button icon={<FileSignature size={14} />} onClick={() => navigate('/hop-dong')}>Sổ hợp đồng</Button>
@@ -135,7 +135,7 @@ export default function Orders() {
       <p className="list-foot">
         <Info size={13} style={{ marginTop: 2, flex: 'none' }} />
         <span>Bấm vào dòng để mở <b>hồ sơ đơn hàng</b> (trượt từ phải). Đơn mới chốt phải được chuyển kế toán —
-          Quản lý nhập <b>ngày hoàn thành</b> — đó là hạn duy nhất để theo dõi hợp đồng.</span>
+          Quản lý nhập <b>hạn trả hợp đồng</b> (kế toán) và <b>hạn giao hàng</b> cho khách.</span>
       </p>
 
       {creating && <OrderFormModal onClose={() => setCreating(false)} />}

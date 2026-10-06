@@ -8,7 +8,7 @@ export type OrderStatus = 'Chốt đơn' | 'Đã chuyển kế toán' | 'Đã c�
 export interface Order {
   id: ID; customer: string; code: string; date: string; file: string | null; items: OrderItem[]
   totalKg: number; value: number; status: OrderStatus; contractId: ID | null; note: string
-  vatPct: number; vatAmount: number; valueAfterVat: number; customerId?: number | null; completeBy: string | null
+  vatPct: number; vatAmount: number; valueAfterVat: number; customerId?: number | null; completeBy: string | null; deliverBy?: string | null
 }
 
 /** Kết quả đọc file Excel đặt hàng (POST /orders/import-excel) — chưa lưu. */
@@ -33,13 +33,13 @@ export interface Contract {
   totalQty: number; unit: string; totalKg: number; unitPrice: number; value: number; vatPct: number
   advance: { pct: number; required: number; received: number; receivedAt: string | null }
   payments: Payment[]; note: string
-  number: string; completeBy: string | null; signedFile: string | null; draftedAt: string | null; completedAt: string | null; pendingPayment: number
+  number: string; completeBy: string | null; deliverBy: string | null; signedFile: string | null; draftedAt: string | null; completedAt: string | null; pendingPayment: number
 }
-/** Cảnh báo theo ngày hoàn thành đơn (QL nhập khi chuyển kế toán). */
+/** Cảnh báo theo 1 mốc hạn: hạn trả hợp đồng (complete) hoặc hạn giao hàng (deliver). */
 export interface CompleteInfo { state: 'none' | 'ok' | 'fine' | 'soon' | 'overdue'; label: string; days: number | null }
 export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label: string }
-/** GET /contracts trả kèm adv/complete (hạn hợp đồng = ngày hoàn thành, không còn hạn gửi 05 ngày) */
-export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; billedKg: number; billPendingKg: number }
+/** GET /contracts trả kèm adv + 2 mốc: complete = hạn trả hợp đồng (kế toán), deliver = hạn giao hàng cho khách */
+export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo; billedKg: number; billPendingKg: number }
 
 export type LsxStatus = 'Chờ nhận' | 'Đang SX' | 'Từ chối' | 'Hoàn thành'
 /** Sản lượng 1 ngày xưởng báo (kg; không làm = 0) + giờ nhập / sửa. */
@@ -125,7 +125,7 @@ export interface ContractAgg {
   lsxs: Lsx[]; receipts: Receipt[]; weighings: Weighing[]; tasksDiMa: Task[]; tasksGiao: Task[]
   producedKg: number; producedQty: number; receivedKg: number; weighedKg: number; sentGalvKg: number
   inTransitToGalvKg: number; atGalvKg: number; pickedKg: number; deliveredKg: number; stockKg: number
-  deliveredValue: number; paidTotal: number; debt: number; pendingPayment: number; complete: CompleteInfo
+  deliveredValue: number; paidTotal: number; debt: number; pendingPayment: number; complete: CompleteInfo; deliver: CompleteInfo
   /** công nợ tính theo kg cân xuất đã đạt / đã duyệt; kg đang chờ QL duyệt */
   billedKg: number; billPendingKg: number
   pctProduced: number; pctDelivered: number; pctPaid: number
@@ -147,7 +147,7 @@ export interface OverdueDoc { kind: string; type: 'pc' | 'vc'; id: ID; contractI
 
 export interface Dashboard {
   activeContracts: number; deliveredKgTotal: number
-  contractAlerts: { contract: Contract; adv: AdvanceInfo; complete: CompleteInfo }[]
+  contractAlerts: { contract: Contract; adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo }[]
   pendingPayments: (Payment & { contractId: ID; customer: string })[]
   overdueDocs: OverdueDoc[]; pendingMismatches: Mismatch[]; pendingMismatchKg: number
   pendingLSX: Lsx[]; pendingTasks: Task[]; contracts: ContractAggLite[]

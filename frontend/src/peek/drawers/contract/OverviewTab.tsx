@@ -12,12 +12,13 @@ const signed = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmtNum(Math.a
 
 export default function OverviewTab({ g, onGoFlow, onPay }: { g: ContractAgg; onGoFlow: () => void; onPay?: () => void }) {
   const c = g.contract
-  const comp = g.complete, adv = g.adv
+  const comp = g.complete, dlv = g.deliver, adv = g.adv
   const { can } = useAuth()
   const upd = useUpdateContract()
   const canFile = can('hop-dong', 'edit')
   const keyChecks = g.checks.filter((k) => k.key)
   const compAlert = comp.state === 'overdue' || comp.state === 'soon'
+  const dlvAlert = dlv.state === 'overdue' || dlv.state === 'soon'
   const advMissing = adv.state === 'missing'
   return (
     <>
@@ -26,7 +27,8 @@ export default function OverviewTab({ g, onGoFlow, onPay }: { g: ContractAgg; on
         <Cell label="Khách hàng">{c.customer}</Cell>
         <Cell label="Mã đơn">{c.code}</Cell>
         <Cell label="Chuyển kế toán">{fmtD(c.sentToKtAt)}</Cell>
-        <Cell label="Ngày hoàn thành" alert={compAlert}>{comp.label}</Cell>
+        <Cell label="Hạn trả hợp đồng (kế toán)" alert={compAlert}>{comp.label}</Cell>
+        <Cell label="Hạn giao hàng cho khách" alert={dlvAlert}>{dlv.label}</Cell>
         <Cell label="Ngày ký">{c.signDate ? fmtD(c.signDate) : 'Chưa ký'}</Cell>
         <Cell label="Phụ trách">{c.owner}</Cell>
         <Cell label="Giá trị hợp đồng">{money(c.value)} · {fmtNum(c.unitPrice)}₫/kg</Cell>

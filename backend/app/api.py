@@ -203,13 +203,13 @@ def update_order(oid: str, body: SC.OrderUpdate, db: Session = DB):
 
 @router.post("/orders/{oid}/send-to-kt", dependencies=[Depends(require("don-hang", "full"))])
 def send_to_kt(oid: str, body: SC.SendToKtIn, db: Session = DB):
-    return S.contract(svc.send_order_to_kt(db, oid, body.complete_by))
+    return S.contract(svc.send_order_to_kt(db, oid, body.complete_by, body.deliver_by))
 
 
 # ---------------------------------------------------------------- hợp đồng
 # Hợp đồng bản rút gọn cho vai trò không có màn Hợp đồng (kho, xưởng, lái xe…): đủ để chọn / hiển thị, KHÔNG có tiền
 LITE_KEYS = ("id", "orderId", "code", "number", "customer", "customerId", "status", "totalQty", "unit", "totalKg",
-             "completeBy", "signDate", "sentToKtAt")
+             "completeBy", "deliverBy", "signDate", "sentToKtAt")
 MONEY_AGG_KEYS = ("deliveredValue", "paidTotal", "debt", "pendingPayment", "pctPaid", "billedKg", "billPendingKg")
 
 
@@ -226,6 +226,7 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
     if segment:
         seg = svc.contract_ids_for_customers(db, svc.customer_ids_for_segment(db, segment))
         keep = seg if keep is None else keep & seg
+    delivered = svc.delivered_by_contract(db)
     for c in db.scalars(select(Contract).order_by(Contract.sent_to_kt_at.desc())):
         if keep is not None and c.id not in keep:
             continue
@@ -233,6 +234,7 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
         d["customerId"] = cust_of.get(c.order_id)
         d["adv"] = svc.advance_info(c)
         d["complete"] = svc.complete_info(c)
+        d["deliver"] = svc.deliver_info(c, delivered.get(c.id, 0))
         d["billedKg"], d["billPendingKg"] = svc.billed_kg(db, c.id)  # công nợ theo cân xuất đã duyệt
         out.append(d)
     return out if can(user, "hop-dong") else [contract_lite(d) for d in out]
@@ -253,8 +255,8 @@ def contract_ledger(cid: str, db: Session = DB):
 
 @router.patch("/contracts/{cid}", dependencies=[Depends(require("hop-dong", "edit"))])
 def update_contract(cid: str, body: SC.ContractUpdate, db: Session = DB, user: User = Depends(get_current_user)):
-    if body.complete_by is not None and "admin" not in user.role_list:
-        raise HTTPException(403, "Chỉ Quản lý được đổi ngày hoàn thành")
+    if (body.complete_by is not None or body.deliver_by is not None) and "admin" not in user.role_list:
+        raise HTTPException(403, "Chỉ Quản lý được đổi hạn trả hợp đồng / hạn giao hàng")
     with track(db, "hd", cid, lambda: contract_snapshot(svc.get_or_404(db, Contract, cid))):  # lưu lịch sử sửa
         c = svc.update_contract(db, cid, body.model_dump(by_alias=True, exclude_none=True))
     return S.contract(c)

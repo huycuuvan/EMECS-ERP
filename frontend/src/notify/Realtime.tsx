@@ -42,6 +42,9 @@ export default function RealtimeBridge() {
     const token = tokenStore.get()
     if (!user || !token || typeof EventSource === 'undefined') return
     const es = new EventSource(`/api/notifications/stream?token=${encodeURIComponent(token)}`)
+    // (kết nối lại sau khi mất mạng / máy chủ khởi động lại) → tải lại để không sót thông báo trong lúc ngắt
+    let first = true
+    es.addEventListener('hello', () => { if (!first) qc.invalidateQueries(); first = false })
     es.addEventListener('notif', (ev) => {
       let n: Notification
       try { n = JSON.parse((ev as MessageEvent).data) } catch { return }

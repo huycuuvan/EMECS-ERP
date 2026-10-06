@@ -183,7 +183,8 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
           </div>
-          <LeadHint lead={leadDays} />
+          <LeadHint lead={leadDays} deliverBy={contracts.find((z) => z.id === cid)?.deliverBy}
+            onFit={(d) => form.setFieldValue('leadDays', d)} />
         </Form>
       )}
     </Modal>
