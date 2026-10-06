@@ -6,6 +6,7 @@ import { Info, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useMaterials, useMaterialStats } from '@/api/hooksMaster'
 import type { MaterialReceipt, StatGroup } from '@/api/typesMaster'
+import { DeleteButton } from '@/components/DeleteRecord'
 import { Kpi, KpiGrid, PageHeader } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtD, fmtKg, fmtNum, fmtT } from '@/lib/format'
@@ -78,6 +79,7 @@ export default function Materials() {
     { title: 'Chứng từ', key: 'photo', render: (_, m) => m.photo
       ? <a href={m.photo} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>Xem ảnh</a> : <span className="text-ash">Chưa có</span> },
     { title: 'Người nhập', key: 'by', render: (_, m) => <span className="caption">{m.by}</span> },
+    { title: '', key: 'del', width: 80, render: (_, m) => <DeleteButton url={`/material-receipts/${m.id}`} label={`phiếu nhập ${m.id}`} /> },
   ]
 
   const top = (g?: StatGroup[]) => g?.[0]

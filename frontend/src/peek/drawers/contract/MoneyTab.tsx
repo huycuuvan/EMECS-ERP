@@ -1,4 +1,5 @@
 /* MÀN 2 — ĐỐI ỨNG HÀNG GIAO ⇄ TIỀN VỀ (tài khoản chữ T, lũy kế chạy từng dòng). */
+import { DeleteButton } from '@/components/DeleteRecord'
 import { AlertCircle, ArrowLeftRight, CheckCircle2, Landmark, PackageOpen, ShieldCheck } from 'lucide-react'
 import type { ContractAgg } from '@/api/types'
 import { Cell, CellGrid, Sec } from '@/components/ui'
@@ -48,7 +49,8 @@ export default function MoneyTab({ g }: { g: ContractAgg }) {
               <tr key={p.id}>
                 <td className="num">{fmtD(p.date)}</td>
                 <td>{p.type}{p.note && <div className="hdta-luy">{p.note}</div>}</td>
-                <td><b className="num">{money(p.amount)}</b><div className="hdta-luy">lũy kế {money(luy)}</div></td>
+                <td><b className="num">{money(p.amount)}</b><div className="hdta-luy">lũy kế {money(luy)}</div>
+                  <DeleteButton url={`/payments/${p.id}`} label={`khoản tiền về ${money(p.amount)}`} text="Xóa" /></td>
               </tr>
             )) : <tr><td colSpan={3} style={{ color: 'var(--ash)', textAlign: 'center', padding: 14 }}>Chưa có tiền về.</td></tr>}
             <tr className="hdta-tot">

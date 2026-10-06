@@ -4,6 +4,7 @@ import { App, Button, Input } from 'antd'
 import { Check, Hourglass, X } from 'lucide-react'
 import { useApprovePayment, useRejectPayment } from '@/api/hooks'
 import type { Payment } from '@/api/types'
+import { DeleteButton } from '@/components/DeleteRecord'
 import { Sec, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtDT, money } from '@/lib/format'
@@ -46,7 +47,8 @@ export default function PaymentApprovals({ payments }: { payments: Payment[] }) 
               <td>{p.type}{p.note && <div className="sub-soft">{p.note}</div>}
                 {p.rejectReason && <div className="sub-soft" style={{ color: 'var(--signal)' }}>Lý do: {p.rejectReason} — {p.approvedBy}</div>}</td>
               <td className="r"><b className="num">{money(p.amount)}</b></td>
-              <td className="r">{p.status === 'Chờ duyệt' ? <PaymentDecision p={p} /> : <StatusTag status={p.status} />}</td>
+              <td className="r">{p.status === 'Chờ duyệt' ? <PaymentDecision p={p} /> : <StatusTag status={p.status} />}
+                <div style={{ marginTop: 4 }}><DeleteButton url={`/payments/${p.id}`} label={`khoản tiền về ${money(p.amount)}`} /></div></td>
             </tr>
           ))}
         </tbody>

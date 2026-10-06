@@ -12,6 +12,7 @@ from sqlalchemy import select
 from . import realtime
 from .alerts import end_of_day_loop
 from .api import router
+from .delete_api import router as delete_router
 from .auth_api import public as auth_public
 from .auth_api import router as auth_router
 from .edit_api import router as edit_router
@@ -54,6 +55,7 @@ app.include_router(auth_router)
 app.include_router(router)
 app.include_router(edit_router)
 app.include_router(master_router)
+app.include_router(delete_router)  # DELETE các module — chỉ Quản lý, có lý do, chặn khi còn chứng từ phía sau
 app.include_router(realtime.router)  # /api/notifications/stream (SSE) + /api/push/* (Web Push)
 
 
