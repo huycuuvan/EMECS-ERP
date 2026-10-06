@@ -649,6 +649,10 @@ def _log(x: Lsx, text: str) -> None:
 
 def create_lsx(db: Session, cid: str, name: str | None, qty: float | None, kg: float, lead_days: int) -> Lsx:
     c = get_or_404(db, Contract, cid)
+    # không phát lệnh vượt khối lượng hợp đồng (lệnh bị từ chối không tính — sẽ phát lại)
+    committed = _sum(db.scalars(select(Lsx).where(Lsx.contract_id == cid, Lsx.status != "Từ chối")).all(), lambda l: l.kg_plan)
+    if kg > (c.total_kg or 0) - committed + 0.5:
+        raise HTTPException(400, f"HĐ {cid} còn {fmt_kg(max((c.total_kg or 0) - committed, 0))} chưa phát lệnh — không phát {fmt_kg(kg)}")
     lead = lead_days or 7
     now = utcnow()
     x = Lsx(id=next_id(db, "LSX", "lsx"), contract_id=cid, name=name or f"Lệnh SX {c.code}", assigned_at=now,
@@ -992,6 +996,12 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
         t.deliver_customer_id = deliver.get("deliver_customer_id")
         for k in ("deliver_name", "deliver_address", "receiver_name", "receiver_phone", "contact_name", "contact_phone"):
             setattr(t, k, (deliver.get(k) or "").strip())
+        # để trống → lấy theo khách của hợp đồng (lái xe luôn thấy giao cho ai, ở đâu)
+        cu = db.get(Customer, t.deliver_customer_id) if t.deliver_customer_id else None
+        t.deliver_name = t.deliver_name or (cu.name if cu else c.customer)
+        if cu:
+            t.deliver_address = t.deliver_address or (cu.address or "")
+            t.receiver_phone = t.receiver_phone or (cu.phone or "")
     db.add(t)
     where = (t.deliver_address or t.deliver_name) if type_ == "giao_khach" else "xưởng mạ"
     notify(db, f"Thẻ công việc mới {t.id}",

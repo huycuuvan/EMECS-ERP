@@ -16,7 +16,7 @@ export function WeighResult({ p }: { p?: Weighing }) {
   return (
     <div style={{ fontSize: 12 }}>
       <b className="num">{fmtNum(p.kgActual)} kg</b> <span style={{ color: p.status === 'Đã cân' ? 'var(--moss)' : 'var(--signal)' }}>({dev > 0 ? '+' : ''}{dev.toFixed(1)}%)</span>
-      <div style={{ marginTop: 3 }}><StatusTag status={p.status === 'Đã cân' ? 'Đã duyệt' : p.status} /></div>
+      <div style={{ marginTop: 3 }}><StatusTag status={p.status === 'Đã cân' ? (p.approvedBy ? 'Đã duyệt' : 'Đạt') : p.status} /></div>
       {p.reason && p.status !== 'Đã cân' && <div className="sub-soft">Lý do: {p.reason}{p.reasonNote ? ` — ${p.reasonNote}` : ''}</div>}
       {p.status === 'QL từ chối' && <div className="sub-soft" style={{ color: 'var(--signal)' }}>QL từ chối: {p.rejectReason} — kho cân lại</div>}
       {p.status === 'Đã cân' && p.approvedBy && <div className="sub-soft">{p.approvedBy} duyệt · lý do {p.reason}</div>}

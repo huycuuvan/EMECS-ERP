@@ -73,7 +73,7 @@ export default function Orders() {
         return (
           <>
             <div style={{ fontWeight: 550 }}>{it.name}</div>
-            <div className="sub-soft num">{fmtNum(it.qty)} {it.unit} · {fmtNum(o.totalKg)} kg · {fmtNum(it.price)}₫/kg</div>
+            <div className="sub-soft num">{fmtNum(it.qty)} {it.unit} · {fmtNum(it.kg)} kg · {fmtNum(it.price)}₫/kg</div>
             {o.items.length > 1 && <div className="sub-soft">+ {o.items.length - 1} hạng mục khác</div>}
           </>
         )

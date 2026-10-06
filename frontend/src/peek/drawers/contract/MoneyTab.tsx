@@ -3,7 +3,7 @@ import { DeleteButton } from '@/components/DeleteRecord'
 import { AlertCircle, ArrowLeftRight, CheckCircle2, Landmark, PackageOpen, ShieldCheck } from 'lucide-react'
 import type { ContractAgg } from '@/api/types'
 import { Cell, CellGrid, Sec } from '@/components/ui'
-import { fmtD, fmtKg, fmtNum, money } from '@/lib/format'
+import { fmtD, fmtKg, money } from '@/lib/format'
 import RecordLink from '../../RecordLink'
 
 export default function MoneyTab({ g }: { g: ContractAgg }) {
@@ -73,7 +73,7 @@ export default function MoneyTab({ g }: { g: ContractAgg }) {
 
       <CellGrid>
         <Cell label="Còn phải giao">
-          {conGiao <= 0 ? '0 kg — ĐÃ GIAO ĐỦ ✓' : `${fmtKg(conGiao)} (${fmtNum(Math.round((conGiao / 10000) * 10) / 10, 1)} chuyến xe 10T)`}
+          {conGiao <= 0 ? '0 kg — ĐÃ GIAO ĐỦ ✓' : `${fmtKg(conGiao)} (~${Math.ceil(conGiao / 10000)} chuyến xe 10T)`}
         </Cell>
         <Cell label="Còn phải thu theo HĐ">{conThu <= 0 ? '0₫ — ĐÃ THU ĐỦ ✓' : money(conThu)}</Cell>
       </CellGrid>

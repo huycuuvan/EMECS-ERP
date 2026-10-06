@@ -10,7 +10,7 @@ const sum = <T,>(arr: T[], f: (r: T) => number | null | undefined) => arr.reduce
 const eq = (a: number, b: number) => Math.abs(a - b) < 0.5
 const signed = (d: number) => (d > 0 ? '+' : '') + fmtNum(d)
 
-export interface FlowData { rcs: Receipt[]; pcs: Weighing[]; diMa: Task[]; giao: Task[] }
+export interface FlowData { rcs: Receipt[]; pcs: Weighing[]; diMa: Task[]; giao: Task[]; sharedGiao: number }
 
 /** Lọc phiếu liên quan của lệnh: PTN theo LSX, phiếu cân theo LSX, thẻ đi mạ theo phiếu cân, thẻ giao theo thẻ đi mạ. */
 export function flowOf(x: Lsx, receipts: Receipt[], weighings: Weighing[], tasks: Task[]): FlowData {
@@ -19,11 +19,16 @@ export function flowOf(x: Lsx, receipts: Receipt[], weighings: Weighing[], tasks
   const pcIds = new Set(pcs.map((p) => p.id))
   const diMa = tasks.filter((t) => t.type === 'di_ma' && t.refId != null && pcIds.has(t.refId))
   const dmIds = new Set(diMa.map((t) => t.id))
-  const giao = tasks.filter((t) => t.type === 'giao_khach' && t.refId != null && dmIds.has(t.refId))
-  return { rcs, pcs, diMa, giao }
+  // giao khách lấy hàng theo HỢP ĐỒNG (không gắn thẻ đi mạ): tính cho lệnh này khi mọi hàng của HĐ tại mạ đều từ lệnh này;
+  // HĐ nhiều lệnh thì không chia được theo lệnh → đếm riêng để ghi chú (xem ở hồ sơ hợp đồng)
+  const hdDiMa = tasks.filter((t) => t.type === 'di_ma' && t.contractId === x.contractId && t.kgAtGalv != null)
+  const solo = hdDiMa.length > 0 && hdDiMa.every((t) => dmIds.has(t.id))
+  const byHd = tasks.filter((t) => t.type === 'giao_khach' && t.refId == null && t.contractId === x.contractId)
+  const giao = tasks.filter((t) => t.type === 'giao_khach' && t.refId != null && dmIds.has(t.refId)).concat(solo ? byHd : [])
+  return { rcs, pcs, diMa, giao, sharedGiao: solo ? 0 : byHd.length }
 }
 
-const WAITING = ['', 'còn ở xưởng', 'chờ cân xuất', 'đang tới mạ / lệch cân', 'còn tại mạ']
+const WAITING = ['', 'còn ở xưởng', 'chờ cân xuất', 'đang tới mạ / lệch cân', 'còn tại mạ / lệch giao']
 
 export function FlowChain({ x, f }: { x: Lsx; f: FlowData }) {
   const steps = [
@@ -61,6 +66,7 @@ export function FlowChain({ x, f }: { x: Lsx; f: FlowData }) {
         })}
       </div>
       <div style={{ fontSize: 10.5, color: C.ash, margin: '-4px 0 6px' }}>
+        {f.sharedGiao > 0 && <><b>{f.sharedGiao} chuyến giao khách</b> lấy hàng chung của hợp đồng (nhiều lệnh) — xem số giao ở hồ sơ hợp đồng. </>}
         Số giữa 2 ô = hàng chưa đi tiếp, còn nằm lại ở bước trước (còn ở xưởng, chờ cân, đang tới mạ, còn tại mạ) — bình thường khi hàng đang đi dần. Chữ đỏ "vượt" = bước sau nhiều hơn bước trước, cần kiểm tra.
       </div>
     </>

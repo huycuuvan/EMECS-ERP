@@ -251,3 +251,11 @@ def test_receipt_cannot_exceed_reported_output(c):
     assert r.status_code == 400 and "chỉ còn chuẩn bị được" in r.json()["detail"]
     if left > 1:
         assert c.post("/api/receipts", json={"lsxId": x["id"], "kg": left}).status_code == 200
+
+
+def test_lsx_cannot_exceed_contract_kg(c):
+    o = c.post("/api/orders", json={"customer": "Cty LSX vượt", "items": [{"name": "Cột", "qty": 10, "unit": "Bộ", "kg": 1000, "price": 1}]}).json()
+    hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
+    assert c.post("/api/lsx", json={"contractId": hd["id"], "kg": 800}).status_code == 200
+    r = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 300})
+    assert r.status_code == 400 and "còn 200 kg chưa phát lệnh" in r.json()["detail"]

@@ -120,7 +120,7 @@ export default function Contracts() {
     {
       title: 'Hạn giao hàng', key: 'deliver', width: 140,
       sorter: (a, b) => (a.deliverBy ? new Date(a.deliverBy).getTime() : 9e15) - (b.deliverBy ? new Date(b.deliverBy).getTime() : 9e15),
-      render: (_, c) => <DeadlineCell info={c.deliver} date={c.deliverBy} okText="Đã giao đủ" />,
+      render: (_, c) => <DeadlineCell info={c.deliver} date={c.deliverBy} okText={c.status === 'Đã hoàn thành' ? 'HĐ đã hoàn thành' : 'Đã giao đủ'} />,
     },
     { title: 'Tạm ứng', key: 'adv', width: 190, render: (_, c) => <AdvCell c={c} /> },
     {
