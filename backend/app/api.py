@@ -210,7 +210,7 @@ def send_to_kt(oid: str, body: SC.SendToKtIn, db: Session = DB):
 # Hợp đồng bản rút gọn cho vai trò không có màn Hợp đồng (kho, xưởng, lái xe…): đủ để chọn / hiển thị, KHÔNG có tiền
 LITE_KEYS = ("id", "orderId", "code", "number", "customer", "customerId", "status", "totalQty", "unit", "totalKg",
              "completeBy", "deliverBy", "signDate", "sentToKtAt")
-MONEY_AGG_KEYS = ("billedValue", "billedValues", "deliveredValuePre", "deliveredVat", "deliveredValue", "paidTotal", "debt",
+MONEY_AGG_KEYS = ("billedValue", "billedValues", "deliveredValue", "paidTotal", "debt",
                   "pendingPayment", "pctPaid", "billedKg", "billPendingKg")
 
 
@@ -238,8 +238,8 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
         d["pendingExtension"] = ext_wait.get(c.id)  # đang xin gia hạn trả HĐ, chờ Quản lý duyệt
         d["complete"] = svc.complete_info(c)
         d["deliver"] = svc.deliver_info(c, delivered.get(c.id, 0))
-        d["billedKg"], d["billPendingKg"] = svc.billed_kg(db, c.id)  # công nợ theo cân xuất đã duyệt
-        b = svc.billing(db, c)  # giá trị hàng đã giao theo từng mặt hàng + VAT
+        d["billedKg"], d["billPendingKg"] = svc.billed_kg(db, c.id)  # công nợ theo kg khách ký nhận
+        b = svc.billing(db, c)  # kg khách ký nhận × đơn giá, không VAT
         d["billedValue"], d["debt"] = b["deliveredValue"], b["debt"]
         out.append(d)
     return out if can(user, "hop-dong") else [contract_lite(d) for d in out]
@@ -331,8 +331,8 @@ def request_extension(cid: str, body: SC.ReasonIn, db: Session = DB):
 
 
 @router.post("/contract-extensions/{eid}/approve", dependencies=[Depends(require_roles("admin"))])
-def approve_extension(eid: int, db: Session = DB):
-    return S.contract(svc.approve_extension(db, eid))
+def approve_extension(eid: int, body: SC.ExtensionApproveIn | None = None, db: Session = DB):
+    return S.contract(svc.approve_extension(db, eid, body.days if body else None))
 
 
 @router.post("/contract-extensions/{eid}/reject", dependencies=[Depends(require_roles("admin"))])
@@ -389,7 +389,7 @@ def lsx_daily(lid: str, body: SC.LsxDailyIn, db: Session = DB):
 
 @router.post("/lsx/{lid}/extend", dependencies=[Depends(require_roles("admin"))])
 def lsx_extend(lid: str, body: SC.LsxExtendIn, db: Session = DB):
-    return S.lsx(svc.lsx_extend(db, lid, body.to, body.reason))
+    return S.lsx(svc.lsx_extend(db, lid, body.to, body.reason, body.days))
 
 
 # ---------------------------------------------------------------- phiếu chuẩn bị hàng

@@ -291,11 +291,12 @@ def test_contract_return_extension_flow(c):
     assert c.post(f"/api/contract-extensions/{eid}/approve").status_code == 403  # kế toán không tự duyệt
     login(c, "ql")
     assert [e["id"] for e in c.get("/api/dashboard").json()["pendingExtensions"]] == [eid]
-    ct = c.post(f"/api/contract-extensions/{eid}/approve").json()
+    assert c.post(f"/api/contract-extensions/{eid}/approve", json={"days": 0}).status_code == 400
+    ct = c.post(f"/api/contract-extensions/{eid}/approve", json={"days": 8}).json()  # Quản lý điền số ngày
     new = datetime.fromisoformat(ct["completeBy"].replace("Z", "+00:00"))
-    assert new - old == timedelta(days=5)
+    assert new - old == timedelta(days=8)
     g = c.get(f"/api/contracts/{cid}").json()
-    assert g["extensions"][0]["status"] == "Đã duyệt" and g["extensions"][0]["newBy"]
+    assert g["extensions"][0]["status"] == "Đã duyệt" and g["extensions"][0]["newBy"] and g["extensions"][0]["days"] == 8
     login(c, "kt")
     c.post(f"/api/contracts/{cid}/extensions", json={"reason": "Xin thêm"})
     eid2 = next(x for x in c.get("/api/contracts").json() if x["id"] == cid)["pendingExtension"]["id"]

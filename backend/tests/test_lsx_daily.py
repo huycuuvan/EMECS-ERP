@@ -132,7 +132,7 @@ def test_prepare_goods_to_warehouse_weigh_5pct_and_billing(c):
     login(c, "ql")
     assert all(d["id"] != pid for d in c.get("/api/vloss/pending-deltas").json())  # không đưa vào kho ảo
     g = c.get(f"/api/contracts/{hd['id']}").json()
-    assert g["billedKg"] == 0 and g["billPendingKg"] == 2200 and g["deliveredValue"] == 0  # chưa duyệt → chưa tính nợ
+    assert g["billedKg"] == 0 and g["billPendingKg"] == 0 and g["deliveredValue"] == 0  # cân xuất không tính công nợ
     p = c.post(f"/api/weighings/{pid}/reject", json={"reason": "Cân lại, số xe sai"}).json()
     assert p["status"] == "QL từ chối" and p["rejectReason"] == "Cân lại, số xe sai"
     login(c, "kho")
@@ -141,8 +141,7 @@ def test_prepare_goods_to_warehouse_weigh_5pct_and_billing(c):
     login(c, "ql")
     c.post(f"/api/weighings/{pid}/approve")
     g = c.get(f"/api/contracts/{hd['id']}").json()
-    pre = round(2200 * g["contract"]["unitPrice"])  # 1 mặt hàng → giá mặt hàng = giá bình quân
-    assert g["billedKg"] == 2200 and g["deliveredValuePre"] == pre and g["deliveredValue"] == pre + round(pre * g["contract"]["vatPct"] / 100)
+    assert g["billedKg"] == 0 and g["deliveredValue"] == 0  # công nợ tính theo kg KHÁCH KÝ NHẬN, không theo cân xuất
 
 
 def test_prepare_goods_assigns_driver_task(c):
@@ -262,24 +261,64 @@ def test_lsx_cannot_exceed_contract_kg(c):
     assert r.status_code == 400 and "còn 200 kg chưa phát lệnh" in r.json()["detail"]
 
 
-def test_billing_per_item_price_vat_and_delivery_threshold(c):
-    """Công nợ theo đơn giá TỪNG MẶT HÀNG của phiếu chuẩn bị hàng + VAT; giao ≥95% là giao đủ; cân thiếu không chuẩn bị bù."""
-    o = c.post("/api/orders", json={"customer": "Cty Công nợ", "vatPct": 10, "items": [
-        {"name": "Cột", "qty": 20, "unit": "Bộ", "kgPerUnit": 250, "price": 24000},
-        {"name": "Xà", "qty": 50, "unit": "Bộ", "kgPerUnit": 40, "price": 26000}]}).json()
-    assert o["code"] == ""  # không còn mã mặc định "MOI"
+def test_no_default_code_and_no_reprepare_after_short_weighing(c):
+    """Không còn mã nội bộ mặc định "MOI"; cân thiếu ở chuẩn bị hàng không được chuẩn bị bù."""
+    o = c.post("/api/orders", json={"customer": "Cty Công nợ", "items": [
+        {"name": "Xà", "qty": 175, "unit": "Bộ", "kgPerUnit": 40, "price": 26000}]}).json()
+    assert o["code"] == ""
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01", "deliverBy": "2099-02-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 7000}).json()
     assert x["name"].endswith(hd["number"])
     _produce(c, x["id"], 7000)
-    ids = {i["name"]: i["id"] for i in c.get(f"/api/orders/{o['id']}").json()["items"]}
-    r = c.post("/api/receipts", json={"lsxId": x["id"], "items": [{"itemId": ids["Xà"], "qty": 50}]}).json()  # 2.000 kg xà
+    r = c.post("/api/receipts", json={"lsxId": x["id"], "kg": 2000}).json()
     w = next(p for p in c.get("/api/weighings").json() if p["receiptId"] == r["id"])
-    c.post(f"/api/weighings/{w['id']}/fill", json={"kgActual": 1950})  # thiếu 2.5% → đạt
-    g = c.get(f"/api/contracts/{hd['id']}").json()
-    assert g["billedValues"][w["id"]] == 1950 * 26000  # giá xà 26.000, không phải bình quân 24.571
-    assert g["deliveredValuePre"] == 50_700_000 and g["deliveredVat"] == 5_070_000 and g["deliveredValue"] == 55_770_000
-    assert g["contract"]["valueAfterVat"] == 189_200_000
-    # cân thiếu 50 kg không thành "còn chuẩn bị được": đã chuẩn bị 2.000 theo số giao → còn 5.000
+    assert c.post(f"/api/weighings/{w['id']}/fill", json={"kgActual": 1950}).json()["status"] == "Đã cân"  # thiếu 2,5% → đạt
     assert c.post("/api/receipts", json={"lsxId": x["id"], "kg": 5050}).status_code == 400
     assert c.post("/api/receipts", json={"lsxId": x["id"], "kg": 5000}).status_code == 200
+
+
+def test_billing_by_customer_signed_kg_no_vat(c):
+    """Công nợ = KG khách ký nhận (thẻ giao khách xong / Quản lý duyệt) × đơn giá − tiền về, KHÔNG tính VAT."""
+    cid = "HD-2609-01"
+    g0 = c.get(f"/api/contracts/{cid}").json()
+    price, left, paid = g0["contract"]["unitPrice"], g0["atGalvKg"], g0["paidTotal"]
+    assert g0["debt"] == g0["deliveredValue"] - paid and g0["deliveredValue"] == sum(g0["billedValues"].values())
+    t = c.post("/api/tasks", json={"type": "giao_khach", "driver": "Lê Đức Vận", "contractId": cid,
+                                   "arriveAt": "2099-01-02T08:00:00+07:00", "deliverAddress": "CT"}).json()
+    login(c, "lx1" if t["driver"] != "Lê Đức Vận" else "lx2")
+    c.post(f"/api/tasks/{t['id']}/accept"); c.post(f"/api/tasks/{t['id']}/depart")
+    photo = "data:image/png;base64,iVBORw0KGgo="
+    r = c.post(f"/api/tasks/{t['id']}/fill-delivery", json={"kgPicked": left, "kgDelivered": left - 40, "photo": photo,
+                                                             "reason": "Khách kiểm đếm thiếu"}).json()
+    assert r["status"] == "Chờ QL duyệt"
+    login(c, "ql")
+    g = c.get(f"/api/contracts/{cid}").json()
+    assert g["billPendingKg"] == left - 40 and g["deliveredValue"] == g0["deliveredValue"]  # chưa duyệt → chưa tính nợ
+    c.post(f"/api/tasks/{t['id']}/approve")
+    g = c.get(f"/api/contracts/{cid}").json()
+    assert g["billedValues"][t["id"]] == round((left - 40) * price)
+    assert g["deliveredValue"] == g0["deliveredValue"] + round((left - 40) * price)  # không cộng VAT
+    assert g["debt"] == g["deliveredValue"] - paid
+    row = next(x for x in c.get("/api/contracts").json() if x["id"] == cid)
+    assert row["billedValue"] == g["deliveredValue"] and row["debt"] == g["debt"]
+    assert any("tính vào công nợ" in n["title"] for n in c.get("/api/notifications").json())
+
+
+def test_deliver_deadline_done_only_when_fully_received(c):
+    """Hạn giao hàng chỉ xong khi khách nhận đủ KL hợp đồng (hoặc HĐ đã hoàn thành)."""
+    from app.db import utcnow
+    from app.models import Contract
+    from app.services import deliver_info
+    k = Contract(total_kg=7000, status="Đã nhận về", deliver_by=utcnow())
+    assert deliver_info(k, 6990)["state"] != "ok"
+    assert deliver_info(k, 7000)["state"] == "ok"
+
+
+def test_lsx_extend_by_days(c):
+    """Quản lý gia hạn lệnh SX bằng số ngày (cộng từ hạn hiện tại)."""
+    from datetime import datetime, timedelta
+    x = next(x for x in c.get("/api/lsx").json() if x["deadline"])
+    base = datetime.fromisoformat(((x.get("extension") or {}).get("to") or x["deadline"]).replace("Z", "+00:00"))
+    y = c.post(f"/api/lsx/{x['id']}/extend", json={"days": 4, "reason": "Thiếu thép tấm"}).json()
+    assert datetime.fromisoformat(y["extension"]["to"].replace("Z", "+00:00")) - base == timedelta(days=4)
+    assert c.post(f"/api/lsx/{x['id']}/extend", json={"reason": "thiếu số ngày"}).status_code == 400

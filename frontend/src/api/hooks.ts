@@ -93,7 +93,7 @@ export const useContractSigned = () => useAction((id: ID) => post<Contract>(`/co
 export const useContractCompleted = () => useAction((id: ID) => post<Contract>(`/contracts/${id}/completed`), (c) => `${c.id}: đã hoàn thành`)
 export const useRecordPayment = () => useAction(({ id, ...v }: { id: ID; amount: number; type: string; note?: string }) => post<Contract>(`/contracts/${id}/payments`, v), 'Đã ghi tiền về — chờ Quản lý duyệt')
 export const useRequestExtension = () => useAction(({ cid, reason }: { cid: ID; reason: string }) => post<Contract>(`/contracts/${cid}/extensions`, { reason }), 'Đã gửi Quản lý duyệt gia hạn')
-export const useApproveExtension = () => useAction((eid: number) => post<Contract>(`/contract-extensions/${eid}/approve`), (c) => `Đã gia hạn trả HĐ ${c.id}`)
+export const useApproveExtension = () => useAction(({ eid, days }: { eid: number; days: number }) => post<Contract>(`/contract-extensions/${eid}/approve`, { days }), (c) => `Đã gia hạn trả HĐ ${c.id}`)
 export const useRejectExtension = () => useAction(({ eid, reason }: { eid: number; reason: string }) => post<Contract>(`/contract-extensions/${eid}/reject`, { reason }), 'Đã từ chối gia hạn')
 export const useApprovePayment = () => useAction((pid: number) => post<Contract>(`/payments/${pid}/approve`), 'Đã duyệt tiền về')
 export const useRejectPayment = () => useAction(({ pid, reason }: { pid: number; reason: string }) => post<Contract>(`/payments/${pid}/reject`, { reason }), 'Đã từ chối khoản tiền về')
@@ -108,15 +108,15 @@ export const useCreateLsx = () => useAction((v: { contractId: ID; name?: string;
 export const useLsxAccept = () => useAction((id: ID) => post<Lsx>(`/lsx/${id}/accept`), (x) => `Xưởng đã nhận lệnh ${x.id}`)
 export const useLsxReject = () => useAction(({ id, reason }: { id: ID; reason: string }) => post<Lsx>(`/lsx/${id}/reject`, { reason }), (x) => `Đã từ chối ${x.id}`)
 export const useLsxDaily = () => useAction(({ id, ...v }: { id: ID; day?: string; kg: number; note?: string }) => post<Lsx>(`/lsx/${id}/daily`, v), (x) => `Đã ghi sản lượng ${x.id} — lũy kế ${x.kgDone.toLocaleString('vi-VN')} kg`)
-export const useLsxExtend = () => useAction(({ id, ...v }: { id: ID; to: string; reason: string }) => post<Lsx>(`/lsx/${id}/extend`, v), (x) => `Đã duyệt gia hạn ${x.id}`)
+export const useLsxExtend = () => useAction(({ id, ...v }: { id: ID; days: number; reason: string }) => post<Lsx>(`/lsx/${id}/extend`, v), (x) => `Đã duyệt gia hạn ${x.id}`)
 
 export const useCreateReceipt = () => useAction((v: { lsxId: ID; qty?: number; kg?: number; note?: string; items?: { itemId: number; qty: number }[]; driver?: string; vehiclePlate?: string; galvanizerId?: number; arriveAt?: string; fillDeadline?: string }) => post<Receipt>('/receipts', v), (r) => `Đã lập phiếu chuẩn bị hàng ${r.id}`)
 
 /** sourceId: PTN-… hoặc LSX-… */
 export const useCreateWeighing = () => useAction((v: { sourceId: ID; kgExpected: number }) => post<Weighing>('/weighings', v), (p) => `Đã tạo phiếu cân ${p.id}`)
-export const useApproveWeighing = () => useAction((id: ID) => post<Weighing>(`/weighings/${id}/approve`), (p) => `Đã duyệt ${p.id} — tính vào công nợ`)
+export const useApproveWeighing = () => useAction((id: ID) => post<Weighing>(`/weighings/${id}/approve`), (p) => `Đã duyệt ${p.id}`)
 export const useRejectWeighing = () => useAction(({ id, reason }: { id: ID; reason: string }) => post<Weighing>(`/weighings/${id}/reject`, { reason }), (p) => `Đã từ chối ${p.id} — kho cân lại`)
-export const useFillWeighing = () => useAction(({ id, ...v }: { id: ID; kgActual?: number; grossKg?: number; tareKg?: number; weighInAt?: string; weighOutAt?: string; vehiclePlate?: string; photo?: string | null; reason?: string; reasonNote?: string; signerLaiXe?: string; signerBocXep?: string }) => post<Weighing>(`/weighings/${id}/fill`, v),
+export const useFillWeighing = () => useAction(({ id, ...v }: { id: ID; kgActual?: number; grossKg?: number; tareKg?: number; weighInAt?: string; weighOutAt?: string; vehiclePlate?: string; photo?: string | null; reason?: string; reasonNote?: string; signerLaiXe?: string }) => post<Weighing>(`/weighings/${id}/fill`, v),
   (p) => p.status === 'Chờ QL duyệt' ? `${p.id}: lệch quá dung sai — chờ Quản lý duyệt` : `${p.id}: đã cân — Đạt`)
 export const useWeighingPhoto = () => useAction(({ id, photo }: { id: ID; photo: string | null }) => api.put<Weighing>(`/weighings/${id}/photo`, { photo }).then((r) => r.data), 'Đã cập nhật ảnh phiếu')
 

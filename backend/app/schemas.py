@@ -86,8 +86,13 @@ class LsxDailyIn(In):
 
 
 class LsxExtendIn(In):
-    to: datetime
+    to: datetime | None = None
+    days: int | None = None  # Quản lý điền số ngày gia hạn (cộng từ hạn hiện tại)
     reason: str = Field(min_length=1)
+
+
+class ExtensionApproveIn(In):
+    days: int | None = None  # Quản lý điền số ngày gia hạn trả HĐ
 
 
 class ReceiptItemIn(In):

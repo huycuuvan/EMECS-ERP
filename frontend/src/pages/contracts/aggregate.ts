@@ -13,11 +13,11 @@ export function aggregateRows(contracts: ContractRow[], giao: Task[]): Record<st
     const done = giao.filter((t) => t.contractId === c.id && t.kgDelivered != null)
     const deliveredKg = done.reduce((s, t) => s + (t.kgDelivered || 0), 0)
     const paidTotal = paidOf(c.payments)  // chỉ tiền về đã được Quản lý duyệt
-    const deliveredValue = c.billedValue || 0  // công nợ: cân xuất đã duyệt × giá từng mặt hàng, gồm VAT
+    const deliveredValue = c.billedValue || 0  // công nợ: kg khách ký nhận × đơn giá, không VAT
     out[c.id] = {
       deliveredKg, trips: done.length, deliveredValue, paidTotal, debt: c.debt ?? deliveredValue - paidTotal,
       pctDelivered: c.totalKg ? Math.round((deliveredKg / c.totalKg) * 100) : 0,
-      pctPaid: c.valueAfterVat ? Math.round((paidTotal / c.valueAfterVat) * 100) : 0,
+      pctPaid: c.value ? Math.round((paidTotal / c.value) * 100) : 0,
     }
   }
   return out

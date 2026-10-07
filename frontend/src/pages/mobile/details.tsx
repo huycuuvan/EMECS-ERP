@@ -125,9 +125,8 @@ function DetailPc({ id }: { id: string }) {
             ? <span className={bad ? 'red-txt' : 'moss-txt'}>{fmtN(p.kgActual)} kg{delta ? ` (${signed(delta)})` : ' · khớp'}</span>
             : <span className="red-txt">Chưa cân</span>}
         </DItem>
-        <DItem k="Ký bốc xếp" small>{p.signers.bocXep || '—'}</DItem>
-        <DItem k="Ký thủ kho" small>{p.signers.kho || '—'}</DItem>
-        <DItem k="Ký lái xe" small>{p.signers.laiXe || <span className="red-txt">Chưa ký</span>}</DItem>
+        <DItem k="Thủ kho cân" small>{p.kgActual != null ? p.signers.kho || '—' : '—'}</DItem>
+        <DItem k="Lái xe" small>{p.signers.laiXe || <span className="red-txt">Chưa gán</span>}</DItem>
         {p.mismatchId && <DItem k="Biên bản sai lệch"><DLink kind="sl" id={p.mismatchId} warn /></DItem>}
       </DGrid>
       {p.status === 'Chờ cân' && (
@@ -279,7 +278,7 @@ function HdOverview({ id }: { id: string }) {
         <DItem k="Hạn trả HĐ"><span className={cls(comp)}>{comp.label}</span></DItem>
         <DItem k="Hạn giao hàng"><span className={cls(dlv)}>{dlv.label}</span></DItem>
         {g.extensions.filter((e) => e.status === 'Chờ duyệt').map((e) => (
-          <DItem key={e.id} k={`Xin gia hạn +${e.days} ngày`} full small>
+          <DItem key={e.id} k={e.status === 'Đã duyệt' ? `Gia hạn +${e.days} ngày` : 'Xin gia hạn'} full small>
             <span className="amber-txt">{e.requestedBy}: {e.reason}</span>
             <div style={{ marginTop: 6 }}><ExtensionDecision e={e} /></div>
           </DItem>
@@ -309,18 +308,19 @@ function HdMoney({ id }: { id: string }) {
   if (isLoading) return <Loading />
   if (!g) return <NotFound id={id} />
   const c = g.contract
-  const giaoDone = g.tasksGiao.filter((t) => t.kgDelivered != null).sort((a, b) => String(a.filledAt ?? '').localeCompare(String(b.filledAt ?? '')))
+  const giaoDone = g.tasksGiao.filter((t) => t.kgDelivered != null && t.status === 'Hoàn thành').sort((a, b) => String(a.filledAt ?? '').localeCompare(String(b.filledAt ?? '')))
   return (
     <>
       <div className="hd-block no">
-        <div className="hb-head"><PackageOpen />NỢ — HÀNG ĐÃ GIAO (ghi tăng công nợ)</div>
+        <div className="hb-head"><PackageOpen />NỢ — KHÁCH ĐÃ KÝ NHẬN (ghi tăng công nợ, không VAT)</div>
         {giaoDone.length ? giaoDone.map((t) => (
           <div key={t.id} className="hb-row">
             <span className="hr-l">{fmtD(t.filledAt)} · <b>{t.id}</b> · {fmtN(t.kgDelivered)} kg</span>
-            <span className="hr-r">{moneyShort(Math.round((t.kgDelivered ?? 0) * (c.unitPrice || 0)))}</span>
+            <span className="hr-r">{moneyShort(g.billedValues[t.id] ?? 0)}</span>
           </div>
         )) : <div className="hb-row"><span className="hr-l">Chưa có chuyến giao nào</span><span className="hr-r">0₫</span></div>}
-        <div className="hb-total"><span>Lũy kế giao {fmtN(g.deliveredKg)} kg</span><span>{moneyShort(g.deliveredValue)}</span></div>
+        {g.billPendingKg > 0 && <div className="hb-row"><span className="hr-l">+{fmtN(g.billPendingKg)} kg khách ký lệch — chờ Quản lý duyệt</span><span className="hr-r">—</span></div>}
+        <div className="hb-total"><span>Lũy kế khách ký {fmtN(g.billedKg)} kg</span><span>{moneyShort(g.deliveredValue)}</span></div>
       </div>
       <div className="hd-block co">
         <div className="hb-head"><Banknote />CÓ — TIỀN ĐÃ VỀ TÀI KHOẢN</div>

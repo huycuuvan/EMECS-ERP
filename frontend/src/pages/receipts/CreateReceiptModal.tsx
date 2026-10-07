@@ -95,7 +95,7 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
               Giảm số lượng lần này, hoặc chờ xưởng nhập thêm sản lượng.</span>
           </WarnBox>}
           <p className="caption" style={{ margin: '0 0 10px' }}>Bấm <b>Giao xuống kho</b> → kho nhận phiếu cân <b>Chờ cân</b> với số lượng này; kho cân xe, chụp phiếu.
-            Chỉ định tài xế → tài xế nhận ngay thẻ đi mạ gắn phiếu cân này. Cân thiếu trong 5% là đạt; <b>thiếu quá 5% hoặc dư</b> so với số giao → kho nhập lý do, Quản lý duyệt mới tính công nợ.</p>
+            Chỉ định tài xế → tài xế nhận ngay thẻ đi mạ gắn phiếu cân này. Cân thiếu trong 5% là đạt; <b>thiếu quá 5% hoặc dư</b> so với số giao → kho nhập lý do, Quản lý duyệt.</p>
           <div style={{ border: '1px solid var(--rule)', borderRadius: 10, padding: '10px 12px 0', marginBottom: 12, background: 'var(--paper)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0 12px' }}>
               <Form.Item name="driver" label="Chỉ định tài xế nhận chuyến (đi mạ)" extra="Bỏ trống nếu điều xe sau.">

@@ -123,7 +123,7 @@ def _contracts(db: Session, f: Filters, _u: User) -> list[Row]:
         comp = svc.complete_info(c)
         if f.due and comp["state"] != f.due:
             continue
-        b = svc.billing(db, c)  # công nợ: cân xuất đã duyệt × đơn giá từng mặt hàng + VAT
+        b = svc.billing(db, c)  # công nợ: kg khách ký nhận × đơn giá, không VAT
         dval, paid = b["deliveredValue"], b["paidTotal"]
         out.append((c.id, [c.id, c.order_id, c.code, c.customer, c.total_qty, c.unit, c.total_kg, c.unit_price,
                            c.value, c.sent_to_kt_at, c.complete_by, comp["label"], c.deliver_by, svc.deliver_info(c, delivered)["label"], c.sign_date or "Chưa nhận về", c.advance_pct,
@@ -238,7 +238,7 @@ SHEETS: dict[str, Sheet] = {
         ("Đơn vị", "text"), ("Khối lượng (kg)", "kg"), ("Đơn giá (₫/kg)", "money"), ("Giá trị HĐ", "money"),
         ("Chuyển kế toán", "date"), ("Hạn trả HĐ", "date"), ("Tình trạng hạn trả HĐ", "text"), ("Hạn giao hàng", "date"), ("Tình trạng giao hàng", "text"), ("Ngày ký", "date"),
         ("Tạm ứng %", "pct"), ("Tạm ứng yêu cầu", "money"), ("Tạm ứng đã về", "money"), ("Tình trạng tạm ứng", "text"),
-        ("Đã giao (kg)", "kg"), ("Số chuyến đã giao", "num"), ("Giá trị hàng đã giao (gồm VAT)", "money"),
+        ("Đã giao (kg)", "kg"), ("Số chuyến đã giao", "num"), ("Giá trị hàng đã giao", "money"),
         ("Tiền về lũy kế", "money"), ("Công nợ", "money"), ("Trạng thái", "text"), ("Phụ trách", "text")], _contracts),
     "lsx": Sheet("Sổ lệnh sản xuất", "lsx", "lenh-san-xuat", [
         ("Mã lệnh", "text"), ("Tên lệnh", "text"), ("Hợp đồng", "text"), ("Khách hàng", "text"),

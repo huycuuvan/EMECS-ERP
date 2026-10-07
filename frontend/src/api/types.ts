@@ -19,7 +19,7 @@ export interface OrderExcelImport {
 
 /** Tiền về: kế toán nhập → Quản lý duyệt mới tính vào tiền đã về / tạm ứng / công nợ. */
 export type PaymentStatus = 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'
-/** Xin gia hạn trả hợp đồng: kế toán nhập lý do → Quản lý duyệt (+5 ngày) / từ chối. */
+/** Xin gia hạn trả hợp đồng: kế toán nhập lý do → Quản lý duyệt (tự điền số ngày) / từ chối. */
 export interface ContractExtension {
   id: number; contractId: ID; reason: string; requestedBy: string; requestedAt: string
   status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; days: number; oldBy: string | null; newBy: string | null
@@ -40,15 +40,13 @@ export interface Contract {
   advance: { pct: number; required: number; received: number; receivedAt: string | null }
   payments: Payment[]; note: string
   number: string; completeBy: string | null; deliverBy: string | null; signedFile: string | null; draftedAt: string | null; completedAt: string | null; pendingPayment: number
-  /** giá trị HĐ đã gồm VAT */
-  valueAfterVat: number
 }
 /** Cảnh báo theo 1 mốc hạn: hạn trả hợp đồng (complete) hoặc hạn giao hàng (deliver). */
 export interface CompleteInfo { state: 'none' | 'ok' | 'fine' | 'soon' | 'overdue'; label: string; days: number | null }
 export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label: string }
 /** GET /contracts trả kèm adv + 2 mốc: complete = hạn trả hợp đồng (kế toán), deliver = hạn giao hàng cho khách */
 export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo; pendingExtension: ContractExtension | null; billedKg: number; billPendingKg: number
-  /** công nợ: giá trị hàng đã giao (theo giá từng mặt hàng) gồm VAT, và số còn nợ */
+  /** công nợ: giá trị hàng khách đã ký nhận (không VAT), và số còn nợ */
   billedValue: number; debt: number }
 
 export type LsxStatus = 'Chờ nhận' | 'Đang SX' | 'Từ chối' | 'Hoàn thành'
@@ -138,10 +136,10 @@ export interface ContractAgg {
   producedKg: number; producedQty: number; receivedKg: number; weighedKg: number; sentGalvKg: number
   inTransitToGalvKg: number; atGalvKg: number; pickedKg: number; deliveredKg: number; stockKg: number
   deliveredValue: number; paidTotal: number; debt: number; pendingPayment: number; complete: CompleteInfo; deliver: CompleteInfo
-  /** giá trị hàng đã giao trước VAT / tiền VAT / giá trị từng phiếu cân (trước VAT, theo giá từng mặt hàng) */
-  deliveredValuePre: number; deliveredVat: number; billedValues: Record<string, number>
+  /** giá trị từng thẻ giao khách đã tính công nợ (kg khách ký × đơn giá, không VAT) */
+  billedValues: Record<string, number>
   extensions: ContractExtension[]
-  /** công nợ tính theo kg cân xuất đã đạt / đã duyệt; kg đang chờ QL duyệt */
+  /** công nợ tính theo kg khách ký nhận (thẻ giao khách xong / đã duyệt); kg khách ký đang chờ QL duyệt */
   billedKg: number; billPendingKg: number
   pctProduced: number; pctDelivered: number; pctPaid: number
   checks: Check[]; mismatches: Mismatch[]; adv: AdvanceInfo

@@ -59,7 +59,7 @@ export default function WeighingDrawer({ id }: { id: string }) {
         {p.kgActual != null
           ? <Cell label="Trọng lượng hàng" big alert={bad}>{fmtKg(p.kgActual)}
               <div className="caption" style={{ fontWeight: 600, color: p.approved ? 'var(--moss)' : 'var(--amber)' }}>
-                {p.approved ? 'Đã tính vào công nợ' : p.status === 'Lệch — chờ ký' ? 'Chờ Quản lý duyệt mới tính công nợ' : ''}</div></Cell>
+                {p.approvedBy ? `${p.approvedBy} đã duyệt` : p.status === 'Chờ QL duyệt' || p.status === 'Lệch — chờ ký' ? 'Chờ Quản lý duyệt' : ''}</div></Cell>
           : <Cell label="KL cân thực tế" alert>
             {canEdit ? <a className="text-signal" onClick={() => act.fill(p)}>CHƯA NHẬP</a> : 'CHƯA NHẬP'}
           </Cell>}
@@ -70,10 +70,10 @@ export default function WeighingDrawer({ id }: { id: string }) {
         )}
       </CellGrid>
 
-      <Sec icon={<Users />}>Ký 3 bên</Sec>
+      <Sec icon={<Users />}>Người cân · lái xe (chữ ký 3 bên xem trên ảnh phiếu)</Sec>
       <CellGrid>
-        <Cell label="Bốc xếp">{p.signers.bocXep || '—'}</Cell>
-        <Cell label="Thủ kho">{p.signers.kho || '—'}</Cell>
+        {p.signers.bocXep && <Cell label="Bốc xếp">{p.signers.bocXep}</Cell>}
+        <Cell label="Thủ kho cân">{p.kgActual != null ? p.signers.kho || '—' : '—'}</Cell>
         <Cell label="Lái xe" alert={!p.signers.laiXe && p.kgActual != null}>{p.signers.laiXe || '—'}</Cell>
       </CellGrid>
 

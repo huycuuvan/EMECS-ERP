@@ -109,17 +109,16 @@ export default function Weighings() {
       },
     },
     {
-      title: 'Ảnh phiếu', key: 'photo',
+      title: 'Ảnh phiếu ký 3 bên', key: 'photo',
       render: (_, p) => (p.hasPhoto
         ? <Tooltip title="Bấm dòng để xem ảnh phiếu"><span className="text-moss" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600 }}><ImageIcon size={13} /> Đã có ảnh</span></Tooltip>
         : <span className="text-signal" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700 }}><ImageOff size={12} /> Thiếu ảnh</span>),
     },
     {
-      title: 'Ký 3 bên', key: 'sign',
+      title: 'Người cân · lái xe', key: 'sign',
       render: (_, p) => (
         <div style={{ fontSize: 10.5, color: C.ash, lineHeight: 1.5 }}>
-          Bốc xếp: <b style={{ color: C.ink, fontWeight: 600 }}>{p.signers.bocXep || '—'}</b><br />
-          Kho: <b style={{ color: C.ink, fontWeight: 600 }}>{p.signers.kho || '—'}</b><br />
+          Kho cân: <b style={{ color: C.ink, fontWeight: 600 }}>{p.kgActual != null ? p.signers.kho || '—' : '—'}</b><br />
           Lái xe: {p.signers.laiXe ? <b style={{ color: C.ink, fontWeight: 600 }}>{p.signers.laiXe}</b> : <b className="text-signal">—</b>}
         </div>
       ),

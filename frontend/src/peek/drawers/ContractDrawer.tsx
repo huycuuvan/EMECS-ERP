@@ -91,7 +91,7 @@ export default function ContractDrawer({ id }: { id: string }) {
               {showReturned && <Button size="small" icon={<Send size={13} />} onClick={() => flow.askReturned(c)}>Đã gửi khách hàng</Button>}
               {showSigned && <Button size="small" icon={<BadgeCheck size={13} />} onClick={() => flow.askSigned(c)}>Đã nhận về</Button>}
               {showDone && <Button size="small" icon={<CircleCheckBig size={13} />} onClick={() => flow.askCompleted(c, g)}>Đã hoàn thành</Button>}
-              {showExt && <Button size="small" danger={g.complete.state === 'overdue'} icon={<CalendarPlus size={13} />} onClick={() => askExt(c)}>Xin gia hạn +5 ngày</Button>}
+              {showExt && <Button size="small" danger={g.complete.state === 'overdue'} icon={<CalendarPlus size={13} />} onClick={() => askExt(c)}>Xin gia hạn</Button>}
               {canPay && <Button size="small" type="primary" icon={<Banknote size={13} />} onClick={() => setDialog('pay')}>+ Tiền về</Button>}
               {showLsx && (
                 <>

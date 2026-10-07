@@ -96,7 +96,7 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
     at_galv_kg = sent_galv_kg - picked_kg
     stock_kg = pending_kg
     bill_kg, bill_pending = billed_kg(db, cid)
-    # công nợ theo KG CÂN XUẤT đã đạt (±5%) / đã được Quản lý duyệt × đơn giá từng mặt hàng + VAT
+    # công nợ theo KG KHÁCH KÝ NHẬN (thẻ giao khách đã xong / Quản lý đã duyệt) × đơn giá, KHÔNG tính VAT
     bill = billing(db, c)
     delivered_value, paid_total, debt = bill["deliveredValue"], bill["paidTotal"], bill["debt"]
     pending_pay = _sum([p for p in c.payments if p.status == PAY_PENDING], lambda p: p.amount)
@@ -127,13 +127,13 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
         "sentGalvKg": sent_galv_kg, "inTransitToGalvKg": in_transit_kg, "atGalvKg": at_galv_kg,
         "pickedKg": picked_kg, "deliveredKg": delivered_kg, "stockKg": stock_kg,
         "deliveredValue": delivered_value, "paidTotal": paid_total, "debt": debt, "pendingPayment": pending_pay,
-        "deliveredValuePre": bill["deliveredValuePre"], "deliveredVat": bill["deliveredVat"], "billedValues": bill["billedValues"],
+        "billedValues": bill["billedValues"],
         "billedKg": bill_kg, "billPendingKg": bill_pending,
         "complete": complete_info(c), "deliver": deliver_info(c, delivered_kg),
         "extensions": [S.extension(e) for e in contract_extensions(db, cid)],
         "pctProduced": round(produced_kg / tk * 100) if tk else 0,
         "pctDelivered": round(delivered_kg / tk * 100) if tk else 0,
-        "pctPaid": round(paid_total / value_vat(c) * 100) if c.value else 0,
+        "pctPaid": round(paid_total / c.value * 100) if c.value else 0,
         "checks": checks_out,
         "mismatches": [S.mismatch(m) for m in db.scalars(select(Mismatch).where(Mismatch.contract_id == cid))],
         "adv": advance_info(c),
@@ -250,7 +250,7 @@ def complete_info(c: Contract) -> dict:
 
 def deliver_info(c: Contract, delivered_kg: float = 0) -> dict:
     """HẠN GIAO HÀNG cho khách: xong khi khách đã ký nhận đủ kg hợp đồng (hoặc kế toán đã hoàn thành HĐ)."""
-    # hao hụt cân luôn có → khách ký ≥ DELIVER_DONE_PCT% khối lượng hợp đồng là giao đủ
+    # khách nhận đủ (≥ DELIVER_DONE_PCT% — mặc định 100%) khối lượng hợp đồng là giao đủ
     done = c.status == CT_DONE or (bool(c.total_kg) and delivered_kg >= c.total_kg * DELIVER_DONE_PCT / 100 - 0.5)
     return _deadline(c.deliver_by, done, "hạn giao hàng")
 
@@ -551,7 +551,7 @@ def request_extension(db: Session, cid: str, reason: str) -> Contract:
     who = actor(KT)
     db.add(ContractExtension(contract_id=cid, reason=reason.strip(), requested_by=who, requested_at=utcnow(),
                              status=EXT_WAIT, days=CONTRACT_EXTEND_DAYS, old_by=c.complete_by))
-    notify(db, f"Xin gia hạn trả HĐ {cid} thêm {CONTRACT_EXTEND_DAYS} ngày", f"{c.customer} · {who}: {reason.strip()} · "
+    notify(db, f"Xin gia hạn trả HĐ {cid}", f"{c.customer} · {who}: {reason.strip()} · "
            f"hạn hiện tại {fmt_d(c.complete_by)}", "warning", roles="admin", ref=cid)
     db.commit()
     return c
@@ -564,10 +564,14 @@ def _extension(db: Session, eid: int) -> ContractExtension:
     return e
 
 
-def approve_extension(db: Session, eid: int) -> Contract:
-    """Quản lý duyệt → hạn trả HĐ cộng thêm N ngày (tính từ hạn hiện tại)."""
+def approve_extension(db: Session, eid: int, days: int | None = None) -> Contract:
+    """Quản lý duyệt + điền số ngày gia hạn → hạn trả HĐ cộng thêm N ngày (tính từ hạn hiện tại)."""
     e = _extension(db, eid)
     c = get_or_404(db, Contract, e.contract_id)
+    if days is not None:
+        if days < 1:
+            raise HTTPException(400, "Số ngày gia hạn phải từ 1 ngày")
+        e.days = days
     new_by = add_days(c.complete_by or utcnow(), e.days)
     e.status, e.decided_by, e.decided_at, e.old_by, e.new_by = EXT_OK, actor(QL), utcnow(), c.complete_by, new_by
     c.complete_by = c.due_at = new_by
@@ -732,10 +736,17 @@ def lsx_daily(db: Session, lid: str, day, kg: float, note: str) -> Lsx:
     return x
 
 
-def lsx_extend(db: Session, lid: str, to: datetime, reason: str) -> Lsx:
+def lsx_extend(db: Session, lid: str, to: datetime | None, reason: str, days: int | None = None) -> Lsx:
+    """Quản lý gia hạn lệnh: điền số ngày (cộng từ hạn hiện tại — hạn đã gia hạn nếu có) hoặc ngày mới."""
     x = get_or_404(db, Lsx, lid)
+    if days is not None:
+        if days < 1:
+            raise HTTPException(400, "Số ngày gia hạn phải từ 1 ngày")
+        to = add_days(x.ext_to or x.deadline or utcnow(), days)
+    if to is None:
+        raise HTTPException(400, "Nhập số ngày gia hạn")
     x.ext_to, x.ext_reason, x.ext_approved_by, x.ext_at = to, reason, actor(QL), utcnow()
-    _log(x, f"{actor(QL)} duyệt gia hạn đến {fmt_d(to)} — {reason}")
+    _log(x, f"{actor(QL)} gia hạn{f' +{days} ngày' if days else ''} đến {fmt_d(to)} — {reason}")
     db.commit()
     return x
 
@@ -869,7 +880,6 @@ def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | N
                f"{p.receipt_id or ''} · giao {fmt_kg(exp)} · cân {fmt_kg(p.kg_actual)} · {reason}", "warning", roles="admin")
     else:
         p.mismatch_id, p.status, p.reason, p.reason_note, p.reject_reason = None, "Đã cân", None, None, None
-        _billed_notify(db, p)
     db.commit()
     return p
 
@@ -888,12 +898,11 @@ def record_vloss(db: Session, ref_type: str, rec, kg: float, source: str, note: 
 
 
 def approve_weighing(db: Session, pid: str) -> Weighing:
-    """Quản lý duyệt phiếu cân lệch (Chuẩn bị hàng) → tính vào công nợ."""
+    """Quản lý duyệt phiếu cân lệch → phần lệch vào kho ảo (công nợ tính theo khách ký nhận, không theo cân xuất)."""
     p = get_or_404(db, Weighing, pid)
     if p.status != "Chờ QL duyệt":
         raise HTTPException(400, f"Phiếu {pid} không ở trạng thái chờ duyệt")
     p.status, p.approved_by, p.approved_at = "Đã cân", actor(QL), utcnow()
-    _billed_notify(db, p)
     record_vloss(db, "pc", p, (p.kg_expected or 0) - (p.kg_actual or 0), PREP_SOURCE,
                  (p.reason or "") + (f" — {p.reason_note}" if p.reason_note else ""), actor(QL))
     notify(db, f"Quản lý đã duyệt phiếu cân {pid}", f"{fmt_kg(p.kg_actual)} — {p.reason}", "success", roles="kho,admin")
@@ -912,64 +921,37 @@ def reject_weighing(db: Session, pid: str, reason: str) -> Weighing:
     return p
 
 
-def _billed_notify(db: Session, p: Weighing) -> None:
-    c = db.get(Contract, p.contract_id)
+def _billed_notify(db: Session, t: Task) -> None:
+    """Khách ký nhận (thẻ giao khách xong / Quản lý duyệt) → ghi tăng công nợ."""
+    c = db.get(Contract, t.contract_id)
     if c:
-        notify(db, f"{p.id}: cân xuất {fmt_kg(p.kg_actual)} — đã tính vào công nợ HĐ {c.id}",
-               f"Ghi tăng {money_short(weighing_value(db, c, p) * (1 + (c.vat_pct or 0) / 100))} (gồm VAT)", "success",
-               roles="admin,kt", ref=c.id)
+        notify(db, f"Đã giao {fmt_kg(t.kg_delivered)} cho khách — tính vào công nợ HĐ {c.id}",
+               f"{c.customer} · {t.driver} · ghi tăng {money_short(round((t.kg_delivered or 0) * (c.unit_price or 0)))}",
+               "success", roles="admin,kt", ref=t.id)
+
+
+def _billable(db: Session, cid: str) -> list[Task]:
+    return db.scalars(select(Task).where(Task.contract_id == cid, Task.type == "giao_khach",
+                                         Task.kg_delivered.is_not(None))).all()
 
 
 def billed_kg(db: Session, cid: str) -> tuple[float, float]:
-    """(kg cân xuất đã tính công nợ, kg đang chờ Quản lý duyệt) của hợp đồng."""
+    """(kg khách ký nhận đã tính công nợ, kg khách ký đang chờ Quản lý duyệt) của hợp đồng."""
     ok = pend = 0.0
-    for p in db.scalars(select(Weighing).where(Weighing.contract_id == cid)):
-        if p.kg_actual is None:
-            continue
-        if p.status == "Đã cân":
-            ok += p.kg_actual
-        elif p.status in ("Lệch — chờ ký", "Chờ QL duyệt"):
-            pend += p.kg_actual
+    for t in _billable(db, cid):
+        if t.status == "Hoàn thành":
+            ok += t.kg_delivered
+        elif t.status == "Chờ QL duyệt":
+            pend += t.kg_delivered
     return ok, pend
 
 
-def value_vat(c: Contract) -> float:
-    """Giá trị hợp đồng SAU THUẾ (khách chuyển tiền gồm cả VAT)."""
-    return (c.value or 0) + round((c.value or 0) * (c.vat_pct or 0) / 100)
-
-
-def item_prices(db: Session, c: Contract) -> dict[int, float]:
-    """Đơn giá ₫/kg THEO TỪNG MẶT HÀNG: theo bản hợp đồng (kế toán sửa giá) — không thì theo đơn hàng."""
-    from .contract_doc import document
-    try:
-        return {ln["itemId"]: ln["amount"] / ln["kg"] for ln in document(db, c)["lines"] if ln["kg"]}
-    except Exception:  # noqa: BLE001 — thiếu đơn / dữ liệu cũ → dùng đơn giá bình quân
-        return {}
-
-
-def weighing_value(db: Session, c: Contract, p: Weighing, prices: dict[int, float] | None = None) -> float:
-    """Giá trị (trước thuế) 1 phiếu cân xuất: KG thực cân × đơn giá bình quân CỦA ĐÚNG CÁC MẶT HÀNG trong phiếu
-    chuẩn bị hàng (cân lệch thì phân bổ đều theo tỉ lệ). Phiếu không có dòng hàng → đơn giá bình quân hợp đồng."""
-    import json
-    r = db.get(Receipt, p.receipt_id) if p.receipt_id else None
-    lines = json.loads(r.items) if r and r.items else []
-    prices = item_prices(db, c) if prices is None else prices
-    kg = sum(ln["kg"] for ln in lines)
-    val = sum(ln["kg"] * prices.get(ln["itemId"], c.unit_price or 0) for ln in lines)
-    rate = val / kg if kg else (c.unit_price or 0)
-    return round((p.kg_actual or 0) * rate)
-
-
 def billing(db: Session, c: Contract) -> dict:
-    """Công nợ: giá trị hàng đã giao (cân xuất đạt / đã duyệt, theo từng mặt hàng) + VAT − tiền về đã duyệt."""
-    prices = item_prices(db, c)
-    per = {p.id: weighing_value(db, c, p, prices) for p in db.scalars(select(Weighing).where(
-        Weighing.contract_id == c.id, Weighing.status == "Đã cân", Weighing.kg_actual.is_not(None)))}
-    pre = sum(per.values())
-    vat = round(pre * (c.vat_pct or 0) / 100)
+    """Công nợ = KG khách ký nhận (thẻ giao khách xong) × đơn giá hợp đồng − tiền về đã duyệt. Không tính VAT."""
+    per = {t.id: round((t.kg_delivered or 0) * (c.unit_price or 0)) for t in _billable(db, c.id) if t.status == "Hoàn thành"}
+    value = sum(per.values())
     paid = _sum(approved(c.payments), lambda p: p.amount)
-    return {"billedValues": per, "deliveredValuePre": pre, "deliveredVat": vat, "deliveredValue": pre + vat,
-            "paidTotal": paid, "debt": pre + vat - paid}
+    return {"billedValues": per, "deliveredValue": value, "paidTotal": paid, "debt": value - paid}
 
 
 # ---------------------------------------------------------------- thẻ công việc lái xe
@@ -1146,9 +1128,7 @@ def task_fill_delivery(db: Session, tid: str, kg_picked: float, kg_delivered: fl
     what = f"Khách ký lệch {delta:+g} kg" if abs(delta) > 0.5 else f"Lấy từ mạ lệch {t.kg_picked - t.kg_required:+g} kg"
     _task_result(db, t, abs(delta) > 0.5 or off_req, what, reason, reason_note)
     if t.status == "Hoàn thành":
-        c = db.get(Contract, t.contract_id)
-        notify(db, f"Đã giao {fmt_kg(t.kg_delivered)} cho khách", f"HĐ {t.contract_id}" + (f" · {c.customer}" if c else "")
-               + f" · {t.driver}", "success", roles="admin,kt", ref=t.id)
+        _billed_notify(db, t)
     db.commit()
     return t
 
@@ -1162,6 +1142,8 @@ def approve_task(db: Session, tid: str) -> Task:
     kg, source = _task_delta(t)
     record_vloss(db, "vc", t, kg, source, (t.reason or "") + (f" — {t.reason_note}" if t.reason_note else ""), actor(QL))
     notify(db, f"Quản lý chấp nhận phiếu {tid}", f"{t.driver} · {t.reason}", "success", to_user=t.driver, ref=tid)
+    if t.type == "giao_khach":
+        _billed_notify(db, t)
     db.commit()
     return t
 
@@ -1184,8 +1166,6 @@ def sign_mismatch(db: Session, mid: str) -> Mismatch:
     ref = db.get(Weighing if m.ref_type == "pc" else Task, m.ref_id)
     if ref is not None and getattr(ref, "status", None) == "Lệch — chờ ký":
         ref.status = "Đã cân"
-        if m.ref_type == "pc":
-            _billed_notify(db, ref)  # Quản lý duyệt → tính vào công nợ
     db.commit()
     return m
 

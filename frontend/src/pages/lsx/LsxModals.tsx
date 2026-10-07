@@ -94,9 +94,10 @@ function ProgressModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
 /* ---------------------------------------------------------------- gia hạn (QL) */
 function ExtendModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
   const extend = useLsxExtend()
-  const [form] = Form.useForm<{ to: Dayjs; reason: string }>()
+  const [form] = Form.useForm<{ days: number; reason: string }>()
   const eff = effDeadline(x)
   const dl = daysLeft(eff)
+  const days = Form.useWatch('days', form) as number | undefined
   return (
     <Modal open title={`Gia hạn tiến độ — ${x.id} (Quản lý duyệt)`} okText="Duyệt gia hạn" cancelText="Hủy" onCancel={onClose}
       confirmLoading={extend.isPending} onOk={() => form.submit()}>
@@ -104,17 +105,14 @@ function ExtendModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
         Hạn hiệu lực hiện tại: <b className="text-signal">{fmtD(eff)}</b>
         {dl < 0 ? <> — đã trễ {Math.abs(dl)} ngày.</> : <> — còn {dl} ngày.</>} Gia hạn sẽ ghi vào nhật ký lệnh kèm người duyệt.
       </p>
-      <Form form={form} layout="vertical" initialValues={{ to: dayjs().add(2, 'day') }}
+      <Form form={form} layout="vertical"
         onFinish={async (v) => {
-          const to = v.to.hour(17).minute(0).second(0).millisecond(0)
-          await extend.mutateAsync({ id: x.id, to: to.toISOString(), reason: v.reason.trim() })
+          await extend.mutateAsync({ id: x.id, days: v.days, reason: v.reason.trim() })
           onClose()
         }}>
-        <Form.Item name="to" label="Hạn mới" rules={[
-          { required: true, message: 'Chọn ngày hạn mới.' },
-          { validator: (_, v: Dayjs) => (v && !v.hour(17).isAfter(dayjs()) ? Promise.reject(new Error('Hạn mới phải sau thời điểm hiện tại.')) : Promise.resolve()) },
-        ]}>
-          <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} disabledDate={(d) => d.isBefore(dayjs(), 'day')} />
+        <Form.Item name="days" label="Gia hạn thêm (ngày) — cộng từ hạn hiện tại" rules={[{ required: true, message: 'Nhập số ngày gia hạn.' }]}
+          extra={days ? <>Hạn mới: <b>{fmtD(dayjs(eff).add(days, 'day').toISOString())}</b></> : undefined}>
+          <InputNumber min={1} max={365} precision={0} style={{ width: '100%' }} placeholder="VD: 3" addonAfter="ngày" />
         </Form.Item>
         <Form.Item name="reason" label="Lý do gia hạn (bắt buộc)"
           rules={[{ required: true, whitespace: true, message: 'Lý do gia hạn là bắt buộc — mọi lần lùi hạn đều phải truy được nguyên nhân.' }]}>

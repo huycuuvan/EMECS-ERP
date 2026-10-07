@@ -1,7 +1,7 @@
 /* Gia hạn trả hợp đồng (ghi chú khảo sát ý 10): hạn trả HĐ sắp tới / quá mà khách chưa ký trả về →
-   kế toán nhập lý do xin gia hạn → Quản lý Duyệt (+5 ngày, tính từ hạn hiện tại) hoặc Từ chối (có lý do).
+   kế toán nhập lý do xin gia hạn → Quản lý Duyệt và tự điền số ngày (tính từ hạn hiện tại) hoặc Từ chối (có lý do).
    Dùng trong drawer Hợp đồng, bảng Hợp đồng và Dashboard. */
-import { App, Button, Input } from 'antd'
+import { App, Button, Input, InputNumber } from 'antd'
 import { CalendarPlus, Check, History, X } from 'lucide-react'
 import { useApproveExtension, useRejectExtension, useRequestExtension } from '@/api/hooks'
 import type { CompleteInfo, Contract, ContractExtension } from '@/api/types'
@@ -19,14 +19,14 @@ export function canAskExtension(c: Contract, complete: CompleteInfo, pending: bo
 export function useAskExtension() {
   const { modal } = App.useApp()
   const req = useRequestExtension()
-  return (c: Contract, days = 5) => {
+  return (c: Contract) => {
     let reason = ''
     modal.confirm({
-      title: `Xin gia hạn trả hợp đồng ${c.number || c.id} thêm ${days} ngày`, zIndex: MODAL_Z, icon: <CalendarPlus size={20} color="var(--amber)" />,
+      title: `Xin gia hạn trả hợp đồng ${c.number || c.id}`, zIndex: MODAL_Z, icon: <CalendarPlus size={20} color="var(--amber)" />,
       okText: 'Gửi Quản lý duyệt', cancelText: 'Hủy',
       content: (
         <>
-          <p style={{ margin: '0 0 8px' }}>Hạn trả hiện tại <b>{fmtD(c.completeBy)}</b>. Quản lý duyệt thì hạn mới tự cộng thêm {days} ngày.</p>
+          <p style={{ margin: '0 0 8px' }}>Hạn trả hiện tại <b>{fmtD(c.completeBy)}</b>. Quản lý duyệt và điền số ngày gia hạn.</p>
           <Input.TextArea autoFocus rows={3} placeholder="Lý do (bắt buộc) — VD: khách đi công tác chưa ký, chờ khách xác nhận khối lượng…"
             onChange={(e) => { reason = e.target.value }} />
         </>
@@ -43,6 +43,20 @@ export function ExtensionDecision({ e }: { e: ContractExtension }) {
   const approve = useApproveExtension()
   const reject = useRejectExtension()
   if (!hasRole('admin')) return <span className="caption">Chờ Quản lý duyệt</span>
+  const askApprove = () => {
+    let days: number | null = e.days || 5
+    modal.confirm({
+      title: 'Duyệt gia hạn trả hợp đồng', zIndex: MODAL_Z, okText: 'Duyệt gia hạn', cancelText: 'Hủy', icon: <CalendarPlus size={20} color="var(--moss)" />,
+      content: (
+        <>
+          <p style={{ margin: '0 0 8px' }}>Hạn trả hiện tại <b>{fmtD(e.oldBy)}</b>. Lý do: {e.reason}</p>
+          <InputNumber autoFocus min={1} max={365} precision={0} defaultValue={days} addonBefore="Gia hạn thêm" addonAfter="ngày"
+            style={{ width: '100%' }} onChange={(v) => { days = v }} />
+        </>
+      ),
+      onOk: () => (days && days >= 1 ? approve.mutateAsync({ eid: e.id, days }) : Promise.reject(new Error('Nhập số ngày'))),
+    })
+  }
   const askReject = () => {
     let reason = ''
     modal.confirm({
@@ -54,7 +68,7 @@ export function ExtensionDecision({ e }: { e: ContractExtension }) {
   }
   return (
     <span style={{ display: 'inline-flex', gap: 6 }} onClick={(ev) => ev.stopPropagation()}>
-      <Button size="small" type="primary" icon={<Check size={13} />} loading={approve.isPending} onClick={() => approve.mutate(e.id)}>Duyệt +{e.days} ngày</Button>
+      <Button size="small" type="primary" icon={<Check size={13} />} loading={approve.isPending} onClick={askApprove}>Duyệt…</Button>
       <Button size="small" danger icon={<X size={13} />} onClick={askReject}>Từ chối</Button>
     </span>
   )
@@ -70,7 +84,7 @@ export default function ExtensionsBlock({ list }: { list: ContractExtension[] })
         {[...list].reverse().map((e) => (
           <div key={e.id} style={{ border: '1px solid var(--rule)', borderRadius: 10, padding: '10px 12px', background: e.status === 'Chờ duyệt' ? 'var(--amber-soft)' : 'var(--canvas)', display: 'grid', gap: 4, fontSize: 13 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span><StatusTag status={e.status} /> <b>+{e.days} ngày</b> · {e.requestedBy} xin lúc {fmtDT(e.requestedAt)}</span>
+              <span><StatusTag status={e.status} />{e.status === 'Đã duyệt' && <> <b>+{e.days} ngày</b></>} · {e.requestedBy} xin lúc {fmtDT(e.requestedAt)}</span>
               {e.status === 'Chờ duyệt' && <ExtensionDecision e={e} />}
             </div>
             <div>Lý do: {e.reason}</div>

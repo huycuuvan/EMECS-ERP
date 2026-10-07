@@ -136,7 +136,7 @@ export default function Contracts() {
         const g = agg[c.id]
         if (!g) return null
         const tone: ProgTone = g.pctPaid >= g.pctDelivered ? 'success' : g.pctPaid >= g.pctDelivered - 15 ? 'warn' : 'danger'
-        return <MiniProg pct={g.pctPaid} tone={tone} top={`${moneyShort(g.paidTotal)} / ${moneyShort(c.valueAfterVat)} (gồm VAT)`}
+        return <MiniProg pct={g.pctPaid} tone={tone} top={`${moneyShort(g.paidTotal)} / ${moneyShort(c.value)}`}
           bottom={<>{g.debt > 0 ? `Khách nợ ${moneyShort(g.debt)}` : 'Tiền về trước hàng'}
             {c.pendingPayment > 0 && <div style={{ color: 'var(--amber)', fontWeight: 600 }}>+ {moneyShort(c.pendingPayment)} chờ duyệt</div>}</>} />
       },

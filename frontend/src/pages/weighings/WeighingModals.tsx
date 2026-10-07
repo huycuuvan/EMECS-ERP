@@ -88,7 +88,7 @@ export function CreateWeighingModal({ lsxId, receiptId, onClose }: { lsxId?: ID;
 }
 
 /* ---------------------------------------------------------------- nhập kết quả cân (cân xe) */
-type FillVals = { gross: number; tare: number; plate?: string; inAt: Dayjs; outAt: Dayjs; photo: string | null; laiXe?: string; bocXep?: string; reason?: string; note?: string }
+type FillVals = { gross: number; tare: number; plate?: string; inAt: Dayjs; outAt: Dayjs; photo: string | null; laiXe?: string; reason?: string; note?: string }
 export function FillWeighingModal({ p, onClose }: { p: Weighing; onClose: () => void }) {
   const fill = useFillWeighing()
   const { data: meta } = useMeta()
@@ -108,13 +108,13 @@ export function FillWeighingModal({ p, onClose }: { p: Weighing; onClose: () => 
         <AssignedGoods receiptId={p.receiptId} />
       </div>
       <Form form={form} layout="vertical"
-        initialValues={{ photo: p.photo ?? null, laiXe: p.signers.laiXe || undefined, bocXep: p.signers.bocXep || undefined, plate: p.vehiclePlate ?? undefined,
+        initialValues={{ photo: p.photo ?? null, laiXe: p.signers.laiXe || undefined, plate: p.vehiclePlate ?? undefined,
           gross: p.grossKg ?? undefined, tare: p.tareKg ?? undefined,
           inAt: p.weighInAt ? dayjs(p.weighInAt) : dayjs().subtract(30, 'minute'), outAt: p.weighOutAt ? dayjs(p.weighOutAt) : dayjs() }}
         onFinish={async (v) => {
           await fill.mutateAsync({
             id: p.id, grossKg: v.gross, tareKg: v.tare, weighInAt: v.inAt.format(), weighOutAt: v.outAt.format(),
-            vehiclePlate: v.plate || undefined, photo: v.photo, signerBocXep: (v.bocXep || '').trim() || undefined,
+            vehiclePlate: v.plate || undefined, photo: v.photo,
             reason: bad ? v.reason : undefined, reasonNote: bad ? (v.note || '').trim() : undefined,
           })
           onClose()
@@ -141,15 +141,14 @@ export function FillWeighingModal({ p, onClose }: { p: Weighing; onClose: () => 
             <DatePicker showTime={{ format: 'HH:mm' }} format="HH:mm DD/MM/YYYY" style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="plate" label="Biển số xe"><Input placeholder="VD: 29C-123.45" /></Form.Item>
-          <Form.Item name="bocXep" label="Người bốc xếp (ký phiếu cân)"><Input placeholder="VD: Nguyễn Văn Bình" /></Form.Item>
         </div>
-        <Form.Item name="photo" label="Ảnh phiếu cân" rules={[{ required: true, message: 'Bắt buộc chụp / tải ảnh phiếu cân' }]}>
+        <Form.Item name="photo" label="Ảnh phiếu cân (có chữ ký 3 bên: bốc xếp · thủ kho · lái xe)" rules={[{ required: true, message: 'Bắt buộc chụp / tải ảnh phiếu cân' }]}>
           <PhotoInput demo={{ label: `${p.id} · ${p.contractId}`, kg: kg || p.kgExpected }} />
         </Form.Item>
         {p.signers.laiXe && <p className="caption" style={{ marginTop: -6 }}>Tài xế (Quản lý chỉ định): <b>{p.signers.laiXe}</b>{p.vehiclePlate && <> · xe {p.vehiclePlate}</>}</p>}
         {p.status === 'QL từ chối' && <WarnBox title={<>Quản lý từ chối lần cân trước: {p.rejectReason} — cân lại</>} />}
         {bad && (
-          <WarnBox title={<><Siren size={14} /> {dev > 0 ? 'DƯ' : 'THIẾU'} {dev > 0 ? '+' : ''}{dev.toFixed(1)}% ({fmtDelta((kg ?? 0) - p.kgExpected)}) so với Quản lý giao — nhập lý do, chờ Quản lý duyệt mới tính công nợ</>}>
+          <WarnBox title={<><Siren size={14} /> {dev > 0 ? 'DƯ' : 'THIẾU'} {dev > 0 ? '+' : ''}{dev.toFixed(1)}% ({fmtDelta((kg ?? 0) - p.kgExpected)}) so với Quản lý giao — nhập lý do, chờ Quản lý duyệt</>}>
             <Form.Item name="reason" label="Lý do sai lệch (bắt buộc)" rules={[{ required: true, message: 'Bắt buộc chọn lý do' }]} style={{ marginBottom: 8 }}>
               <Select placeholder="— Chọn lý do —" options={(meta?.reasonsCan ?? []).map((r) => ({ value: r, label: r }))} />
             </Form.Item>
