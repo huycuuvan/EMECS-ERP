@@ -285,8 +285,9 @@ export function DelivForm({ t }: { t: Task }) {
   const { message } = App.useApp()
   const fill = useTaskFillDelivery()
   const { data: agg } = useContract(t.contractId)
-  const [kgp, setKgp] = useState('')
-  const [kgd, setKgd] = useState('')
+  // số ký với mạ: điền sẵn theo KG Quản lý giao (đang điền lại thì giữ số đã khai) — chỉ sửa khi mạ ký số khác
+  const [kgp, setKgp] = useState(t.kgPicked != null ? String(t.kgPicked) : t.kgRequired ? String(t.kgRequired) : '')
+  const [kgd, setKgd] = useState(t.kgDelivered != null ? String(t.kgDelivered) : '')
   const [photo, setPhoto] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
@@ -314,7 +315,7 @@ export function DelivForm({ t }: { t: Task }) {
       <NumInput big value={kgp} onChange={setKgp} bad={bad1 || over} />
       <div className="f-hint">
         Hàng của HĐ {t.contractId} còn tại mạ: <b>{left != null ? fmtKg(left) : '…'}</b>
-        {t.kgRequired > 0 && <> · thẻ yêu cầu {fmtKg(t.kgRequired)}</>}.
+        {t.kgRequired > 0 && <> · Quản lý giao lấy {fmtKg(t.kgRequired)} (đã điền sẵn — chỉ sửa khi mạ ký số khác)</>}.
         {over && <div className="red-txt" style={{ fontWeight: 700 }}>Vượt số còn tại mạ — không được lấy hàng của khách khác.</div>}
       </div>
       <label className="f-lbl">Kg khách ký nhận</label>

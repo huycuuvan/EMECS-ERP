@@ -224,8 +224,9 @@ function FillDeliveryModal({ t, onClose }: { t: Task; onClose: () => void }) {
         {t.kgRequired > 0 && <>Yêu cầu lấy: <b style={strong}>{fmtKg(t.kgRequired)}</b> · </>}Hàng của HĐ {t.contractId} còn tại mạ: <b style={strong}>{fmtKg(left ?? 0)}</b>
         {t.refId && <> (đối ứng lượng đã gửi trước đó — thẻ gửi <RecordLink id={t.refId} style={{ color: 'var(--rust)' }} />)</>}. Một tờ phiếu, cả bên mạ và khách cùng ký.
       </p>
-      <Form form={form} layout="vertical">
-        <Form.Item name="kgPicked" label="KG ký nhận với xưởng mạ" rules={kgRule('Phải nhập KG ký với mạ')}
+      <Form form={form} layout="vertical"
+        initialValues={{ kgPicked: t.kgPicked ?? (t.kgRequired || undefined), kgDelivered: t.kgDelivered ?? undefined }}>
+        <Form.Item name="kgPicked" label="KG ký nhận với xưởng mạ (điền sẵn theo Quản lý giao)" rules={kgRule('Phải nhập KG ký với mạ')}
           validateStatus={over ? 'error' : undefined}
           help={over ? `Vượt hàng của HĐ còn tại mạ (${fmtKg(left ?? 0)}) — không lấy hàng của khách khác` : undefined}>
           <InputNumber {...NUM} style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(left ?? t.kgRequired)}`} suffix="kg" />

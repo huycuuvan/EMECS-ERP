@@ -981,9 +981,12 @@ def contract_customer_id(db: Session, c: Contract) -> int | None:
     return o.customer_id if o else None
 
 
-def _galv_of_ref(db: Session, ref_id: str | None) -> int | None:
-    """Giao khách: điểm lấy hàng = xưởng mạ của thẻ đi mạ gốc."""
+def _galv_of_ref(db: Session, ref_id: str | None, cid: str | None = None) -> int | None:
+    """Giao khách: điểm lấy hàng = xưởng mạ của thẻ đi mạ gốc; không gắn thẻ → xưởng mạ chuyến đi mạ gần nhất của HĐ."""
     t = db.get(Task, ref_id) if ref_id else None
+    if t is None and cid:
+        t = db.scalars(select(Task).where(Task.contract_id == cid, Task.type == "di_ma", Task.galvanizer_id.is_not(None),
+                                          Task.kg_at_galv.is_not(None)).order_by(Task.assigned_at.desc())).first()
     return t.galvanizer_id if t else None
 
 
@@ -1002,6 +1005,11 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
         left = galv_remaining_kg(db, cid)
         if left <= 0.5:
             raise HTTPException(400, f"HĐ {cid} ({c.customer}) không còn hàng tại xưởng mạ — không giao việc lấy hàng được")
+        # Quản lý giao số kg lấy chuyến này (không nhập → lấy hết phần của HĐ còn tại mạ); lái xe điền sẵn số này
+        if kg_required and kg_required > left + TOLERANCE_KG:
+            raise HTTPException(400, f"HĐ {cid} chỉ còn {fmt_kg(left)} tại xưởng mạ — không giao lấy {fmt_kg(kg_required)}")
+        if not kg_required and not ref_id:
+            kg_required = left
     if not arrive_at:
         raise HTTPException(400, "Chưa nhập ngày giờ lái xe phải có mặt")
     if arrive_at.tzinfo is None:
@@ -1017,7 +1025,7 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
     t = Task(id=next_id(db, "VC", "vc"), type=type_, driver=driver, contract_id=cid, ref_id=ref_id,
              assigned_at=utcnow(), status="Chờ xác nhận", kg_required=kg or 0, note=note or "",
              vehicle_plate=(vehicle_plate or "").strip().upper() or None,
-             galvanizer_id=galvanizer_id if type_ == "di_ma" else _galv_of_ref(db, ref_id),
+             galvanizer_id=galvanizer_id if type_ == "di_ma" else _galv_of_ref(db, ref_id, cid),
              arrive_at=arrive_at, fill_deadline=fill_deadline)
     if type_ == "giao_khach":
         t.deliver_customer_id = deliver.get("deliver_customer_id")

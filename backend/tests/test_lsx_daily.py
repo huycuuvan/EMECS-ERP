@@ -90,7 +90,12 @@ def test_receipt_kg_only_and_task_auto_kg_arrival_delivery(c):
                                    "receiverName": "Anh Hùng", "receiverPhone": "0912000111",
                                    "contactName": "Chị Lan", "contactPhone": "0913000222"}).json()
     assert g["deliver"]["receiverName"] == "Anh Hùng" and g["deliver"]["address"] == "Công trường KCN Yên Phong"
-    assert g["kgRequired"] == 0  # không gắn chứng từ → không bắt nhập kg
+    left = c.get("/api/contracts/HD-2609-01").json()["atGalvKg"]
+    assert g["kgRequired"] == left and g["galvanizerId"]  # không nhập → lấy hết phần của HĐ còn tại mạ; xưởng mạ theo chuyến đi mạ
+    base_g = {"type": "giao_khach", "driver": "Lê Đức Vận", "contractId": "HD-2609-01", "arriveAt": "2099-01-02T08:00:00+07:00",
+              "deliverAddress": "CT"}
+    assert c.post("/api/tasks", json={**base_g, "kgRequired": left + 1000}).status_code == 400  # vượt hàng còn tại mạ
+    assert c.post("/api/tasks", json={**base_g, "kgRequired": 3000}).json()["kgRequired"] == 3000  # Quản lý giao số kg
 
 
 def test_receipt_items_sum_to_kg(c):

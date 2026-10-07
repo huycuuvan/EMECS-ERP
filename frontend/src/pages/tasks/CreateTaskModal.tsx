@@ -1,8 +1,9 @@
 /* Quản lý giao việc cho lái xe: loại việc, tài xế, xe, NGÀY GIỜ PHẢI CÓ MẶT, hợp đồng, chứng từ gốc (PC/VC), ghi chú.
-   KG không nhập — lấy theo chứng từ gốc. Giao khách: chọn khách hàng → tự điền địa chỉ, người nhận, người liên hệ (sửa được). */
-import { DatePicker, Form, Input, Modal, Radio, Select } from 'antd'
+   Đi mạ: KG lấy theo phiếu cân xuất. Giao khách: Quản lý nhập KG lấy chuyến này (mặc định phần của HĐ còn tại mạ, tối đa tải xe)
+   → lái xe được điền sẵn số ký với mạ. Giao khách: chọn khách hàng → tự điền địa chỉ, người nhận, người liên hệ (sửa được). */
+import { DatePicker, Form, Input, InputNumber, Modal, Radio, Select } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useContract, useContracts, useCreateTask, useMeta } from '@/api/hooks'
 import { useCustomers, useGalvanizers, useVehicles } from '@/api/hooksMaster'
 import type { TaskType } from '@/api/types'
@@ -10,7 +11,7 @@ import { fmtKg, fmtT } from '@/lib/format'
 import { MODAL_Z } from './TaskActions'
 
 interface V {
-  type: TaskType; driver: string; contractId: string; refId?: string | null; note?: string
+  type: TaskType; driver: string; contractId: string; refId?: string | null; note?: string; kgRequired?: number | null
   vehiclePlate?: string | null; galvanizerId?: number | null; arriveAt?: Dayjs; fillDeadline?: Dayjs
   deliverCustomerId?: number | null; deliverName?: string; deliverAddress?: string
   receiverName?: string; receiverPhone?: string; contactName?: string; contactPhone?: string
@@ -85,12 +86,23 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
   }, [type, cid, customers.length])
   const kgRef = refOptions.find((o) => o.value === refId)?.kg
   const noStock = type === 'giao_khach' && !!agg && agg.atGalvKg <= 0.5
+  // giao khách: mặc định lấy hết phần của HĐ còn tại mạ, tối đa tải trọng xe
+  const galvLeft = agg?.atGalvKg ?? 0
+  const kgEdited = useRef(false)  // Quản lý đã tự sửa số → không ghi đè khi đổi xe / hợp đồng
+  useEffect(() => { if (open) kgEdited.current = false }, [open])
+  const kgDefault = Math.max(0, Math.min(galvLeft, vehicle?.capacityKg || 10000))
+  useEffect(() => {
+    if (open && type === 'giao_khach' && agg && agg.contract.id === cid && !kgEdited.current)
+      form.setFieldValue('kgRequired', kgDefault > 0 ? kgDefault : undefined)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, type, cid, agg?.contract.id, agg?.atGalvKg, vehicle?.capacityKg])
+  const kgGiao = Form.useWatch('kgRequired', form) as number | undefined
 
   const submit = async () => {
     const v = await form.validateFields()
     if (noStock) return
     await create.mutateAsync({
-      ...v, refId: v.refId || null, galvanizerId: v.type === 'di_ma' ? v.galvanizerId ?? null : null,
+      ...v, refId: v.type === 'giao_khach' ? null : v.refId || null, kgRequired: v.type === 'giao_khach' ? v.kgRequired ?? null : null, galvanizerId: v.type === 'di_ma' ? v.galvanizerId ?? null : null,
       arriveAt: v.arriveAt!.format(), fillDeadline: v.fillDeadline?.format(),
     })
     onClose()
@@ -111,7 +123,7 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
             onChange={(d: string) => { const p = plateOf(d); if (p) form.setFieldValue('vehiclePlate', p) }} />
         </Form.Item>
         <div style={{ display: 'grid', gridTemplateColumns: type === 'di_ma' ? '1fr 1fr' : '1fr', gap: '0 12px' }}>
-          <Form.Item name="vehiclePlate" label="Xe" extra={vehicle && (kgRef ?? 0) > vehicle.capacityKg
+          <Form.Item name="vehiclePlate" label="Xe" extra={vehicle && ((type === 'giao_khach' ? kgGiao : kgRef) ?? 0) > vehicle.capacityKg
             ? <span className="text-signal">Hàng theo chứng từ vượt tải trọng xe ({fmtT(vehicle.capacityKg)})</span> : undefined}>
             <Select allowClear placeholder="— Chưa gán xe —" showSearch={{ optionFilterProp: 'label' }}
               options={activeVehicles.map((v) => ({ value: v.plate, label: `${v.plate} · ${fmtT(v.capacityKg)} · xe ${v.kind}` }))} />
@@ -142,14 +154,24 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
           help={noStock ? `HĐ ${cid} không còn hàng tại xưởng mạ — không giao việc lấy hàng được` : undefined}>
           <Select showSearch={{ optionFilterProp: 'label' }} options={cs.map((c) => ({ value: c.id, label: `${c.id} — ${c.customer}` }))} />
         </Form.Item>
-        <Form.Item name="refId" label={type === 'di_ma' ? 'Chứng từ gốc — phiếu cân xuất (PC)' : 'Chứng từ gốc — thẻ gửi mạ (VC)'}
-          extra={refOptions.length === 0 && agg ? (type === 'di_ma' ? 'Không còn phiếu cân xuất nào chưa gán chuyến.' : 'Chưa có chuyến gửi mạ nào được mạ cân nhận.') : undefined}>
-          <Select allowClear placeholder="— Không gắn chứng từ —" options={refOptions.map(({ value, label }) => ({ value, label }))} />
-        </Form.Item>
-        <p className="caption" style={{ margin: '-8px 0 12px' }}>
-          KG không cần nhập — {kgRef != null ? <>theo chứng từ: <b>{fmtKg(kgRef)}</b></> : 'lấy theo chứng từ gốc khi gắn'}
-          {type === 'giao_khach' && agg && <> · còn tại xưởng mạ <b style={{ color: 'var(--rust-deep)' }}>{fmtKg(agg.atGalvKg)}</b></>}.
-        </p>
+        {type === 'giao_khach' ? (
+          <Form.Item name="kgRequired" label="KG lấy chuyến này (lái xe ký nhận với xưởng mạ)"
+            extra={agg ? <>Hàng của HĐ còn tại xưởng mạ <b style={{ color: 'var(--rust-deep)' }}>{fmtKg(galvLeft)}</b>. Lái xe được điền sẵn số này, chỉ sửa khi mạ ký số khác.</> : undefined}
+            rules={[{ required: true, message: 'Nhập KG lấy chuyến này' },
+              { validator: (_, v?: number) => (v != null && agg && v > galvLeft + (meta?.toleranceKg ?? 30) ? Promise.reject(new Error(`Vượt hàng của HĐ còn tại mạ (${fmtKg(galvLeft)})`)) : Promise.resolve()) }]}>
+            <InputNumber min={1} step={100} style={{ width: '100%' }} suffix="kg" onChange={() => { kgEdited.current = true }} />
+          </Form.Item>
+        ) : (
+          <>
+            <Form.Item name="refId" label="Chứng từ gốc — phiếu cân xuất (PC)"
+              extra={refOptions.length === 0 && agg ? 'Không còn phiếu cân xuất nào chưa gán chuyến.' : undefined}>
+              <Select allowClear placeholder="— Không gắn chứng từ —" options={refOptions.map(({ value, label }) => ({ value, label }))} />
+            </Form.Item>
+            <p className="caption" style={{ margin: '-8px 0 12px' }}>
+              KG không cần nhập — {kgRef != null ? <>theo chứng từ: <b>{fmtKg(kgRef)}</b></> : 'lấy theo chứng từ gốc khi gắn'}.
+            </p>
+          </>
+        )}
         {type === 'giao_khach' && (
           <div style={{ border: '1px solid var(--rule)', borderRadius: 10, padding: '10px 12px 0', marginBottom: 12, background: 'var(--paper)' }}>
             <Form.Item name="deliverCustomerId" label="Giao cho khách hàng (theo hợp đồng)"
