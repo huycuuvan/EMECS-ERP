@@ -192,7 +192,17 @@ export interface Meta {
 }
 
 /* ---------------------------------------------------------------- soạn thảo hợp đồng theo mẫu */
-export interface Party { name: string; address: string; phone: string; banks: string[]; taxCode: string; representative: string; title: string }
+export interface Party {
+  name: string; address: string; phone: string; banks: string[]; taxCode: string; representative: string; title: string
+  /** chỉ có ở Thông tin công ty: người ký bộ hồ sơ giao hàng (xưng hô giám đốc, quản đốc / QLSX), nơi lập biên bản */
+  representativeHonorific?: string; workshopRep?: string; workshopTitle?: string; workshopHonorific?: string; city?: string
+}
+/** Bộ hồ sơ gửi khách kèm hợp đồng (biên bản giao nhận, chứng chỉ xuất xưởng): phần điền riêng từng hợp đồng */
+export interface LegalFields {
+  date: string | null; project: string; giverName: string; giverTitle: string; giverHonorific: string
+  receiverName: string; receiverTitle: string; receiverHonorific: string
+}
+export interface LegalPack { data: LegalFields; forms: { key: string; title: string; ready: boolean }[]; number: string; buyer: string }
 export interface DocLine {
   itemId: number; stt: number; name: string; unit: string; qty: number; kg: number; pricePerKg: number
   defaultUnitPrice: number; unitPrice: number; custom: boolean; amount: number

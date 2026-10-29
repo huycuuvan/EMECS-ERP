@@ -15,6 +15,7 @@ from . import config as C
 from . import schemas as SC
 from . import serializers as S
 from . import contract_doc as CD
+from . import legal_docs as LD
 from . import services as svc
 from .db import get_db
 from .history import contract_snapshot, order_snapshot, track
@@ -306,6 +307,33 @@ def contract_docx(cid: str, db: Session = DB):
     cd = f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"
     return Response(content=data, headers={"Content-Disposition": cd},
                     media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+# ---------------------------------------------------------------- bộ hồ sơ gửi khách (biên bản giao nhận, chứng chỉ xuất xưởng)
+def _attach(data: bytes, name: str, media: str) -> Response:
+    return Response(content=data, media_type=media,
+                    headers={"Content-Disposition": f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"})
+
+
+@router.get("/contracts/{cid}/legal", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
+def contract_legal(cid: str, db: Session = DB):
+    return LD.legal_data(db, svc.get_or_404(db, Contract, cid))
+
+
+@router.put("/contracts/{cid}/legal", dependencies=[Depends(require("hop-dong", "edit"))])
+def save_contract_legal(cid: str, body: dict, db: Session = DB):
+    return LD.save_legal(db, svc.get_or_404(db, Contract, cid), body)
+
+
+@router.get("/contracts/{cid}/legal.zip", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
+def contract_legal_zip(cid: str, db: Session = DB):
+    return _attach(*LD.render_pack(db, svc.get_or_404(db, Contract, cid)), "application/zip")
+
+
+@router.get("/contracts/{cid}/legal/{key}.docx", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
+def contract_legal_docx(cid: str, key: str, db: Session = DB):
+    return _attach(*LD.render(db, svc.get_or_404(db, Contract, cid), key),
+                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 @router.get("/settings/seller")

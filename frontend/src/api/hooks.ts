@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App } from 'antd'
 import { api, errorMessage, tokenStore } from './client'
 import type {
-  AuditLog, AuthUser, Contract, ContractAgg, ContractDocument, ContractDraftInput, ContractRow, Dashboard, Party, ID, Ledger, Lsx, Meta, Mismatch, MovementRow, Notification,
+  AuditLog, AuthUser, Contract, ContractAgg, ContractDocument, ContractDraftInput, ContractRow, Dashboard, LegalFields, LegalPack, Party, ID, Ledger, Lsx, Meta, Mismatch, MovementRow, Notification,
   Order, OrderItem, OverdueDoc, PendingDelta, Receipt, Task, TaskType, VLoss, Weighing,
 } from './types'
 
@@ -102,6 +102,8 @@ export const useRejectPayment = () => useAction(({ pid, reason }: { pid: number;
 export const useContractDocument = (id?: ID) => useQuery({ queryKey: ['contracts', id, 'document'], queryFn: () => get<ContractDocument>(`/contracts/${id}/document`), enabled: !!id })
 export const useSaveContractDocument = () => useAction(({ id, ...v }: ContractDraftInput & { id: ID }) => api.put<ContractDocument>(`/contracts/${id}/document`, v).then((r) => r.data), 'Đã lưu bản soạn thảo hợp đồng')
 export const useSeller = () => useQuery({ queryKey: ['settings', 'seller'], queryFn: () => get<Party>('/settings/seller') })
+export const useLegalPack = (cid?: ID | null) => useQuery({ queryKey: ['legal', cid], queryFn: () => get<LegalPack>(`/contracts/${cid}/legal`), enabled: !!cid })
+export const useSaveLegal = () => useAction(({ cid, ...v }: Partial<LegalFields> & { cid: ID }) => api.put<LegalPack>(`/contracts/${cid}/legal`, v).then((r) => r.data))
 export const useSaveSeller = () => useAction((v: Party) => api.put<Party>('/settings/seller', v).then((r) => r.data), 'Đã lưu thông tin công ty (Bên B)')
 
 export const useCreateLsx = () => useAction((v: { contractId: ID; name?: string; qty?: number; kg: number; leadDays: number }) => post<Lsx>('/lsx', v), (x) => `Đã phát lệnh ${x.id}`)

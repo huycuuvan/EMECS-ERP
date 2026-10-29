@@ -3,7 +3,7 @@
    Thanh 4 bước kế toán (Đã soạn thảo → Đã gửi khách hàng → Đã nhận về → Đã hoàn thành) · ngày hoàn thành ·
    Thao tác: Soạn thảo / Tải Word · chuyển bước · + Tiền về (chờ QL duyệt) · Phát lệnh SX · Sửa. */
 import { App, Button, Steps } from 'antd'
-import { ArrowLeftRight, BadgeCheck, Banknote, CalendarPlus, CircleCheckBig, Download, Factory, FilePen, Info, Pencil, Scale, Send } from 'lucide-react'
+import { ArrowLeftRight, BadgeCheck, Banknote, CalendarPlus, CircleCheckBig, Download, Factory, FilePen, FolderDown, Info, Pencil, Scale, Send } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { blobError, downloadFile } from '@/api/hooksEdit'
@@ -21,11 +21,12 @@ import { committedKg } from './contract/utils'
 import MoneyTab from './contract/MoneyTab'
 import OverviewTab from './contract/OverviewTab'
 import PaymentApprovals from './contract/PaymentApprovals'
+import LegalPackModal from './contract/LegalPackModal'
 import ExtensionsBlock, { canAskExtension, useAskExtension } from './contract/Extensions'
 import RelatedLinks from './contract/RelatedLinks'
 import './contract/contract.css'
 
-type Dialog = 'edit' | 'pay' | 'lsx' | null
+type Dialog = 'edit' | 'pay' | 'lsx' | 'legal' | null
 
 const TABS = [
   { label: 'Tổng quan', icon: <Info size={13} /> },
@@ -88,6 +89,7 @@ export default function ContractDrawer({ id }: { id: string }) {
                 </Button>
               )}
               {c.draftedAt && <Button size="small" icon={<Download size={13} />} onClick={word}>Tải Word</Button>}
+              {c.draftedAt && <Button size="small" icon={<FolderDown size={13} />} onClick={() => setDialog('legal')}>Bộ hồ sơ gửi khách</Button>}
               {showReturned && <Button size="small" icon={<Send size={13} />} onClick={() => flow.askReturned(c)}>Đã gửi khách hàng</Button>}
               {showSigned && <Button size="small" icon={<BadgeCheck size={13} />} onClick={() => flow.askSigned(c)}>Đã nhận về</Button>}
               {showDone && <Button size="small" icon={<CircleCheckBig size={13} />} onClick={() => flow.askCompleted(c, g)}>Đã hoàn thành</Button>}
@@ -127,6 +129,7 @@ export default function ContractDrawer({ id }: { id: string }) {
 
           {dialog === 'edit' && <ContractEditModal contract={c} onClose={() => setDialog(null)} />}
           {dialog === 'pay' && <PaymentModal contract={c} onClose={() => setDialog(null)} />}
+          {dialog === 'legal' && <LegalPackModal contract={c} onClose={() => setDialog(null)} />}
           {dialog === 'lsx' && <LsxFromContractModal contract={c} lsxs={g.lsxs} onClose={() => setDialog(null)} />}
         </>
       )}

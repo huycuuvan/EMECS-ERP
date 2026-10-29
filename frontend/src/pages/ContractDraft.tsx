@@ -326,7 +326,7 @@ function SellerModal({ seller, onClose }: { seller: Party; onClose: () => void }
   const saveSeller = useSaveSeller()
   const f = (k: keyof Party, label: string, ph?: string) => (
     <label className="sm-row"><span>{label}</span>
-      <Input value={v[k] as string} placeholder={ph} onChange={(e) => setV({ ...v, [k]: e.target.value })} /></label>
+      <Input value={(v[k] as string | undefined) ?? ''} placeholder={ph} onChange={(e) => setV({ ...v, [k]: e.target.value })} /></label>
   )
   return (
     <Modal open title="Thông tin công ty (Bên B trên hợp đồng)" okText="Lưu" cancelText="Hủy" width={620}
@@ -342,6 +342,11 @@ function SellerModal({ seller, onClose }: { seller: Party; onClose: () => void }
         {f('taxCode', 'Mã số thuế')}
         {f('representative', 'Người đại diện', 'Bà / Ông …')}
         {f('title', 'Chức vụ', 'Giám đốc')}
+        {f('representativeHonorific', 'Xưng hô người đại diện', 'Ông / Bà')}
+        {f('workshopRep', 'Quản đốc / QLSX (bên giao hàng)', 'Họ tên — in trên biên bản giao nhận, chứng chỉ xuất xưởng')}
+        {f('workshopTitle', 'Chức vụ quản đốc', 'Quản đốc phân xưởng')}
+        {f('workshopHonorific', 'Xưng hô quản đốc', 'Ông / Bà')}
+        {f('city', 'Nơi lập biên bản', 'Hà Nội')}
       </div>
       <p className="caption" style={{ margin: '8px 0 0' }}>Nhập một lần, dùng cho mọi hợp đồng (Bên B). Chỉ Quản lý sửa được.</p>
     </Modal>

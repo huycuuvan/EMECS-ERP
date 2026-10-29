@@ -87,7 +87,9 @@ def date_text(d: datetime | None) -> str:
 
 
 # ---------------------------------------------------------------- Bên B (công ty mình)
-SELLER_KEYS = ("name", "address", "phone", "banks", "taxCode", "representative", "title")
+SELLER_KEYS = ("name", "address", "phone", "banks", "taxCode", "representative", "title",
+               # người ký trên bộ hồ sơ giao hàng: xưng hô giám đốc, quản đốc / QLSX (bên giao hàng), nơi lập biên bản
+               "representativeHonorific", "workshopRep", "workshopTitle", "workshopHonorific", "city")
 
 
 def get_seller(db: Session) -> dict:
@@ -274,6 +276,13 @@ def render_docx(doc: dict) -> bytes:
     return buf.getvalue()
 
 
+def ascii_name(text: str) -> str:
+    """Tên file không dấu: "DH-2610-0010/HĐKT" → "DH-2610-0010-HDKT"."""
+    import unicodedata
+    t = unicodedata.normalize("NFKD", (text or "").replace("Đ", "D").replace("đ", "d"))
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", t.encode("ascii", "ignore").decode()).strip("-")
+
+
 def docx_filename(doc: dict) -> str:
-    safe = re.sub(r"[^A-Za-z0-9._-]+", "-", doc["number"]).strip("-") or doc["contractId"]
+    safe = ascii_name(doc["number"]) or doc["contractId"]
     return f"Hop-dong_{safe}.docx"
