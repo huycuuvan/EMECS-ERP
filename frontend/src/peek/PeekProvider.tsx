@@ -1,10 +1,11 @@
 /* Hệ thống drawer bản ghi (tương đương ERPPeek của bản demo):
    - Bấm mã bất kỳ (DH/HD/LSX/PTN/PC/VC/SL/VK) → drawer trượt phải, có thể chồng nhiều lớp.
    - URL ?open=hd:HD-2609-01 → tự mở khi tải trang (dùng cho link chia sẻ / điều hướng chéo trang).
+   - Chuyển sang trang khác (vd. "Xem bản hợp đồng" trong drawer) → đóng hết drawer, không để đè lên trang mới.
    Mỗi loại bản ghi đăng ký component ở ./registry.tsx. */
 import { Drawer, Skeleton } from 'antd'
 import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { PeekContext } from './context'
 import type { PeekType } from './meta'
 import { PEEK_REGISTRY } from './registry'
@@ -15,6 +16,13 @@ let seq = 0
 export function PeekProvider({ children }: { children: ReactNode }) {
   const [stack, setStack] = useState<Entry[]>([])
   const [params, setParams] = useSearchParams()
+  const { pathname } = useLocation()
+  // đổi trang → đóng hết drawer (reset ngay lúc render; ?open=… của trang mới mở sau đó trong effect)
+  const [path, setPath] = useState(pathname)
+  if (path !== pathname) {
+    setPath(pathname)
+    setStack([])
+  }
 
   const open = useCallback((type: PeekType, id: string) => {
     setStack((s) => (s.length && s[s.length - 1].type === type && s[s.length - 1].id === id ? s : [...s, { key: ++seq, type, id }]))
