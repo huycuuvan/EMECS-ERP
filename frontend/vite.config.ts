@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
     port: 5173,
+    host: true,  // mở cho máy khác cùng mạng LAN (test trên điện thoại)
     proxy: { '/api': API, '/uploads': API },
   },
 })
