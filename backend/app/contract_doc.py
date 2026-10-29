@@ -244,8 +244,11 @@ def save_draft(db: Session, c: Contract, data: dict) -> dict:
 
 
 # ---------------------------------------------------------------- xuất Word
-def render_docx(doc: dict) -> bytes:
+def render_docx(doc: dict, mark: bool = True) -> bytes:
+    """mark: bôi vàng các ô điền theo hợp đồng (docx_marks)."""
     from docxtpl import DocxTemplate  # import muộn: chỉ cần khi xuất file
+
+    from .docx_marks import prepared
 
     b, a = doc["seller"], doc["buyer"]
     a_banks = [("Tài khoản: " if k == 0 else "Hoặc ") + x for k, x in enumerate(a["banks"])]
@@ -269,7 +272,7 @@ def render_docx(doc: dict) -> bytes:
         "conditions": doc["conditions"], "warranty": doc["warranty"], "delivery_time": doc["deliveryTime"],
         "delivery_place": doc["deliveryPlace"], "acceptance_place": doc["acceptancePlace"],
     }
-    tpl = DocxTemplate(str(TEMPLATE))
+    tpl = DocxTemplate(prepared(TEMPLATE, mark))
     tpl.render(ctx, autoescape=True)
     buf = BytesIO()
     tpl.save(buf)

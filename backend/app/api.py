@@ -300,9 +300,9 @@ def save_contract_document(cid: str, body: dict, db: Session = DB):
 
 
 @router.get("/contracts/{cid}/document.docx", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
-def contract_docx(cid: str, db: Session = DB):
+def contract_docx(cid: str, mark: bool = True, db: Session = DB):
     doc = CD.document(db, svc.get_or_404(db, Contract, cid))
-    data = CD.render_docx(doc)
+    data = CD.render_docx(doc, mark)
     name = CD.docx_filename(doc)
     cd = f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"
     return Response(content=data, headers={"Content-Disposition": cd},
@@ -326,14 +326,29 @@ def save_contract_legal(cid: str, body: dict, db: Session = DB):
 
 
 @router.get("/contracts/{cid}/legal.zip", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
-def contract_legal_zip(cid: str, db: Session = DB):
-    return _attach(*LD.render_pack(db, svc.get_or_404(db, Contract, cid)), "application/zip")
+def contract_legal_zip(cid: str, mark: bool = True, db: Session = DB):
+    return _attach(*LD.render_pack(db, svc.get_or_404(db, Contract, cid), mark), "application/zip")
 
 
 @router.get("/contracts/{cid}/legal/{key}.docx", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
-def contract_legal_docx(cid: str, key: str, db: Session = DB):
-    return _attach(*LD.render(db, svc.get_or_404(db, Contract, cid), key),
+def contract_legal_docx(cid: str, key: str, mark: bool = True, db: Session = DB):
+    return _attach(*LD.render(db, svc.get_or_404(db, Contract, cid), key, mark),
                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+@router.get("/settings/legal-files", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
+def legal_files(db: Session = DB):
+    return LD.company_files(db)
+
+
+@router.post("/settings/legal-files")
+async def add_legal_file(file: UploadFile = File(...), user: User = Depends(require("hop-dong", "edit")), db: Session = DB):
+    return LD.add_company_file(db, file.filename or "", await file.read(), user.name)
+
+
+@router.delete("/settings/legal-files/{fid}", dependencies=[Depends(require("hop-dong", "edit"))])
+def delete_legal_file(fid: str, db: Session = DB):
+    return LD.delete_company_file(db, fid)
 
 
 @router.get("/settings/seller")

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App } from 'antd'
 import { api, errorMessage, tokenStore } from './client'
 import type {
-  AuditLog, AuthUser, Contract, ContractAgg, ContractDocument, ContractDraftInput, ContractRow, Dashboard, LegalFields, LegalPack, Party, ID, Ledger, Lsx, Meta, Mismatch, MovementRow, Notification,
+  AuditLog, AuthUser, Contract, ContractAgg, ContractDocument, ContractDraftInput, ContractRow, Dashboard, LegalFields, LegalFile, LegalPack, Party, ID, Ledger, Lsx, Meta, Mismatch, MovementRow, Notification,
   Order, OrderItem, OverdueDoc, PendingDelta, Receipt, Task, TaskType, VLoss, Weighing,
 } from './types'
 
@@ -104,6 +104,13 @@ export const useSaveContractDocument = () => useAction(({ id, ...v }: ContractDr
 export const useSeller = () => useQuery({ queryKey: ['settings', 'seller'], queryFn: () => get<Party>('/settings/seller') })
 export const useLegalPack = (cid?: ID | null) => useQuery({ queryKey: ['legal', cid], queryFn: () => get<LegalPack>(`/contracts/${cid}/legal`), enabled: !!cid })
 export const useSaveLegal = () => useAction(({ cid, ...v }: Partial<LegalFields> & { cid: ID }) => api.put<LegalPack>(`/contracts/${cid}/legal`, v).then((r) => r.data))
+export const useLegalFiles = () => useQuery({ queryKey: ['legal-files'], queryFn: () => get<LegalFile[]>('/settings/legal-files') })
+export const useAddLegalFile = () => useAction((file: File) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return api.post<LegalFile[]>('/settings/legal-files', fd).then((r) => r.data)
+}, 'Đã thêm giấy tờ công ty')
+export const useDeleteLegalFile = () => useAction((id: string) => api.delete<LegalFile[]>(`/settings/legal-files/${id}`).then((r) => r.data), 'Đã xóa giấy tờ')
 export const useSaveSeller = () => useAction((v: Party) => api.put<Party>('/settings/seller', v).then((r) => r.data), 'Đã lưu thông tin công ty (Bên B)')
 
 export const useCreateLsx = () => useAction((v: { contractId: ID; name?: string; qty?: number; kg: number; leadDays: number }) => post<Lsx>('/lsx', v), (x) => `Đã phát lệnh ${x.id}`)

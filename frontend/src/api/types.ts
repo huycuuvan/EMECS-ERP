@@ -203,6 +203,8 @@ export interface LegalFields {
   receiverName: string; receiverTitle: string; receiverHonorific: string
 }
 export interface LegalPack { data: LegalFields; forms: { key: string; title: string; ready: boolean }[]; number: string; buyer: string }
+/** Giấy tờ cố định của công ty (ĐKKD, hồ sơ năng lực, CO/CQ…) — tải lên 1 lần, tự kèm vào bộ hồ sơ .zip. */
+export interface LegalFile { id: string; name: string; size: number; by: string; uploadedAt: string; url: string }
 export interface DocLine {
   itemId: number; stt: number; name: string; unit: string; qty: number; kg: number; pricePerKg: number
   defaultUnitPrice: number; unitPrice: number; custom: boolean; amount: number
