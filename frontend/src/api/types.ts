@@ -25,6 +25,8 @@ export interface ContractExtension {
   status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; days: number; oldBy: string | null; newBy: string | null
   decidedBy: string | null; decidedAt: string | null; rejectReason: string | null
 }
+/** Yêu cầu gia hạn đang chờ Quản lý duyệt (dashboard / danh sách hợp đồng). */
+export type PendingExtension = ContractExtension & { customer: string; number: string; completeBy: string | null; complete: CompleteInfo | null }
 export interface Payment {
   id: number; date: string; amount: number; type: string; note: string
   status: PaymentStatus; createdBy: string; approvedBy: string | null; approvedAt: string | null; rejectReason: string | null
@@ -45,7 +47,7 @@ export interface Contract {
 export interface CompleteInfo { state: 'none' | 'ok' | 'fine' | 'soon' | 'overdue'; label: string; days: number | null }
 export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label: string }
 /** GET /contracts trả kèm adv + 2 mốc: complete = hạn soạn thảo hợp đồng (kế toán soạn xong), deliver = hạn nhận đủ hồ sơ (kế toán bấm Hoàn thành) */
-export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo; pendingExtension: ContractExtension | null; billedKg: number; billPendingKg: number
+export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo; pendingExtension: PendingExtension | null; billedKg: number; billPendingKg: number
   /** công nợ: giá trị hàng khách đã ký nhận (không VAT), và số còn nợ */
   billedValue: number; debt: number }
 
@@ -162,7 +164,7 @@ export interface Dashboard {
   activeContracts: number; deliveredKgTotal: number
   contractAlerts: { contract: Contract; adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo }[]
   pendingPayments: (Payment & { contractId: ID; customer: string })[]
-  pendingExtensions: (ContractExtension & { customer: string; complete: CompleteInfo })[]
+  pendingExtensions: PendingExtension[]
   overdueDocs: OverdueDoc[]; pendingMismatches: Mismatch[]; pendingMismatchKg: number
   pendingLSX: Lsx[]; pendingTasks: Task[]; contracts: ContractAggLite[]
   /** lệnh đang SX mà hôm qua xưởng không nhập sản lượng */

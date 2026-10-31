@@ -80,6 +80,7 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ff-sans);
 .ant-table-thead > tr > th { font-family: var(--ff-mono); font-size: 10px !important; letter-spacing: .12em; text-transform: uppercase; font-weight: 700 !important; }
 .ant-table-tbody > tr.clickable-row { cursor: pointer; }
 .ant-table-tbody > tr.row-alert > td { background: #fdf0f0; }
+.ant-table-tbody > tr.row-ext > td { background: var(--amber-soft); }
 
 /* ---------- drawer header tối như demo ---------- */
 .peek-drawer .ant-drawer-header { background: var(--ink); color: var(--paper); border-bottom: 0; padding: 18px 24px; }
@@ -119,6 +120,7 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ff-sans);
   }
   .ant-table-content table > thead > tr > th:first-child { background: var(--paper-2); }
   .ant-table-tbody > tr.row-alert > td:first-child { background: #fdf0f0; }
+  .ant-table-tbody > tr.row-ext > td:first-child { background: var(--amber-soft); }
   .ant-modal { max-width: calc(100vw - 16px) !important; margin: 8px auto; }
   .sec-title { margin: 14px 0 8px; }
 }
@@ -126,3 +128,14 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ff-sans);
 /* dòng thông báo bấm được */
 .notif-row:hover { background: var(--paper); }
 .notif-row:focus-visible { outline: 2px solid var(--ink-3); outline-offset: -2px; }
+
+/* ---------- khung yêu cầu gia hạn chờ Quản lý duyệt (đầu Dashboard / trang Hợp đồng) ---------- */
+.ext-panel { border: 2px solid var(--amber); background: var(--amber-soft); border-radius: 14px; padding: 12px 16px; margin: 0 0 16px; display: grid; gap: 10px; }
+.ext-panel-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; color: var(--amber); }
+.ext-panel-count { margin-left: auto; background: var(--amber); color: #fff; border-radius: 999px; padding: 0 10px; font-size: 13px; line-height: 22px; }
+.ext-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--canvas); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+.ext-row-main { display: grid; gap: 3px; min-width: 0; flex: 1 1 320px; }
+.ext-row-id { font-weight: 700; font-size: 15px; cursor: pointer; }
+.ext-row-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ext-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ext-chip { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: var(--amber); color: #fff; font-size: 11px; font-weight: 700; white-space: nowrap; }

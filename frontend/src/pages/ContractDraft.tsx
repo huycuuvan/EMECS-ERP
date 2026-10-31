@@ -2,15 +2,16 @@
    Trình bày như trang hợp đồng: ô VÀNG = kế toán nhập; ô ĐỎ = hệ thống tự điền từ bước trước (số HĐ ← mã đơn hàng,
    Bên A ← danh mục Khách hàng, bảng hàng ← đơn hàng, thành tiền / VAT / bằng chữ ← tự tính) — vẫn sửa được nếu cần.
    Lưu → hợp đồng sang bước "Đã soạn thảo"; Tải Word xuất đúng file mẫu; "Đã gửi khách hàng" → báo Quản lý. */
-import { Alert, App, Button, DatePicker, Input, InputNumber, Modal, Spin, Tooltip } from 'antd'
+import { Alert, App, Button, DatePicker, Input, InputNumber, Spin, Tooltip } from 'antd'
 import dayjs from 'dayjs'
 import { ArrowLeft, Download, Plus, RotateCcw, Save, Send, Settings2, Trash2, UserPen } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useContract, useContractDocument, useSaveContractDocument, useSaveSeller } from '@/api/hooks'
+import { useContract, useContractDocument, useSaveContractDocument } from '@/api/hooks'
 import { blobError, downloadFile } from '@/api/hooksEdit'
 import { useCustomers } from '@/api/hooksMaster'
 import CustomerFormModal from './customers/CustomerFormModal'
+import SellerModal from './company/SellerModal'
 import type { ContractDocument, ContractDraftInput, Party } from '@/api/types'
 import { CompleteChip, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
@@ -319,36 +320,4 @@ function Editor({ doc }: { doc: ContractDocument }) {
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return <div className="prow"><span className="pl">{label}:</span> {children}</div>
-}
-
-function SellerModal({ seller, onClose }: { seller: Party; onClose: () => void }) {
-  const [v, setV] = useState<Party>(seller)
-  const saveSeller = useSaveSeller()
-  const f = (k: keyof Party, label: string, ph?: string) => (
-    <label className="sm-row"><span>{label}</span>
-      <Input value={(v[k] as string | undefined) ?? ''} placeholder={ph} onChange={(e) => setV({ ...v, [k]: e.target.value })} /></label>
-  )
-  return (
-    <Modal open title="Thông tin công ty (Bên B trên hợp đồng)" okText="Lưu" cancelText="Hủy" width={620}
-      confirmLoading={saveSeller.isPending} onCancel={onClose}
-      onOk={async () => { await saveSeller.mutateAsync({ ...v, banks: v.banks.map((b) => b.trim()).filter(Boolean) }); onClose() }}>
-      <div className="sm-grid">
-        {f('name', 'Tên công ty', 'CÔNG TY TNHH …')}
-        {f('address', 'Địa chỉ')}
-        {f('phone', 'Điện thoại')}
-        <label className="sm-row"><span>Tài khoản số</span>
-          <Input.TextArea autoSize={{ minRows: 2 }} value={v.banks.join('\n')} placeholder="Mỗi dòng 1 tài khoản: số TK ngân hàng … - Chi nhánh …"
-            onChange={(e) => setV({ ...v, banks: e.target.value.split('\n') })} /></label>
-        {f('taxCode', 'Mã số thuế')}
-        {f('representative', 'Người đại diện', 'Bà / Ông …')}
-        {f('title', 'Chức vụ', 'Giám đốc')}
-        {f('representativeHonorific', 'Xưng hô người đại diện', 'Ông / Bà')}
-        {f('workshopRep', 'Quản đốc / QLSX (bên giao hàng)', 'Họ tên — in trên biên bản giao nhận, chứng chỉ xuất xưởng')}
-        {f('workshopTitle', 'Chức vụ quản đốc', 'Quản đốc phân xưởng')}
-        {f('workshopHonorific', 'Xưng hô quản đốc', 'Ông / Bà')}
-        {f('city', 'Nơi lập biên bản', 'Hà Nội')}
-      </div>
-      <p className="caption" style={{ margin: '8px 0 0' }}>Nhập một lần, dùng cho mọi hợp đồng (Bên B). Chỉ Quản lý sửa được.</p>
-    </Modal>
-  )
 }

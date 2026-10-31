@@ -525,7 +525,9 @@ def pending_extensions(db: Session) -> list[dict]:
     out = []
     for e in db.scalars(select(ContractExtension).where(ContractExtension.status == EXT_WAIT).order_by(ContractExtension.requested_at)):
         c = db.get(Contract, e.contract_id)
-        out.append({**S.extension(e), "customer": c.customer if c else "", "complete": complete_info(c) if c else None})
+        out.append({**S.extension(e), "customer": c.customer if c else "", "number": c.number if c else "",
+                    "completeBy": S.iso(c.complete_by) if c else None,
+                    "complete": complete_info(c) if c else None})
     return out
 
 

@@ -2,7 +2,7 @@
    hạn soạn thảo HĐ, hạn nhận đủ hồ sơ, tạm ứng, lũy kế giao — tiền) · thao tác theo 4 bước: Soạn thảo → Đã gửi khách hàng → Đã nhận về →
    Đã hoàn thành · + Tiền về (chờ Quản lý duyệt) · Xuất Excel · Đơn hàng chờ làm HĐ. */
 import { Button, Input, Select, Table, Tag, type TableColumnsType } from 'antd'
-import { AlarmClock, AlertTriangle, CheckCircle2, FilePen, Info, Search, ShoppingCart } from 'lucide-react'
+import { AlarmClock, AlertTriangle, CalendarPlus, CheckCircle2, FilePen, Info, Search, ShoppingCart } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTasks } from '@/api/hooks'
@@ -14,7 +14,7 @@ import { useAuth } from '@/lib/auth'
 import { fmtD, fmtNum, fmtT, moneyShort } from '@/lib/format'
 import { usePeek } from '@/peek/context'
 import { PaymentModal } from '@/peek/drawers/contract/modals'
-import { canAskExtension, useAskExtension } from '@/peek/drawers/contract/Extensions'
+import { canAskExtension, PendingExtensionsPanel, useAskExtension } from '@/peek/drawers/contract/Extensions'
 import { useContractFlow } from '@/peek/drawers/contract/useContractFlow'
 import RecordLink from '@/peek/RecordLink'
 import { aggregateRows } from './contracts/aggregate'
@@ -114,7 +114,7 @@ export default function Contracts() {
       sorter: (a, b) => (a.completeBy ? new Date(a.completeBy).getTime() : 9e15) - (b.completeBy ? new Date(b.completeBy).getTime() : 9e15),
       render: (_, c) => <>
         <DeadlineCell info={c.complete} date={c.completeBy} okText="Đã soạn thảo" />
-        {c.pendingExtension && <div className="caption" style={{ color: 'var(--amber)', fontWeight: 600, marginTop: 2 }}>Chờ duyệt gia hạn +{c.pendingExtension.days} ngày</div>}
+        {c.pendingExtension && <div className="ext-chip"><CalendarPlus size={11} /> Xin gia hạn · chờ QL duyệt</div>}
       </>,
     },
     {
@@ -153,6 +153,7 @@ export default function Contracts() {
           <ExportButton kind="contracts" params={{ status: fs, due: fd }} ids={rows.map((c) => c.id)} total={contracts.length} />
           <Button type="primary" icon={<ShoppingCart size={14} />} onClick={() => navigate('/don-hang?status=' + encodeURIComponent('Chốt đơn'))}>Đơn hàng chờ làm HĐ</Button>
         </>} />
+      <PendingExtensionsPanel list={contracts.flatMap((c) => (c.pendingExtension ? [c.pendingExtension] : []))} />
 
       <KpiGrid>
         <Kpi tone="amber" label="Tạm ứng chưa về"
@@ -186,7 +187,7 @@ export default function Contracts() {
         </div>
         <Table<ContractRow> rowKey="id" size="middle" loading={isLoading} columns={columns} dataSource={rows}
           scroll={{ x: 1730 }} tableLayout="fixed" pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false}
-          rowClassName={(c) => 'clickable-row' + (c.complete.state === 'overdue' || c.deliver.state === 'overdue' ? ' row-alert' : '')}
+          rowClassName={(c) => 'clickable-row' + (c.pendingExtension ? ' row-ext' : c.complete.state === 'overdue' || c.deliver.state === 'overdue' ? ' row-alert' : '')}
           onRow={(r) => ({ onClick: () => open('hd', r.id) })}
           locale={{ emptyText: 'Không có hợp đồng phù hợp bộ lọc.' }} />
       </div>

@@ -28,6 +28,7 @@ const VirtualLoss = lazy(() => import('@/pages/VirtualLoss'))
 const Weighings = lazy(() => import('@/pages/Weighings'))
 const Customers = lazy(() => import('@/pages/Customers'))
 const Galvanizers = lazy(() => import('@/pages/Galvanizers'))
+const Company = lazy(() => import('@/pages/Company'))
 const Materials = lazy(() => import('@/pages/Materials'))
 const Vehicles = lazy(() => import('@/pages/Vehicles'))
 
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="/danh-muc/khach-hang" element={<Customers />} />
         <Route path="/danh-muc/xe" element={<Vehicles />} />
         <Route path="/danh-muc/xuong-ma" element={<Galvanizers />} />
+        <Route path="/danh-muc/cong-ty" element={<Company />} />
         <Route path="*" element={<HomeRedirect />} />
       </Route>
     </Routes>

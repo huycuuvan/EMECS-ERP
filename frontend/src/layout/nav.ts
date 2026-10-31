@@ -2,7 +2,7 @@ import {
   Archive, ArrowLeftRight, BarChart3, Factory, FileSignature, FileWarning, LayoutDashboard, PackageCheck, Scale,
   ShoppingCart, Truck, UsersRound, type LucideIcon,
 } from 'lucide-react'
-import { Boxes, Contact, TruckElectric, Warehouse } from 'lucide-react'
+import { Boxes, Building2, Contact, TruckElectric, Warehouse } from 'lucide-react'
 
 export interface NavItem { id: string; label: string; icon: LucideIcon; path: string }
 /** Menu giống layout.js của bản demo. `id` dùng làm khóa phân quyền (PERMISSIONS ở backend/config.py). */
@@ -33,6 +33,7 @@ export const NAV: { section: string; items: NavItem[] }[] = [
   { section: 'Danh mục', items: [
     { id: 'xe', label: 'Xe', icon: TruckElectric, path: '/danh-muc/xe' },
     { id: 'xuong-ma', label: 'Xưởng mạ', icon: Warehouse, path: '/danh-muc/xuong-ma' },
+    { id: 'cong-ty', label: 'Thông tin công ty', icon: Building2, path: '/danh-muc/cong-ty' },
   ] },
   { section: 'Quản trị', items: [
     { id: 'nguoi-dung', label: 'Người dùng & phân quyền', icon: UsersRound, path: '/nguoi-dung' },

@@ -407,6 +407,8 @@ export function QlView({ tab, setTab, onRoleSheet }: RoleViewProps) {
   const alerts = useMemo<MAlert[]>(() => {
     if (!dash) return []
     const out: MAlert[] = []
+    // xin gia hạn soạn thảo HĐ: lên đầu danh sách để Quản lý thấy ngay (anh Thắng 31/10)
+    dash.pendingExtensions.forEach((e) => out.push({ ic: FileClock, t: `${e.contractId} xin gia hạn soạn thảo HĐ — chờ Quản lý duyệt`, s: `${e.customer} · ${e.requestedBy}: ${e.reason}`, red: true, open: ['hd', e.contractId] }))
     dash.overdueDocs.forEach((d) => out.push({ ic: AlarmClock, t: `${d.kind} ${d.id} QUÁ HẠN ${d.hoursOver}h`, s: `${d.person} (${d.dept}) còn thiếu: ${d.missing}`, red: true, open: [d.type, d.id] }))
     dash.pendingMismatches.forEach((mm) => out.push({ ic: FileWarning, t: `${mm.id} lệch ${signed(mm.delta)} kg chờ ký`, s: `${mm.source} · ${mm.refId} · ${mm.reason}`, red: true, open: ['sl', mm.id] }))
     dash.contractAlerts.forEach((a) => {
@@ -416,7 +418,6 @@ export function QlView({ tab, setTab, onRoleSheet }: RoleViewProps) {
       }
       if (a.adv.state === 'missing') out.push({ ic: Banknote, t: `${a.contract.id} tạm ứng ${a.adv.label}`, s: a.contract.customer, red: true, open: ['hd', a.contract.id] })
     })
-    dash.pendingExtensions.forEach((e) => out.push({ ic: FileClock, t: `${e.contractId} xin gia hạn soạn thảo HĐ — chờ duyệt`, s: `${e.customer} · ${e.reason}`, open: ['hd', e.contractId] }))
     dash.lsxMissedYesterday.forEach((x) => out.push({ ic: Factory, t: `${x.id} — hôm qua ${ddmm(x.missedDays[0])} xưởng KHÔNG cập nhật sản lượng`, s: x.name, red: true, open: ['lsx', x.id] }))
     dash.pendingLSX.forEach((x) => out.push({ ic: Factory, t: x.id + (x.status === 'Từ chối' ? ' bị xưởng TỪ CHỐI' : ' chờ xưởng nhận'), s: x.rejectReason || x.name, red: x.status === 'Từ chối', open: ['lsx', x.id] }))
     dash.pendingTasks.forEach((t) => out.push({ ic: Truck, t: t.id + (t.status === 'Từ chối' ? ' bị lái xe từ chối' : ' chờ lái xe xác nhận'), s: t.driver + (t.rejectReason ? ' · ' + t.rejectReason : ''), red: t.status === 'Từ chối', open: ['vc', t.id] }))
