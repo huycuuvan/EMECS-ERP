@@ -74,3 +74,14 @@ def test_movement_pending_states_not_counted(c):
     assert {x["id"]: x for x in c.get("/api/reports/movement-log").json()}[tid]["state"] == "Đã chốt"
     vk = next(e for e in c.get("/api/vloss").json() if e["refId"] == tid)
     assert vk["status"] == "Đã ghi nhận" and vk["kg"] == 100
+
+
+def test_kho_ao_records_refill_in_tolerance_after_rejection(c):
+    """Quản lý từ chối phiếu lệch → lái xe / kho điền lại trong dung sai → vẫn tự ghi kho ảo "Trong dung sai"."""
+    tid = _galv_task(c)
+    c.post(f"/api/tasks/{tid}/fill-galv", json={"kg": 9900, "reason": "Sai số thiết bị cân"})
+    c.post(f"/api/tasks/{tid}/reject-fill", json={"reason": "Cân lại"})
+    t = c.post(f"/api/tasks/{tid}/fill-galv", json={"kg": 9980}).json()
+    assert t["status"] == "Hoàn thành"
+    vk = next(e for e in c.get("/api/vloss").json() if e["refId"] == tid)
+    assert vk["status"] == "Trong dung sai" and vk["kg"] == 20

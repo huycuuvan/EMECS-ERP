@@ -970,7 +970,6 @@ def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | N
                f"{p.receipt_id or ''} · giao {fmt_kg(exp)} · cân {fmt_kg(p.kg_actual)} · {reason}", "warning", roles="admin")
     else:
         p.mismatch_id, p.status, p.reason, p.reason_note, p.reject_reason = None, "Đã cân", None, None, None
-        p.approved_by = p.approved_at = None
     sync_auto_vloss(db, "pc", p)
     db.commit()
     return p
@@ -1003,14 +1002,16 @@ def record_vloss(db: Session, ref_type: str, rec, kg: float, source: str, note: 
 
 def _final_delta(rec, ref_type: str) -> tuple[float, str] | None:
     """(kg chênh = số gốc − số sau, nguồn) của phiếu ĐÃ CHỐT TRONG DUNG SAI (không qua Quản lý duyệt); chưa chốt, đang
-    chờ duyệt, hoặc lệch vượt dung sai (luồng biên bản sai lệch cũ — ghi kho ảo khi Quản lý cho phép) → None."""
+    chờ duyệt, hoặc lệch vượt dung sai (luồng biên bản sai lệch cũ — ghi kho ảo khi Quản lý cho phép) → None.
+    Phiếu qua Quản lý duyệt giữ `reason` (lý do lệch); phiếu chốt trong dung sai thì reason = None (approved_by có thể
+    còn tên Quản lý từ lần TỪ CHỐI trước đó nên không dùng để phân biệt)."""
     if ref_type == "pc":
-        if rec.status != "Đã cân" or rec.kg_actual is None or rec.approved_by or rec.mismatch_id:
+        if rec.status != "Đã cân" or rec.kg_actual is None or rec.reason or rec.mismatch_id:
             return None
         exp, d = rec.kg_expected or 0, (rec.kg_expected or 0) - rec.kg_actual
         ok = (d >= -0.001 and d <= exp * PC_TOLERANCE_PCT / 100) if rec.receipt_id else abs(d) <= TOLERANCE_KG
         return (d, PREP_SOURCE if rec.receipt_id else "Trạm cân công ty") if ok else None
-    if rec.status != "Hoàn thành" or rec.filled_at is None or rec.approved_by or rec.mismatch_id:
+    if rec.status != "Hoàn thành" or rec.filled_at is None or rec.reason or rec.mismatch_id:
         return None
     if rec.type == "di_ma":
         ok = abs((rec.kg_at_galv or 0) - (rec.kg_required or 0)) <= TOLERANCE_KG or not rec.kg_required
@@ -1046,7 +1047,7 @@ def sync_auto_vloss(db: Session, ref_type: str, rec) -> None:
 def backfill_auto_vloss(db: Session) -> None:
     """Chạy 1 lần khi khởi động: ghi kho ảo cho các phiếu đã chốt trong dung sai trước khi có quy tắc trên."""
     from .models import Setting
-    if db.get(Setting, "vloss_auto_v1"):
+    if db.get(Setting, "vloss_auto_v2"):  # v2: nhận biết phiếu qua duyệt theo reason (v1 bỏ sót phiếu bị từ chối rồi điền lại)
         return
     for p in db.scalars(select(Weighing)):
         sync_auto_vloss(db, "pc", p)
@@ -1054,7 +1055,7 @@ def backfill_auto_vloss(db: Session) -> None:
     for t in db.scalars(select(Task)):
         sync_auto_vloss(db, "vc", t)
         db.flush()
-    db.add(Setting(key="vloss_auto_v1", value="1"))
+    db.add(Setting(key="vloss_auto_v2", value="1"))
     db.commit()
 
 
@@ -1259,7 +1260,6 @@ def _task_result(db: Session, t: Task, off: bool, what: str, reason: str | None,
                "warning", roles="admin")
     else:
         t.status, t.reason, t.reason_note, t.reject_reason_ql = "Hoàn thành", None, None, None
-        t.approved_by = t.approved_at = None
     sync_auto_vloss(db, "vc", t)
 
 
