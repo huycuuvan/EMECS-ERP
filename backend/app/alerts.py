@@ -69,7 +69,7 @@ def collect(db: Session, now: datetime | None = None) -> list[dict]:
         comp, dlv = a["complete"], a["deliver"]
         if comp["state"] in ("overdue", "soon"):  # hạn trả hợp đồng — việc của kế toán
             hd.append((comp["days"], f"{a['contract']['id']} {comp['label'].lower()}"))
-        if dlv["state"] in ("overdue", "soon"):  # hạn giao hàng cho khách — sản xuất + giao
+        if dlv["state"] in ("overdue", "soon"):  # hạn nhận đủ hồ sơ — kế toán bấm Hoàn thành
             gh.append((dlv["days"], f"{a['contract']['id']} {dlv['label'].lower()}"))
     if hd:
         hd.sort()
@@ -78,9 +78,9 @@ def collect(db: Session, now: datetime | None = None) -> list[dict]:
                     "roles": "kt,admin"})
     if gh:
         gh.sort()
-        out.append({"title": f"Cuối ngày: {len(gh)} hợp đồng sắp tới / quá hạn giao hàng cho khách",
+        out.append({"title": f"Cuối ngày: {len(gh)} hợp đồng sắp tới / quá hạn nhận đủ hồ sơ",
                     "sub": _ids([t for _, t in gh]), "type": "error" if gh[0][0] < 0 else "warning",
-                    "roles": "sx,admin"})
+                    "roles": "kt,admin"})
 
     docs = svc.overdue_docs(db)
     vc = [f"{d['id']} ({d['person']}, quá {d['hoursOver']}h)" for d in docs if d["type"] == "vc"]

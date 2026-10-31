@@ -75,7 +75,7 @@ export default function ContractDrawer({ id }: { id: string }) {
             <div className="hd-steps-meta">
               <span>Số HĐ <b className="mono">{c.number || '—'}</b></span>
               <span>Hạn trả HĐ <CompleteChip info={g.complete} /></span>
-              <span>Hạn giao hàng <CompleteChip info={g.deliver} /></span>
+              <span>Hạn nhận đủ hồ sơ <CompleteChip info={g.deliver} /></span>
             </div>
           </div>
 

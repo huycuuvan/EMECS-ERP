@@ -46,7 +46,7 @@ export default function OrderDrawer({ id }: { id: string }) {
             <Cell label="Mã nội bộ">{o.code || '—'}</Cell>
             <Cell label="Ngày chốt">{fmtD(o.date)}</Cell>
             {o.completeBy && <Cell label="Hạn trả hợp đồng">{fmtD(o.completeBy)}</Cell>}
-            {o.deliverBy && <Cell label="Hạn giao hàng">{fmtD(o.deliverBy)}</Cell>}
+            {o.deliverBy && <Cell label="Hạn nhận đủ hồ sơ">{fmtD(o.deliverBy)}</Cell>}
             <Cell label="File ký chốt"><DocLink value={o.file} /></Cell>
             {o.note && <Cell label="Ghi chú" wide>{o.note}</Cell>}
           </CellGrid>
@@ -89,7 +89,7 @@ export default function OrderDrawer({ id }: { id: string }) {
           </div>
           {!o.contractId && (
             <p className="caption" style={{ marginTop: 10 }}>
-              Đơn chưa có hợp đồng — khi chuyển kế toán, Quản lý nhập <b>hạn trả hợp đồng</b> và <b>hạn giao hàng</b>.
+              Đơn chưa có hợp đồng — khi chuyển kế toán, Quản lý nhập <b>hạn trả hợp đồng</b> và <b>hạn nhận đủ hồ sơ</b>.
             </p>
           )}
 

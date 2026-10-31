@@ -47,7 +47,7 @@ export function ContractEditModal({ contract: c, onClose }: { contract: Contract
   const [form] = Form.useForm<EditVals>()
   const upd = useUpdateContract()
   const { hasRole } = useAuth()
-  const isQl = hasRole('admin')  // chỉ Quản lý đổi hạn trả HĐ / hạn giao hàng
+  const isQl = hasRole('admin')  // chỉ Quản lý đổi hạn trả HĐ / hạn nhận đủ hồ sơ
   const { data: meta } = useMeta()
   const unitPrice = Form.useWatch('unitPrice', form) ?? c.unitPrice
   const advPct = Form.useWatch('advPct', form) ?? c.advance.pct
@@ -78,7 +78,7 @@ export function ContractEditModal({ contract: c, onClose }: { contract: Contract
           <Form.Item name="complete" label="Hạn trả hợp đồng" extra={isQl ? undefined : 'Chỉ Quản lý được đổi'}>
             <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" allowClear={false} disabled={!isQl} />
           </Form.Item>
-          <Form.Item name="deliver" label="Hạn giao hàng cho khách" extra={isQl ? undefined : 'Chỉ Quản lý được đổi'}>
+          <Form.Item name="deliver" label="Hạn nhận đủ hồ sơ" extra={isQl ? undefined : 'Chỉ Quản lý được đổi'}>
             <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" allowClear={false} disabled={!isQl} />
           </Form.Item>
           <Form.Item name="unitPrice" label="Đơn giá (đ/kg) — theo giá thị trường" rules={[positive('Đơn giá phải lớn hơn 0')]}>

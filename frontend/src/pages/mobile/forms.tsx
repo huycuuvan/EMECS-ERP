@@ -327,7 +327,7 @@ export function DelivForm({ t }: { t: Task }) {
   )
 }
 
-/* ---------------------------------------------------------------- Quản lý: sửa đơn giá / tạm ứng / hạn trả HĐ / hạn giao hàng */
+/* ---------------------------------------------------------------- Quản lý: sửa đơn giá / tạm ứng / hạn trả HĐ / hạn nhận đủ hồ sơ */
 export function ContractEditForm({ c, onDone }: { c: Contract; onDone: () => void }) {
   const { message } = App.useApp()
   const update = useUpdateContract()
@@ -353,7 +353,7 @@ export function ContractEditForm({ c, onDone }: { c: Contract; onDone: () => voi
       <NumInput big value={pct} onChange={setPct} bad={num(pct) > 100} />
       <label className="f-lbl">Hạn trả hợp đồng (kế toán)</label>
       <input type="date" className="inp" value={due} onChange={(e) => setDue(e.target.value)} />
-      <label className="f-lbl">Hạn giao hàng cho khách</label>
+      <label className="f-lbl">Hạn nhận đủ hồ sơ</label>
       <input type="date" className="inp" value={dlv} onChange={(e) => setDlv(e.target.value)} />
       <div className="btn-row">
         <Btn variant="primary" icon={Save} loading={update.isPending} onClick={submit}>Lưu thay đổi</Btn>

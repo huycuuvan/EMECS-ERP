@@ -80,7 +80,7 @@ export default function Dashboard() {
       <SectionLabel>Trung tâm cảnh báo</SectionLabel>
       <Grid>
         <div ref={refContract} style={{ scrollMarginTop: 80 }}>
-          <AlertCard icon={<AlarmClock size={15} color="var(--signal)" />} title="Hợp đồng: hạn trả HĐ · hạn giao hàng · tạm ứng" count={alerts.length} bad>
+          <AlertCard icon={<AlarmClock size={15} color="var(--signal)" />} title="Hợp đồng: hạn trả HĐ · hạn nhận đủ hồ sơ · tạm ứng" count={alerts.length} bad>
             {alerts.length ? alerts.map((x) => (
               <AlertItem key={x.contract.id} onClick={() => open('hd', x.contract.id)}
                 t1={<><span className="mono" style={{ fontWeight: 700 }}>{x.contract.id}</span> · {x.contract.customer}</>}

@@ -136,7 +136,7 @@ def _buyer_from_customer(cu: Customer | None, name: str) -> dict:
 
 
 def _defaults(c: Contract, o: Order | None) -> dict:
-    by = c.deliver_by or (o.deliver_by if o else None)  # "Thời gian giao hàng: trước ngày …" = hạn giao hàng
+    by = c.deliver_by or (o.deliver_by if o else None)  # "Thời gian giao hàng: trước ngày …" mặc định = hạn nhận đủ hồ sơ (KT sửa được)
     return {
         "number": c.number or c.order_id, "date": None, "basis": [], "buyer": None,
         "scope": "Bên B cung cấp cho Bên A các hàng hóa theo bảng dưới đây:", "prices": {},

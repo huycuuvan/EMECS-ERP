@@ -533,7 +533,7 @@ function QlContracts({ dash }: { dash: Dash }) {
             <Line vClass="left">{c.customer}</Line>
             <Line k={`${fmtN(c.totalQty)} ${c.unit} · ${fmtT(c.totalKg)}`}>{moneyShort(c.value)}</Line>
             <Line k="Hạn trả HĐ" vClass={'sm ' + (dueBad ? 'red-txt' : dueWarn ? 'amber-txt' : '')}>{comp.label}</Line>
-            <Line k="Hạn giao hàng" vClass={'sm ' + (dlvBad ? 'red-txt' : dlvWarn ? 'amber-txt' : '')}>{dlv.label}</Line>
+            <Line k="Hạn nhận đủ hồ sơ" vClass={'sm ' + (dlvBad ? 'red-txt' : dlvWarn ? 'amber-txt' : '')}>{dlv.label}</Line>
             <Line k="Tạm ứng" vClass={'sm ' + (adv.state === 'missing' ? 'red-txt' : '')}>{adv.label}</Line>
             <PgRow label="Sản xuất" done={g.producedKg} plan={c.totalKg} unit="kg" />
             <PgRow label="Giao khách" done={g.deliveredKg} plan={c.totalKg} unit="kg" tone="success" />

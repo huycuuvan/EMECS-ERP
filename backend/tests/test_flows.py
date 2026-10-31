@@ -37,9 +37,9 @@ def test_seed_dashboard_matches_demo(c):
     d = c.get("/api/dashboard").json()
     assert d["activeContracts"] == 4
     assert d["deliveredKgTotal"] == 103880
-    assert len(d["contractAlerts"]) == 5  # hạn trả HĐ + hạn giao hàng + tạm ứng
+    assert len(d["contractAlerts"]) == 5  # hạn trả HĐ + hạn nhận đủ hồ sơ + tạm ứng
     sd06 = next(a for a in d["contractAlerts"] if a["contract"]["id"] == "HD-2609-06")
-    assert sd06["deliver"]["state"] == "soon"  # còn ≤ 7 ngày tới hạn giao hàng mà chưa giao đủ
+    assert sd06["deliver"]["state"] == "soon"  # còn ≤ 7 ngày tới hạn nhận đủ hồ sơ mà chưa hoàn thành
     assert [x["id"] for x in d["overdueDocs"]] == ["VC-0006"]
     assert d["pendingMismatchKg"] == 160
 
@@ -256,20 +256,31 @@ def test_attach_signed_documents(c):
 
 def test_two_deadlines_contract_return_and_delivery(c):
     """2 mốc (anh Thắng chốt 06/10): hạn trả hợp đồng = kế toán xong giấy tờ (khách ký trả về);
-    hạn giao hàng = sản xuất + giao đủ cho khách. "Đã hoàn thành" do kế toán tự bấm."""
+    hạn nhận đủ hồ sơ (31/10, trước là hạn giao hàng) = chỉ xong khi kế toán bấm "Đã hoàn thành"."""
+    from sqlalchemy import select
+
     from app.db import SessionLocal
-    from app.models import Contract
+    from app.models import Contract, Task
     al = {a["contract"]["id"]: a for a in c.get("/api/dashboard").json()["contractAlerts"]}
     assert al["HD-2609-02"]["complete"]["state"] == "soon"      # chờ soạn thảo, sắp tới hạn trả HĐ
     assert al["HD-2609-03"]["complete"]["state"] == "overdue"
     assert al["HD-2609-06"]["complete"]["state"] == "ok"        # đã nhận về → xong hạn trả HĐ
-    assert al["HD-2609-06"]["deliver"]["state"] == "soon"       # nhưng sắp tới hạn giao hàng mà chưa giao đủ
+    assert al["HD-2609-06"]["deliver"]["state"] == "soon"       # nhưng sắp tới hạn nhận đủ hồ sơ mà chưa hoàn thành
     with SessionLocal() as db:
         db.get(Contract, "HD-2609-02").status = "Đã nhận về"
         db.get(Contract, "HD-2609-06").status = "Đã hoàn thành"
         db.commit()
     rows = {x["id"]: x for x in c.get("/api/contracts").json()}
     assert rows["HD-2609-02"]["complete"]["state"] == "ok" and rows["HD-2609-06"]["deliver"]["state"] == "ok"
+    assert "hạn nhận đủ hồ sơ" in rows["HD-2609-06"]["deliver"]["label"]
+    with SessionLocal() as db:  # khách nhận đủ kg nhưng kế toán chưa bấm Hoàn thành (chưa đủ hồ sơ) → chưa xong hạn
+        hd = db.get(Contract, "HD-2609-06")
+        hd.status = "Đã nhận về"
+        for t in db.scalars(select(Task).where(Task.contract_id == hd.id, Task.type == "giao_khach")):
+            t.kg_delivered, t.status = hd.total_kg, "Hoàn thành"
+        db.commit()
+    rows = {x["id"]: x for x in c.get("/api/contracts").json()}
+    assert rows["HD-2609-06"]["deliver"]["state"] == "soon"
     o = c.post("/api/orders", json={"customer": "Cty 2 mốc", "items": [{"name": "Dầm", "qty": 1, "unit": "bộ", "kg": 10, "price": 1}]}).json()
     ct = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-05", "deliverBy": "2099-02-20"}).json()
     assert ct["completeBy"].startswith("2099-01-05") and ct["deliverBy"].startswith("2099-02-20")

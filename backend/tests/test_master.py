@@ -194,12 +194,13 @@ def test_end_of_day_alerts_role_targeted_once_per_day(c):
     login(c, "kt")
     titles = [n["title"] for n in c.get("/api/notifications").json()]
     assert any("quá hạn trả hợp đồng" in t for t in titles)
-    assert not any("lệnh SX" in t or "thẻ lái xe" in t or "hạn giao hàng" in t for t in titles)
+    assert any("quá hạn nhận đủ hồ sơ" in t for t in titles)  # kế toán bấm Hoàn thành khi đủ hồ sơ
+    assert not any("lệnh SX" in t or "thẻ lái xe" in t for t in titles)
     assert "Đơn hàng mới DH-2609-05" in titles  # thông báo chung (roles rỗng) vẫn thấy
     login(c, "sx")
     titles = [n["title"] for n in c.get("/api/notifications").json()]
     assert any("lệnh SX chưa nhập sản lượng" in t for t in titles) and not any("quá hạn trả hợp đồng" in t for t in titles)
-    assert any("quá hạn giao hàng cho khách" in t for t in titles)  # xưởng thấy hạn giao hàng
+    assert not any("hồ sơ" in t for t in titles)  # hạn nhận đủ hồ sơ là việc của kế toán
     login(c, "lx1")
     assert any("thẻ lái xe" in n["title"] for n in c.get("/api/notifications").json())
     # đã đọc tính riêng từng người: lái xe đọc hết không làm Quản lý mất thông báo chưa đọc

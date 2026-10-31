@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import serializers as S
-from .config import (PC_TOLERANCE_PCT, COMPLETE_WARN_DAYS, CONTRACT_EXTEND_DAYS, CT_DONE, DELIVER_DONE_PCT, CT_RECEIVED, CT_SENT, CT_WAIT, FILL_HOURS, PAY_OK,
+from .config import (PC_TOLERANCE_PCT, COMPLETE_WARN_DAYS, CONTRACT_EXTEND_DAYS, CT_DONE, CT_RECEIVED, CT_SENT, CT_WAIT, FILL_HOURS, PAY_OK,
                      PAY_PENDING, PAY_REJECTED, PC_FILL_HOURS, PEOPLE, TOLERANCE_KG)
 from .db import utcnow
 from .security import actor
@@ -129,7 +129,7 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
         "deliveredValue": delivered_value, "paidTotal": paid_total, "debt": debt, "pendingPayment": pending_pay,
         "billedValues": bill["billedValues"],
         "billedKg": bill_kg, "billPendingKg": bill_pending,
-        "complete": complete_info(c), "deliver": deliver_info(c, delivered_kg),
+        "complete": complete_info(c), "deliver": deliver_info(c),
         "extensions": [S.extension(e) for e in contract_extensions(db, cid)],
         "pctProduced": round(produced_kg / tk * 100) if tk else 0,
         "pctDelivered": round(delivered_kg / tk * 100) if tk else 0,
@@ -248,11 +248,10 @@ def complete_info(c: Contract) -> dict:
     return _deadline(c.complete_by, c.status in (CT_RECEIVED, CT_DONE), "hạn trả HĐ")
 
 
-def deliver_info(c: Contract, delivered_kg: float = 0) -> dict:
-    """HẠN GIAO HÀNG cho khách: xong khi khách đã ký nhận đủ kg hợp đồng (hoặc kế toán đã hoàn thành HĐ)."""
-    # khách nhận đủ (≥ DELIVER_DONE_PCT% — mặc định 100%) khối lượng hợp đồng là giao đủ
-    done = c.status == CT_DONE or (bool(c.total_kg) and delivered_kg >= c.total_kg * DELIVER_DONE_PCT / 100 - 0.5)
-    return _deadline(c.deliver_by, done, "hạn giao hàng")
+def deliver_info(c: Contract) -> dict:
+    """HẠN NHẬN ĐỦ HỒ SƠ (anh Thắng 31/10, trước là hạn giao hàng cho khách): chỉ xong khi kế toán bấm "Đã hoàn thành"
+    hợp đồng (đã nhận đủ hồ sơ: biên bản giao nhận ký, chứng chỉ…) — giao đủ kg mà chưa đủ hồ sơ vẫn cảnh báo."""
+    return _deadline(c.deliver_by, c.status == CT_DONE, "hạn nhận đủ hồ sơ")
 
 
 def advance_info(c: Contract) -> dict:
@@ -292,20 +291,12 @@ def overdue_docs(db: Session) -> list[dict]:
     return out
 
 
-def delivered_by_contract(db: Session) -> dict[str, float]:
-    out: dict[str, float] = {}
-    for t in db.scalars(select(Task).where(Task.type == "giao_khach")):
-        out[t.contract_id] = out.get(t.contract_id, 0) + (t.kg_delivered or 0)
-    return out
-
-
 def contract_alerts(db: Session) -> list[dict]:
     out = []
-    delivered = delivered_by_contract(db)
     for c in db.scalars(select(Contract)):
         adv = advance_info(c)
         comp = complete_info(c)
-        dlv = deliver_info(c, delivered.get(c.id, 0))
+        dlv = deliver_info(c)
         if adv["state"] == "missing" or comp["state"] in ("overdue", "soon") or dlv["state"] in ("overdue", "soon"):
             out.append({"contract": S.contract(c), "adv": adv, "complete": comp, "deliver": dlv})
     return out
@@ -430,7 +421,7 @@ def _vn(d: datetime | None) -> datetime | None:
 
 
 def send_order_to_kt(db: Session, oid: str, complete_by: datetime | None, deliver_by: datetime | None = None) -> Contract:
-    """2 mốc: hạn trả hợp đồng (kế toán làm xong giấy tờ) + hạn giao hàng cho khách (sản xuất + giao)."""
+    """2 mốc: hạn trả hợp đồng (kế toán làm xong giấy tờ) + hạn nhận đủ hồ sơ (kế toán bấm Hoàn thành)."""
     o = get_or_404(db, Order, oid)
     if o.contract_id:
         raise HTTPException(400, f"Đơn {oid} đã có hợp đồng {o.contract_id}")
@@ -441,7 +432,7 @@ def send_order_to_kt(db: Session, oid: str, complete_by: datetime | None, delive
     if complete_by < now:
         raise HTTPException(400, "Hạn trả hợp đồng phải sau hôm nay")
     if deliver_by is not None and deliver_by < now:
-        raise HTTPException(400, "Hạn giao hàng phải sau hôm nay")
+        raise HTTPException(400, "Hạn nhận đủ hồ sơ phải sau hôm nay")
     o.complete_by, o.deliver_by = complete_by, deliver_by
     first = o.items[0] if o.items else None
     c = Contract(id=next_id(db, "HD", "hd", month_code=True), order_id=o.id, code=o.code, customer=o.customer,
@@ -454,7 +445,7 @@ def send_order_to_kt(db: Session, oid: str, complete_by: datetime | None, delive
     db.add(c)
     o.contract_id, o.status = c.id, "Đã chuyển kế toán"
     notify(db, f"Đơn {o.id} đã chuyển kế toán — soạn hợp đồng {c.id}",
-           f"Hạn trả hợp đồng: {fmt_d(complete_by)}" + (f" · hạn giao hàng: {fmt_d(deliver_by)}" if deliver_by else ""), "info",
+           f"Hạn trả hợp đồng: {fmt_d(complete_by)}" + (f" · hạn nhận đủ hồ sơ: {fmt_d(deliver_by)}" if deliver_by else ""), "info",
            roles="kt,admin", ref=c.id)
     db.commit()
     return c
@@ -473,7 +464,7 @@ def update_contract(db: Session, cid: str, data: dict) -> Contract:
         c.complete_by = c.due_at = _vn(data["completeBy"])
         if o:
             o.complete_by = c.complete_by
-    if data.get("deliverBy") is not None:  # hạn giao hàng cho khách
+    if data.get("deliverBy") is not None:  # hạn nhận đủ hồ sơ
         c.deliver_by = _vn(data["deliverBy"])
         if o:
             o.deliver_by = c.deliver_by

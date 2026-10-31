@@ -48,7 +48,7 @@ class OrderUpdate(In):
 
 class SendToKtIn(In):
     complete_by: datetime | None = None  # hạn trả hợp đồng (bắt buộc — kiểm tra ở service để báo lỗi tiếng Việt)
-    deliver_by: datetime | None = None  # hạn giao hàng cho khách
+    deliver_by: datetime | None = None  # hạn nhận đủ hồ sơ
 
 
 class ContractUpdate(In):

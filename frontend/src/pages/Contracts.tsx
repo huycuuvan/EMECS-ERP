@@ -1,5 +1,5 @@
 /* Hợp đồng & Tạm ứng (màn kế toán): KPI tạm ứng / tiền về chờ duyệt / công nợ · danh sách (bước hợp đồng, ngày hoàn thành,
-   hạn trả HĐ, hạn giao hàng, tạm ứng, lũy kế giao — tiền) · thao tác theo 4 bước: Soạn thảo → Đã gửi khách hàng → Đã nhận về →
+   hạn trả HĐ, hạn nhận đủ hồ sơ, tạm ứng, lũy kế giao — tiền) · thao tác theo 4 bước: Soạn thảo → Đã gửi khách hàng → Đã nhận về →
    Đã hoàn thành · + Tiền về (chờ Quản lý duyệt) · Xuất Excel · Đơn hàng chờ làm HĐ. */
 import { Button, Input, Select, Table, Tag, type TableColumnsType } from 'antd'
 import { AlarmClock, AlertTriangle, CheckCircle2, FilePen, Info, Search, ShoppingCart } from 'lucide-react'
@@ -118,9 +118,9 @@ export default function Contracts() {
       </>,
     },
     {
-      title: 'Hạn giao hàng', key: 'deliver', width: 140,
+      title: 'Hạn nhận đủ hồ sơ', key: 'deliver', width: 140,
       sorter: (a, b) => (a.deliverBy ? new Date(a.deliverBy).getTime() : 9e15) - (b.deliverBy ? new Date(b.deliverBy).getTime() : 9e15),
-      render: (_, c) => <DeadlineCell info={c.deliver} date={c.deliverBy} okText={c.status === 'Đã hoàn thành' ? 'HĐ đã hoàn thành' : 'Đã giao đủ'} />,
+      render: (_, c) => <DeadlineCell info={c.deliver} date={c.deliverBy} okText="HĐ đã hoàn thành" />,
     },
     { title: 'Tạm ứng', key: 'adv', width: 190, render: (_, c) => <AdvCell c={c} /> },
     {
@@ -148,7 +148,7 @@ export default function Contracts() {
   return (
     <>
       <PageHeader title="Hợp đồng & Tạm ứng"
-        desc="Kế toán soạn hợp đồng theo mẫu, khách ký trả về trước hạn trả HĐ · giao hàng trước hạn giao hàng · tiền về nhập tay, Quản lý duyệt · theo dõi lũy kế hàng — tiền"
+        desc="Kế toán soạn hợp đồng theo mẫu, khách ký trả về trước hạn trả HĐ · nhận đủ hồ sơ (bấm Hoàn thành) trước hạn nhận đủ hồ sơ · tiền về nhập tay, Quản lý duyệt · theo dõi lũy kế hàng — tiền"
         extra={<>
           <ExportButton kind="contracts" params={{ status: fs, due: fd }} ids={rows.map((c) => c.id)} total={contracts.length} />
           <Button type="primary" icon={<ShoppingCart size={14} />} onClick={() => navigate('/don-hang?status=' + encodeURIComponent('Chốt đơn'))}>Đơn hàng chờ làm HĐ</Button>
@@ -165,7 +165,7 @@ export default function Contracts() {
         <Kpi tone="signal" label="Sắp tới / quá hạn"
           value={<span className={kpi.late > 0 ? 'text-signal' : ''}>{kpi.late}</span>}
           onClick={kpi.late ? () => setQuick(quick === 'late' ? '' : 'late') : undefined}
-          sub="hợp đồng sắp tới (≤ 7 ngày) / quá hạn trả HĐ hoặc hạn giao hàng mà chưa xong" />
+          sub="hợp đồng sắp tới (≤ 7 ngày) / quá hạn trả HĐ hoặc hạn nhận đủ hồ sơ mà chưa xong" />
         <Kpi tone="moss" label="Đối ứng hàng — tiền" value={moneyShort(kpi.debtSum)} sub="khách còn nợ theo hàng đã giao"
           onClick={kpi.debtSum > 0 ? () => setQuick(quick === 'debt' ? '' : 'debt') : undefined} />
       </KpiGrid>
@@ -206,7 +206,7 @@ const line1 = { fontWeight: 700, fontSize: 13, lineHeight: 1.35 } as const
 const line2 = { fontSize: 11.5, lineHeight: 1.35, marginTop: 2 } as const
 const LATE = new Set(['soon', 'overdue'])
 
-/** Ô 1 mốc hạn (hạn trả HĐ / hạn giao hàng): dòng 1 ngày, dòng 2 tình trạng có màu. */
+/** Ô 1 mốc hạn (hạn trả HĐ / hạn nhận đủ hồ sơ): dòng 1 ngày, dòng 2 tình trạng có màu. */
 function DeadlineCell({ info: k, date, okText }: { info: CompleteInfo; date: string | null | undefined; okText: string }) {
   if (k.state === 'none' || !date) return <span className="text-ash">Chưa có ngày</span>
   const d = k.days ?? 0

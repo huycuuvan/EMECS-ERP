@@ -268,7 +268,7 @@ function HdOverview({ id }: { id: string }) {
       <div className="mc-top" style={{ marginBottom: 4 }}>
         <StatusChip status={c.status} />
         {comp.state === 'overdue' && <span className="m-chip bad"><FileClock />Quá hạn trả HĐ</span>}
-        {dlv.state === 'overdue' && <span className="m-chip bad"><FileClock />Quá hạn giao hàng</span>}
+        {dlv.state === 'overdue' && <span className="m-chip bad"><FileClock />Quá hạn nhận đủ hồ sơ</span>}
       </div>
       <DGrid>
         <DItem k="Khách hàng" full small>{c.customer}</DItem>
@@ -276,7 +276,7 @@ function HdOverview({ id }: { id: string }) {
         <DItem k="Đơn giá">{fmtN(c.unitPrice)} ₫/kg</DItem>
         <DItem k="Khối lượng">{fmtT(c.totalKg)} · {fmtN(c.totalQty)} {c.unit}</DItem>
         <DItem k="Hạn trả HĐ"><span className={cls(comp)}>{comp.label}</span></DItem>
-        <DItem k="Hạn giao hàng"><span className={cls(dlv)}>{dlv.label}</span></DItem>
+        <DItem k="Hạn nhận đủ hồ sơ"><span className={cls(dlv)}>{dlv.label}</span></DItem>
         {g.extensions.filter((e) => e.status === 'Chờ duyệt').map((e) => (
           <DItem key={e.id} k={e.status === 'Đã duyệt' ? `Gia hạn +${e.days} ngày` : 'Xin gia hạn'} full small>
             <span className="amber-txt">{e.requestedBy}: {e.reason}</span>
