@@ -134,6 +134,9 @@ async def upload_doc(file: UploadFile = File(...), user: User = Depends(get_curr
 @router.get("/orders", dependencies=[Depends(require_any(*R_CUSTOMERS))])
 def list_orders(tag: int | None = None, segment: str | None = None, db: Session = DB):
     rows = _list(db, Order, Order.date, S.order)
+    ct = dict(db.execute(select(Contract.id, Contract.status)).all())  # trạng thái hợp đồng của từng đơn (anh Thắng 31/10)
+    for o in rows:
+        o["contractStatus"] = ct.get(o["contractId"])
     if tag:  # lọc theo thẻ khách hàng
         cus = svc.customer_ids_for_tag(db, tag)
         rows = [o for o in rows if o["customerId"] in cus]
@@ -181,6 +184,8 @@ ORDER_MONEY_KEYS = ("value", "vatPct", "vatAmount", "valueAfterVat")
 @router.get("/orders/{oid}", dependencies=[Depends(require_any(*R_ORDERS))])
 def get_order(oid: str, user: User = Depends(get_current_user), db: Session = DB):
     d = S.order(svc.get_or_404(db, Order, oid))
+    c = db.get(Contract, d["contractId"]) if d["contractId"] else None
+    d["contractStatus"] = c.status if c else None
     if not any(can(user, p) for p in R_CUSTOMERS):  # kho chỉ cần hàng hóa + kg, không thấy giá tiền
         d = {k: v for k, v in d.items() if k not in ORDER_MONEY_KEYS}
         d["items"] = [{k: v for k, v in i.items() if k not in ("price", "amount")} for i in d["items"]]

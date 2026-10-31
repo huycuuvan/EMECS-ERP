@@ -7,7 +7,7 @@ import { useOrder } from '@/api/hooks'
 import { blobError, downloadFile } from '@/api/hooksEdit'
 import { DocLink } from '@/components/DocAttach'
 import HistoryBlock from '@/components/HistoryBlock'
-import { Cell, CellGrid, Sec } from '@/components/ui'
+import { Cell, CellGrid, Sec, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtD, fmtNum, fmtT } from '@/lib/format'
 import OrderFormModal from '@/pages/orders/OrderFormModal'
@@ -45,6 +45,7 @@ export default function OrderDrawer({ id }: { id: string }) {
             <Cell label="Khách hàng" extra={<CustomerTags name={o.customer} />}>{o.customer}</Cell>
             <Cell label="Mã nội bộ">{o.code || '—'}</Cell>
             <Cell label="Ngày chốt">{fmtD(o.date)}</Cell>
+            {o.contractStatus && <Cell label="Trạng thái hợp đồng"><StatusTag status={o.contractStatus} /></Cell>}
             {o.completeBy && <Cell label="Hạn soạn thảo hợp đồng">{fmtD(o.completeBy)}</Cell>}
             {o.deliverBy && <Cell label="Hạn nhận đủ hồ sơ">{fmtD(o.deliverBy)}</Cell>}
             <Cell label="File ký chốt"><DocLink value={o.file} /></Cell>

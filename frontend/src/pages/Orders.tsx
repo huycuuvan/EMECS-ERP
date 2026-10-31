@@ -86,7 +86,10 @@ export default function Orders() {
     { title: 'Trạng thái', key: 'status', render: (_, o) => <StatusTag status={o.status} /> },
     {
       title: 'Hợp đồng', key: 'contract',
-      render: (_, o) => o.contractId ? <RecordLink id={o.contractId} type="hd" style={{ color: 'var(--rust)' }} /> : <span style={{ fontSize: 11.5, color: 'var(--ash-3)' }}>Chưa có</span>,
+      render: (_, o) => o.contractId ? <>
+        <RecordLink id={o.contractId} type="hd" style={{ color: 'var(--rust)' }} />
+        {o.contractStatus && <div style={{ marginTop: 4 }}><StatusTag status={o.contractStatus} /></div>}
+      </> : <span style={{ fontSize: 11.5, color: 'var(--ash-3)' }}>Chưa có</span>,
     },
     {
       title: '', key: 'act', width: 150,

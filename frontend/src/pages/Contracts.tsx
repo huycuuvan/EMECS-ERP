@@ -120,7 +120,7 @@ export default function Contracts() {
     {
       title: 'Hạn nhận đủ hồ sơ', key: 'deliver', width: 140,
       sorter: (a, b) => (a.deliverBy ? new Date(a.deliverBy).getTime() : 9e15) - (b.deliverBy ? new Date(b.deliverBy).getTime() : 9e15),
-      render: (_, c) => <DeadlineCell info={c.deliver} date={c.deliverBy} okText="HĐ đã hoàn thành" />,
+      render: (_, c) => <DeadlineCell info={c.deliver} date={c.deliverBy} okText={c.status === 'Đã hoàn thành' ? 'HĐ đã hoàn thành' : 'Đã nhận về'} />,
     },
     { title: 'Tạm ứng', key: 'adv', width: 190, render: (_, c) => <AdvCell c={c} /> },
     {
@@ -148,7 +148,7 @@ export default function Contracts() {
   return (
     <>
       <PageHeader title="Hợp đồng & Tạm ứng"
-        desc="Kế toán soạn hợp đồng theo mẫu trước hạn soạn thảo HĐ · nhận đủ hồ sơ (bấm Hoàn thành) trước hạn nhận đủ hồ sơ · tiền về nhập tay, Quản lý duyệt · theo dõi lũy kế hàng — tiền"
+        desc="Kế toán soạn hợp đồng theo mẫu trước hạn soạn thảo HĐ · khách ký trả hồ sơ (Đã nhận về) trước hạn nhận đủ hồ sơ · tiền về nhập tay, Quản lý duyệt · theo dõi lũy kế hàng — tiền"
         extra={<>
           <ExportButton kind="contracts" params={{ status: fs, due: fd }} ids={rows.map((c) => c.id)} total={contracts.length} />
           <Button type="primary" icon={<ShoppingCart size={14} />} onClick={() => navigate('/don-hang?status=' + encodeURIComponent('Chốt đơn'))}>Đơn hàng chờ làm HĐ</Button>

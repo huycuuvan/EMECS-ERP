@@ -69,7 +69,7 @@ def collect(db: Session, now: datetime | None = None) -> list[dict]:
         comp, dlv = a["complete"], a["deliver"]
         if comp["state"] in ("overdue", "soon"):  # hạn soạn thảo hợp đồng — việc của kế toán
             hd.append((comp["days"], f"{a['contract']['id']} {comp['label'].lower()}"))
-        if dlv["state"] in ("overdue", "soon"):  # hạn nhận đủ hồ sơ — kế toán bấm Hoàn thành
+        if dlv["state"] in ("overdue", "soon"):  # hạn nhận đủ hồ sơ — hợp đồng Đã nhận về
             gh.append((dlv["days"], f"{a['contract']['id']} {dlv['label'].lower()}"))
     if hd:
         hd.sort()

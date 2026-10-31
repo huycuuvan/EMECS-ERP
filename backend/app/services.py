@@ -250,9 +250,9 @@ def complete_info(c: Contract) -> dict:
 
 
 def deliver_info(c: Contract) -> dict:
-    """HẠN NHẬN ĐỦ HỒ SƠ (anh Thắng 31/10, trước là hạn giao hàng cho khách): chỉ xong khi kế toán bấm "Đã hoàn thành"
-    hợp đồng (đã nhận đủ hồ sơ: biên bản giao nhận ký, chứng chỉ…) — giao đủ kg mà chưa đủ hồ sơ vẫn cảnh báo."""
-    return _deadline(c.deliver_by, c.status == CT_DONE, "hạn nhận đủ hồ sơ")
+    """HẠN NHẬN ĐỦ HỒ SƠ (anh Thắng 31/10, trước là hạn giao hàng cho khách): xong khi hợp đồng "Đã nhận về" (khách ký
+    trả hồ sơ) hoặc "Đã hoàn thành" — giao đủ kg mà chưa nhận về hồ sơ vẫn cảnh báo."""
+    return _deadline(c.deliver_by, c.status in (CT_RECEIVED, CT_DONE), "hạn nhận đủ hồ sơ")
 
 
 def advance_info(c: Contract) -> dict:
@@ -422,7 +422,7 @@ def _vn(d: datetime | None) -> datetime | None:
 
 
 def send_order_to_kt(db: Session, oid: str, complete_by: datetime | None, deliver_by: datetime | None = None) -> Contract:
-    """2 mốc: hạn soạn thảo hợp đồng (kế toán soạn xong) + hạn nhận đủ hồ sơ (kế toán bấm Hoàn thành)."""
+    """2 mốc: hạn soạn thảo hợp đồng (kế toán soạn xong) + hạn nhận đủ hồ sơ (hợp đồng Đã nhận về)."""
     o = get_or_404(db, Order, oid)
     if o.contract_id:
         raise HTTPException(400, f"Đơn {oid} đã có hợp đồng {o.contract_id}")

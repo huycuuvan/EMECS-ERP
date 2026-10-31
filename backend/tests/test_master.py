@@ -186,6 +186,14 @@ def test_material_receipts_and_stats(c):
 
 # ---------------------------------------------------------------- cảnh báo cuối ngày
 def test_end_of_day_alerts_role_targeted_once_per_day(c):
+    from datetime import timedelta
+
+    from app.db import SessionLocal, utcnow
+    from app.models import Contract
+    with SessionLocal() as db:  # HĐ đã gửi khách, quá hạn nhận đủ hồ sơ mà khách chưa ký trả về
+        hd = db.get(Contract, "HD-2609-06")
+        hd.status, hd.deliver_by = "Đã gửi khách hàng", utcnow() - timedelta(days=1)
+        db.commit()
     r = c.post("/api/alerts/run-end-of-day").json()
     assert r["ran"] and r["created"] == 4
     assert c.post("/api/alerts/run-end-of-day").json() == {**r, "ran": False, "created": 0, "titles": []}
@@ -194,7 +202,7 @@ def test_end_of_day_alerts_role_targeted_once_per_day(c):
     login(c, "kt")
     titles = [n["title"] for n in c.get("/api/notifications").json()]
     assert any("quá hạn soạn thảo hợp đồng" in t for t in titles)
-    assert any("quá hạn nhận đủ hồ sơ" in t for t in titles)  # kế toán bấm Hoàn thành khi đủ hồ sơ
+    assert any("quá hạn nhận đủ hồ sơ" in t for t in titles)  # hồ sơ là việc của kế toán
     assert not any("lệnh SX" in t or "thẻ lái xe" in t for t in titles)
     assert "Đơn hàng mới DH-2609-05" in titles  # thông báo chung (roles rỗng) vẫn thấy
     login(c, "sx")

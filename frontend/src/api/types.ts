@@ -9,6 +9,8 @@ export interface Order {
   id: ID; customer: string; code: string; date: string; file: string | null; items: OrderItem[]
   totalKg: number; value: number; status: OrderStatus; contractId: ID | null; note: string
   vatPct: number; vatAmount: number; valueAfterVat: number; customerId?: number | null; completeBy: string | null; deliverBy?: string | null
+  /** trạng thái hiện tại của hợp đồng của đơn (Chờ soạn thảo → … → Đã hoàn thành); null = chưa có hợp đồng */
+  contractStatus?: ContractStatus | null
 }
 
 /** Kết quả đọc file Excel đặt hàng (POST /orders/import-excel) — chưa lưu. */
@@ -46,7 +48,7 @@ export interface Contract {
 /** Cảnh báo theo 1 mốc hạn: hạn soạn thảo hợp đồng (complete) hoặc hạn nhận đủ hồ sơ (deliver). */
 export interface CompleteInfo { state: 'none' | 'ok' | 'fine' | 'soon' | 'overdue'; label: string; days: number | null }
 export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label: string }
-/** GET /contracts trả kèm adv + 2 mốc: complete = hạn soạn thảo hợp đồng (kế toán soạn xong), deliver = hạn nhận đủ hồ sơ (kế toán bấm Hoàn thành) */
+/** GET /contracts trả kèm adv + 2 mốc: complete = hạn soạn thảo hợp đồng (kế toán soạn xong), deliver = hạn nhận đủ hồ sơ (hợp đồng Đã nhận về) */
 export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo; pendingExtension: PendingExtension | null; billedKg: number; billPendingKg: number
   /** công nợ: giá trị hàng khách đã ký nhận (không VAT), và số còn nợ */
   billedValue: number; debt: number }

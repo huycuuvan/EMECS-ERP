@@ -309,15 +309,16 @@ def test_billing_by_customer_signed_kg_no_vat(c):
     assert any("tính vào công nợ" in n["title"] for n in c.get("/api/notifications").json())
 
 
-def test_deliver_deadline_done_only_when_contract_completed(c):
-    """Hạn nhận đủ hồ sơ chỉ xong khi kế toán bấm Hoàn thành — khách nhận đủ kg chưa tính là xong."""
+def test_deliver_deadline_done_when_contract_received(c):
+    """Hạn nhận đủ hồ sơ xong khi hợp đồng Đã nhận về / Đã hoàn thành — chưa nhận về thì vẫn tính ngày."""
     from app.db import utcnow
     from app.models import Contract
     from app.services import deliver_info
-    k = Contract(total_kg=7000, status="Đã nhận về", deliver_by=utcnow())
+    k = Contract(total_kg=7000, status="Đã gửi khách hàng", deliver_by=utcnow())
     assert deliver_info(k)["state"] != "ok"
-    k.status = "Đã hoàn thành"
-    assert deliver_info(k)["state"] == "ok"
+    for st in ("Đã nhận về", "Đã hoàn thành"):
+        k.status = st
+        assert deliver_info(k)["state"] == "ok"
 
 
 def test_lsx_extend_by_days(c):
