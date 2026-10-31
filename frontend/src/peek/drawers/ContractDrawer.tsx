@@ -74,7 +74,7 @@ export default function ContractDrawer({ id }: { id: string }) {
               items={CONTRACT_STEPS.map((s) => ({ title: s }))} />
             <div className="hd-steps-meta">
               <span>Số HĐ <b className="mono">{c.number || '—'}</b></span>
-              <span>Hạn trả HĐ <CompleteChip info={g.complete} /></span>
+              <span>Hạn soạn thảo HĐ <CompleteChip info={g.complete} /></span>
               <span>Hạn nhận đủ hồ sơ <CompleteChip info={g.deliver} /></span>
             </div>
           </div>

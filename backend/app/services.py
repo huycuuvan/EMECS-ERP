@@ -244,8 +244,9 @@ def _deadline(by, done: bool, what: str) -> dict:
 
 
 def complete_info(c: Contract) -> dict:
-    """HẠN TRẢ HỢP ĐỒNG (kế toán): xong khi khách đã ký trả về (bước "Đã nhận về" trở đi)."""
-    return _deadline(c.complete_by, c.status in (CT_RECEIVED, CT_DONE), "hạn trả HĐ")
+    """HẠN SOẠN THẢO HỢP ĐỒNG (anh Thắng 31/10, trước là hạn trả HĐ): xong khi kế toán soạn xong (bước "Đã soạn thảo"
+    trở đi) — không chờ khách ký trả về."""
+    return _deadline(c.complete_by, c.status != CT_WAIT, "hạn soạn thảo HĐ")
 
 
 def deliver_info(c: Contract) -> dict:
@@ -421,16 +422,16 @@ def _vn(d: datetime | None) -> datetime | None:
 
 
 def send_order_to_kt(db: Session, oid: str, complete_by: datetime | None, deliver_by: datetime | None = None) -> Contract:
-    """2 mốc: hạn trả hợp đồng (kế toán làm xong giấy tờ) + hạn nhận đủ hồ sơ (kế toán bấm Hoàn thành)."""
+    """2 mốc: hạn soạn thảo hợp đồng (kế toán soạn xong) + hạn nhận đủ hồ sơ (kế toán bấm Hoàn thành)."""
     o = get_or_404(db, Order, oid)
     if o.contract_id:
         raise HTTPException(400, f"Đơn {oid} đã có hợp đồng {o.contract_id}")
     if not complete_by:
-        raise HTTPException(400, "Chưa nhập hạn trả hợp đồng")
+        raise HTTPException(400, "Chưa nhập hạn soạn thảo hợp đồng")
     now = utcnow()
     complete_by, deliver_by = _vn(complete_by), _vn(deliver_by)
     if complete_by < now:
-        raise HTTPException(400, "Hạn trả hợp đồng phải sau hôm nay")
+        raise HTTPException(400, "Hạn soạn thảo hợp đồng phải sau hôm nay")
     if deliver_by is not None and deliver_by < now:
         raise HTTPException(400, "Hạn nhận đủ hồ sơ phải sau hôm nay")
     o.complete_by, o.deliver_by = complete_by, deliver_by
@@ -445,7 +446,7 @@ def send_order_to_kt(db: Session, oid: str, complete_by: datetime | None, delive
     db.add(c)
     o.contract_id, o.status = c.id, "Đã chuyển kế toán"
     notify(db, f"Đơn {o.id} đã chuyển kế toán — soạn hợp đồng {c.id}",
-           f"Hạn trả hợp đồng: {fmt_d(complete_by)}" + (f" · hạn nhận đủ hồ sơ: {fmt_d(deliver_by)}" if deliver_by else ""), "info",
+           f"Hạn soạn thảo hợp đồng: {fmt_d(complete_by)}" + (f" · hạn nhận đủ hồ sơ: {fmt_d(deliver_by)}" if deliver_by else ""), "info",
            roles="kt,admin", ref=c.id)
     db.commit()
     return c
@@ -460,7 +461,7 @@ def update_contract(db: Session, cid: str, data: dict) -> Contract:
     if data.get("signedFile") is not None:
         c.signed_file = data["signedFile"] or None
     o = db.get(Order, c.order_id)
-    if data.get("completeBy") is not None:  # hạn trả hợp đồng (kế toán)
+    if data.get("completeBy") is not None:  # hạn soạn thảo hợp đồng (kế toán)
         c.complete_by = c.due_at = _vn(data["completeBy"])
         if o:
             o.complete_by = c.complete_by
@@ -511,7 +512,7 @@ def mark_contract_signed(db: Session, cid: str) -> Contract:
     return c
 
 
-# ---------------------------------------------------------------- gia hạn trả hợp đồng
+# ---------------------------------------------------------------- gia hạn soạn thảo hợp đồng
 EXT_WAIT, EXT_OK, EXT_NO = "Chờ duyệt", "Đã duyệt", "Từ chối"
 
 
@@ -529,12 +530,12 @@ def pending_extensions(db: Session) -> list[dict]:
 
 
 def request_extension(db: Session, cid: str, reason: str) -> Contract:
-    """Kế toán: hạn trả HĐ sắp tới / đã quá mà khách chưa ký trả về → nhập lý do, xin Quản lý gia hạn."""
+    """Kế toán: hạn soạn thảo HĐ sắp tới / đã quá mà chưa soạn xong → nhập lý do, xin Quản lý gia hạn."""
     c = get_or_404(db, Contract, cid)
-    if c.status in (CT_RECEIVED, CT_DONE):
-        raise HTTPException(400, f"Hợp đồng {cid} đã nhận về — không cần gia hạn")
+    if c.status != CT_WAIT:
+        raise HTTPException(400, f"Hợp đồng {cid} đã soạn thảo — không cần gia hạn")
     if not c.complete_by:
-        raise HTTPException(400, f"Hợp đồng {cid} chưa có hạn trả — Quản lý nhập hạn trước")
+        raise HTTPException(400, f"Hợp đồng {cid} chưa có hạn soạn thảo — Quản lý nhập hạn trước")
     if not (reason or "").strip():
         raise HTTPException(400, "Nhập lý do xin gia hạn")
     if any(e.status == EXT_WAIT for e in contract_extensions(db, cid)):
@@ -542,7 +543,7 @@ def request_extension(db: Session, cid: str, reason: str) -> Contract:
     who = actor(KT)
     db.add(ContractExtension(contract_id=cid, reason=reason.strip(), requested_by=who, requested_at=utcnow(),
                              status=EXT_WAIT, days=CONTRACT_EXTEND_DAYS, old_by=c.complete_by))
-    notify(db, f"Xin gia hạn trả HĐ {cid}", f"{c.customer} · {who}: {reason.strip()} · "
+    notify(db, f"Xin gia hạn soạn thảo HĐ {cid}", f"{c.customer} · {who}: {reason.strip()} · "
            f"hạn hiện tại {fmt_d(c.complete_by)}", "warning", roles="admin", ref=cid)
     db.commit()
     return c
@@ -556,7 +557,7 @@ def _extension(db: Session, eid: int) -> ContractExtension:
 
 
 def approve_extension(db: Session, eid: int, days: int | None = None) -> Contract:
-    """Quản lý duyệt + điền số ngày gia hạn → hạn trả HĐ cộng thêm N ngày (tính từ hạn hiện tại)."""
+    """Quản lý duyệt + điền số ngày gia hạn → hạn soạn thảo HĐ cộng thêm N ngày (tính từ hạn hiện tại)."""
     e = _extension(db, eid)
     c = get_or_404(db, Contract, e.contract_id)
     if days is not None:
@@ -569,7 +570,7 @@ def approve_extension(db: Session, eid: int, days: int | None = None) -> Contrac
     o = db.get(Order, c.order_id)
     if o:
         o.complete_by = new_by
-    notify(db, f"Quản lý duyệt gia hạn trả HĐ {c.id} +{e.days} ngày", f"Hạn mới {fmt_d(new_by)} · {c.customer}", "success",
+    notify(db, f"Quản lý duyệt gia hạn soạn thảo HĐ {c.id} +{e.days} ngày", f"Hạn mới {fmt_d(new_by)} · {c.customer}", "success",
            roles="kt,admin", ref=c.id)
     db.commit()
     return c
@@ -581,7 +582,7 @@ def reject_extension(db: Session, eid: int, reason: str) -> Contract:
         raise HTTPException(400, "Nhập lý do từ chối")
     c = get_or_404(db, Contract, e.contract_id)
     e.status, e.decided_by, e.decided_at, e.reject_reason = EXT_NO, actor(QL), utcnow(), reason.strip()
-    notify(db, f"Quản lý không duyệt gia hạn trả HĐ {c.id}", f"{reason.strip()} · hạn vẫn {fmt_d(c.complete_by)}", "error",
+    notify(db, f"Quản lý không duyệt gia hạn soạn thảo HĐ {c.id}", f"{reason.strip()} · hạn vẫn {fmt_d(c.complete_by)}", "error",
            roles="kt,admin", ref=c.id)
     db.commit()
     return c

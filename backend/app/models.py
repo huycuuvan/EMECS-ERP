@@ -58,7 +58,7 @@ class Order(Base):
     contract_id: Mapped[str | None] = mapped_column(String(32))
     note: Mapped[str] = mapped_column(Text, default="")
     customer_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # → customers.id
-    complete_by = mapped_column(UTCDateTime, nullable=True)  # hạn kế toán trả hợp đồng (QL nhập khi chuyển kế toán)
+    complete_by = mapped_column(UTCDateTime, nullable=True)  # hạn kế toán soạn thảo hợp đồng (QL nhập khi chuyển kế toán)
     deliver_by = mapped_column(UTCDateTime, nullable=True)  # hạn nhận đủ hồ sơ (trước là hạn giao hàng cho khách)
     vat_pct: Mapped[float] = mapped_column(Float, default=10, server_default="10")  # thuế VAT % (file đặt hàng khách)
     items: Mapped[list["OrderItem"]] = relationship(
@@ -92,7 +92,7 @@ class Contract(Base):
     # Chờ soạn thảo | Đã soạn thảo | Đã gửi khách hàng | Đã nhận về | Đã hoàn thành (config.CONTRACT_STATUSES)
     status: Mapped[str] = mapped_column(String(40))
     number: Mapped[str] = mapped_column(String(64), default="", server_default="")  # Số HĐ in trên văn bản
-    complete_by = mapped_column(UTCDateTime, nullable=True)  # HẠN TRẢ HỢP ĐỒNG: kế toán soạn, gửi khách, khách ký trả về
+    complete_by = mapped_column(UTCDateTime, nullable=True)  # HẠN SOẠN THẢO HỢP ĐỒNG: xong khi kế toán soạn xong
     deliver_by = mapped_column(UTCDateTime, nullable=True)  # HẠN NHẬN ĐỦ HỒ SƠ: xong khi kế toán bấm Hoàn thành
     draft: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON bản soạn thảo (ô vàng KT nhập)
     signed_file: Mapped[str | None] = mapped_column(String(255), nullable=True)  # bản scan HĐ đã ký: /uploads/<tên>
@@ -131,7 +131,7 @@ class Payment(Base):
 
 
 class ContractExtension(Base):
-    """Xin gia hạn trả hợp đồng: kế toán nhập lý do → Quản lý duyệt (+5 ngày) / từ chối."""
+    """Xin gia hạn soạn thảo hợp đồng: kế toán nhập lý do → Quản lý duyệt (+5 ngày) / từ chối."""
     __tablename__ = "contract_extensions"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     contract_id: Mapped[str] = mapped_column(String(32), index=True)
@@ -140,7 +140,7 @@ class ContractExtension(Base):
     requested_at = mapped_column(UTCDateTime)
     status: Mapped[str] = mapped_column(String(20), default="Chờ duyệt")  # Chờ duyệt | Đã duyệt | Từ chối
     days: Mapped[int] = mapped_column(Integer, default=5)
-    old_by = mapped_column(UTCDateTime, nullable=True)  # hạn trả HĐ trước khi gia hạn
+    old_by = mapped_column(UTCDateTime, nullable=True)  # hạn soạn thảo HĐ trước khi gia hạn
     new_by = mapped_column(UTCDateTime, nullable=True)  # hạn sau khi duyệt
     decided_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
     decided_at = mapped_column(UTCDateTime, nullable=True)

@@ -37,7 +37,7 @@ def test_seed_dashboard_matches_demo(c):
     d = c.get("/api/dashboard").json()
     assert d["activeContracts"] == 4
     assert d["deliveredKgTotal"] == 103880
-    assert len(d["contractAlerts"]) == 5  # hạn trả HĐ + hạn nhận đủ hồ sơ + tạm ứng
+    assert len(d["contractAlerts"]) == 5  # hạn soạn thảo HĐ + hạn nhận đủ hồ sơ + tạm ứng
     sd06 = next(a for a in d["contractAlerts"] if a["contract"]["id"] == "HD-2609-06")
     assert sd06["deliver"]["state"] == "soon"  # còn ≤ 7 ngày tới hạn nhận đủ hồ sơ mà chưa hoàn thành
     assert [x["id"] for x in d["overdueDocs"]] == ["VC-0006"]
@@ -255,19 +255,19 @@ def test_attach_signed_documents(c):
 
 
 def test_two_deadlines_contract_return_and_delivery(c):
-    """2 mốc (anh Thắng chốt 06/10): hạn trả hợp đồng = kế toán xong giấy tờ (khách ký trả về);
+    """2 mốc (anh Thắng chốt 06/10): hạn soạn thảo hợp đồng (31/10, trước là hạn trả HĐ) = xong khi kế toán soạn xong;
     hạn nhận đủ hồ sơ (31/10, trước là hạn giao hàng) = chỉ xong khi kế toán bấm "Đã hoàn thành"."""
     from sqlalchemy import select
 
     from app.db import SessionLocal
     from app.models import Contract, Task
     al = {a["contract"]["id"]: a for a in c.get("/api/dashboard").json()["contractAlerts"]}
-    assert al["HD-2609-02"]["complete"]["state"] == "soon"      # chờ soạn thảo, sắp tới hạn trả HĐ
+    assert al["HD-2609-02"]["complete"]["state"] == "soon"      # chờ soạn thảo, sắp tới hạn soạn thảo HĐ
     assert al["HD-2609-03"]["complete"]["state"] == "overdue"
-    assert al["HD-2609-06"]["complete"]["state"] == "ok"        # đã nhận về → xong hạn trả HĐ
+    assert al["HD-2609-06"]["complete"]["state"] == "ok"        # đã soạn thảo (ở đây đã nhận về) → xong hạn soạn thảo HĐ
     assert al["HD-2609-06"]["deliver"]["state"] == "soon"       # nhưng sắp tới hạn nhận đủ hồ sơ mà chưa hoàn thành
     with SessionLocal() as db:
-        db.get(Contract, "HD-2609-02").status = "Đã nhận về"
+        db.get(Contract, "HD-2609-02").status = "Đã soạn thảo"  # soạn xong là xong hạn, không chờ khách ký
         db.get(Contract, "HD-2609-06").status = "Đã hoàn thành"
         db.commit()
     rows = {x["id"]: x for x in c.get("/api/contracts").json()}
@@ -289,9 +289,9 @@ def test_two_deadlines_contract_return_and_delivery(c):
 
 
 def test_contract_return_extension_flow(c):
-    """Quá / sắp tới hạn trả HĐ: kế toán nhập lý do xin gia hạn → Quản lý duyệt (+5 ngày) hoặc từ chối."""
+    """Quá / sắp tới hạn soạn thảo HĐ: kế toán nhập lý do xin gia hạn → Quản lý duyệt (+5 ngày) hoặc từ chối."""
     from datetime import datetime, timedelta
-    cid = "HD-2609-03"  # chờ soạn thảo, đã quá hạn trả HĐ
+    cid = "HD-2609-03"  # chờ soạn thảo, đã quá hạn soạn thảo HĐ
     old = datetime.fromisoformat(c.get(f"/api/contracts/{cid}").json()["contract"]["completeBy"].replace("Z", "+00:00"))
     login(c, "kt")
     assert c.post(f"/api/contracts/{cid}/extensions", json={"reason": " "}).status_code in (400, 422)
@@ -316,3 +316,12 @@ def test_contract_return_extension_flow(c):
     g = c.get(f"/api/contracts/{cid}").json()
     assert g["contract"]["completeBy"] == ct["completeBy"] and g["extensions"][-1]["status"] == "Từ chối"
     assert c.post("/api/contracts/HD-2609-06/extensions", json={"reason": "x"}).status_code == 400  # đã nhận về
+    from app.db import SessionLocal
+    from app.models import Contract
+    with SessionLocal() as db:  # đã soạn thảo xong (chưa gửi khách / khách chưa ký) → không còn xin gia hạn soạn thảo
+        db.get(Contract, cid).status = "Đã gửi khách hàng"
+        db.commit()
+    login(c, "kt")
+    r = c.post(f"/api/contracts/{cid}/extensions", json={"reason": "khách chưa ký"})
+    assert r.status_code == 400 and "đã soạn thảo" in r.json()["detail"]
+    assert next(x for x in c.get("/api/contracts").json() if x["id"] == cid)["complete"]["state"] == "ok"

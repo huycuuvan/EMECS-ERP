@@ -1,5 +1,5 @@
 /* Chuyển kế toán làm HĐ — popup xác nhận + 2 MỐC (anh Thắng chốt 06/10):
-   - Hạn trả hợp đồng: kế toán soạn, gửi khách, khách ký trả về (mặc định 05 ngày).
+   - Hạn soạn thảo hợp đồng (anh Thắng 31/10, trước là hạn trả HĐ): xong khi kế toán soạn xong (mặc định 05 ngày).
    - Hạn nhận đủ hồ sơ (anh Thắng 31/10, trước là hạn giao hàng): xong khi kế toán bấm Hoàn thành hợp đồng.
    Mỗi mốc cảnh báo riêng khi còn ≤ 7 ngày và báo đỏ khi quá hạn. Dùng ở trang Đơn hàng và drawer Đơn hàng. */
 import { DatePicker, Form, Modal } from 'antd'
@@ -37,8 +37,8 @@ function SendKTModal({ order: o, onClose }: { order: Order; onClose: () => void 
       <p>Chuyển đơn của <b>{o.customer}</b> ({fmtT(o.totalKg)} · {moneyShort(o.value)}) sang kế toán soạn hợp đồng?</p>
       <Form form={form} layout="vertical" requiredMark={false}
         initialValues={{ completeBy: o.completeBy ? dayjs(o.completeBy) : dayjs().add(5, 'day'), deliverBy: o.deliverBy ? dayjs(o.deliverBy) : undefined }}>
-        <Form.Item name="completeBy" label="Hạn trả hợp đồng (kế toán)" rules={[{ required: true, message: 'Chọn hạn trả hợp đồng' }]}
-          extra="Kế toán soạn hợp đồng, gửi khách, khách ký trả về trước ngày này (mặc định 05 ngày).">
+        <Form.Item name="completeBy" label="Hạn soạn thảo hợp đồng (kế toán)" rules={[{ required: true, message: 'Chọn hạn soạn thảo hợp đồng' }]}
+          extra="Kế toán soạn xong hợp đồng trước ngày này (mặc định 05 ngày).">
           <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Chọn ngày" disabledDate={notPast} />
         </Form.Item>
         <Form.Item name="deliverBy" label="Hạn nhận đủ hồ sơ" rules={[{ required: true, message: 'Chọn hạn nhận đủ hồ sơ' }]}

@@ -235,7 +235,7 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
         d = S.contract(c)
         d["customerId"] = cust_of.get(c.order_id)
         d["adv"] = svc.advance_info(c)
-        d["pendingExtension"] = ext_wait.get(c.id)  # đang xin gia hạn trả HĐ, chờ Quản lý duyệt
+        d["pendingExtension"] = ext_wait.get(c.id)  # đang xin gia hạn soạn thảo HĐ, chờ Quản lý duyệt
         d["complete"] = svc.complete_info(c)
         d["deliver"] = svc.deliver_info(c)
         d["billedKg"], d["billPendingKg"] = svc.billed_kg(db, c.id)  # công nợ theo kg khách ký nhận
@@ -261,7 +261,7 @@ def contract_ledger(cid: str, db: Session = DB):
 @router.patch("/contracts/{cid}", dependencies=[Depends(require("hop-dong", "edit"))])
 def update_contract(cid: str, body: SC.ContractUpdate, db: Session = DB, user: User = Depends(get_current_user)):
     if (body.complete_by is not None or body.deliver_by is not None) and "admin" not in user.role_list:
-        raise HTTPException(403, "Chỉ Quản lý được đổi hạn trả hợp đồng / hạn nhận đủ hồ sơ")
+        raise HTTPException(403, "Chỉ Quản lý được đổi hạn soạn thảo hợp đồng / hạn nhận đủ hồ sơ")
     with track(db, "hd", cid, lambda: contract_snapshot(svc.get_or_404(db, Contract, cid))):  # lưu lịch sử sửa
         c = svc.update_contract(db, cid, body.model_dump(by_alias=True, exclude_none=True))
     return S.contract(c)
@@ -368,7 +368,7 @@ def pending_payments(db: Session = DB):
 
 @router.post("/contracts/{cid}/extensions", dependencies=[Depends(require("hop-dong", "edit"))])
 def request_extension(cid: str, body: SC.ReasonIn, db: Session = DB):
-    """Kế toán xin gia hạn trả hợp đồng (lý do bắt buộc) → chờ Quản lý duyệt."""
+    """Kế toán xin gia hạn soạn thảo hợp đồng (lý do bắt buộc) → chờ Quản lý duyệt."""
     return S.contract(svc.request_extension(db, cid, body.reason))
 
 

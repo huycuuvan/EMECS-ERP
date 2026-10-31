@@ -47,7 +47,7 @@ export function ContractEditModal({ contract: c, onClose }: { contract: Contract
   const [form] = Form.useForm<EditVals>()
   const upd = useUpdateContract()
   const { hasRole } = useAuth()
-  const isQl = hasRole('admin')  // chỉ Quản lý đổi hạn trả HĐ / hạn nhận đủ hồ sơ
+  const isQl = hasRole('admin')  // chỉ Quản lý đổi hạn soạn thảo HĐ / hạn nhận đủ hồ sơ
   const { data: meta } = useMeta()
   const unitPrice = Form.useWatch('unitPrice', form) ?? c.unitPrice
   const advPct = Form.useWatch('advPct', form) ?? c.advance.pct
@@ -75,7 +75,7 @@ export function ContractEditModal({ contract: c, onClose }: { contract: Contract
           <Form.Item name="owner" label="Kế toán phụ trách" rules={[{ required: true, message: 'Nhập kế toán phụ trách' }]}>
             <AutoComplete options={owners} />
           </Form.Item>
-          <Form.Item name="complete" label="Hạn trả hợp đồng" extra={isQl ? undefined : 'Chỉ Quản lý được đổi'}>
+          <Form.Item name="complete" label="Hạn soạn thảo hợp đồng" extra={isQl ? undefined : 'Chỉ Quản lý được đổi'}>
             <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" allowClear={false} disabled={!isQl} />
           </Form.Item>
           <Form.Item name="deliver" label="Hạn nhận đủ hồ sơ" extra={isQl ? undefined : 'Chỉ Quản lý được đổi'}>

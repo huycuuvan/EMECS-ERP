@@ -1,5 +1,5 @@
 /* Hạn lệnh SX khi phát lệnh = hôm nay + tiến độ (số ngày xưởng làm), so với HẠN NHẬN ĐỦ HỒ SƠ của hợp đồng
-   (không phải hạn trả hợp đồng — đó là việc giấy tờ của kế toán). Trễ hơn → nhắc màu vàng, không chặn,
+   (không phải hạn soạn thảo hợp đồng — đó là việc giấy tờ của kế toán). Trễ hơn → nhắc màu vàng, không chặn,
    gợi ý tiến độ tối đa để kịp, bấm là đặt luôn. */
 import { Button } from 'antd'
 import { AlarmClock, CheckCircle2 } from 'lucide-react'

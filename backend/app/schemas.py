@@ -47,7 +47,7 @@ class OrderUpdate(In):
 
 
 class SendToKtIn(In):
-    complete_by: datetime | None = None  # hạn trả hợp đồng (bắt buộc — kiểm tra ở service để báo lỗi tiếng Việt)
+    complete_by: datetime | None = None  # hạn soạn thảo hợp đồng (bắt buộc — kiểm tra ở service để báo lỗi tiếng Việt)
     deliver_by: datetime | None = None  # hạn nhận đủ hồ sơ
 
 
@@ -92,7 +92,7 @@ class LsxExtendIn(In):
 
 
 class ExtensionApproveIn(In):
-    days: int | None = None  # Quản lý điền số ngày gia hạn trả HĐ
+    days: int | None = None  # Quản lý điền số ngày gia hạn soạn thảo HĐ
 
 
 class ReceiptItemIn(In):

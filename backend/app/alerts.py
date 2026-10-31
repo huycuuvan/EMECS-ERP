@@ -67,13 +67,13 @@ def collect(db: Session, now: datetime | None = None) -> list[dict]:
     hd, gh = [], []
     for a in svc.contract_alerts(db):
         comp, dlv = a["complete"], a["deliver"]
-        if comp["state"] in ("overdue", "soon"):  # hạn trả hợp đồng — việc của kế toán
+        if comp["state"] in ("overdue", "soon"):  # hạn soạn thảo hợp đồng — việc của kế toán
             hd.append((comp["days"], f"{a['contract']['id']} {comp['label'].lower()}"))
         if dlv["state"] in ("overdue", "soon"):  # hạn nhận đủ hồ sơ — kế toán bấm Hoàn thành
             gh.append((dlv["days"], f"{a['contract']['id']} {dlv['label'].lower()}"))
     if hd:
         hd.sort()
-        out.append({"title": f"Cuối ngày: {len(hd)} hợp đồng sắp tới / quá hạn trả hợp đồng",
+        out.append({"title": f"Cuối ngày: {len(hd)} hợp đồng sắp tới / quá hạn soạn thảo hợp đồng",
                     "sub": _ids([t for _, t in hd]), "type": "error" if hd[0][0] < 0 else "warning",
                     "roles": "kt,admin"})
     if gh:

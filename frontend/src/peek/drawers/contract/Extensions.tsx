@@ -1,4 +1,4 @@
-/* Gia hạn trả hợp đồng (ghi chú khảo sát ý 10): hạn trả HĐ sắp tới / quá mà khách chưa ký trả về →
+/* Gia hạn soạn thảo hợp đồng (ghi chú khảo sát ý 10; 31/10 đổi từ gia hạn trả HĐ): hạn soạn thảo sắp tới / quá mà chưa soạn xong →
    kế toán nhập lý do xin gia hạn → Quản lý Duyệt và tự điền số ngày (tính từ hạn hiện tại) hoặc Từ chối (có lý do).
    Dùng trong drawer Hợp đồng, bảng Hợp đồng và Dashboard. */
 import { App, Button, Input, InputNumber } from 'antd'
@@ -10,9 +10,9 @@ import { useAuth } from '@/lib/auth'
 import { fmtD, fmtDT } from '@/lib/format'
 import { MODAL_Z } from './utils'
 
-/** Kế toán được xin khi: chưa nhận về, có hạn trả, hạn sắp tới / đã quá, chưa có yêu cầu đang chờ. */
+/** Kế toán được xin khi: chưa soạn thảo, có hạn soạn thảo, hạn sắp tới / đã quá, chưa có yêu cầu đang chờ. */
 export function canAskExtension(c: Contract, complete: CompleteInfo, pending: boolean) {
-  return !pending && !!c.completeBy && !['Đã nhận về', 'Đã hoàn thành'].includes(c.status)
+  return !pending && !!c.completeBy && c.status === 'Chờ soạn thảo'
     && (complete.state === 'soon' || complete.state === 'overdue')
 }
 
@@ -22,12 +22,12 @@ export function useAskExtension() {
   return (c: Contract) => {
     let reason = ''
     modal.confirm({
-      title: `Xin gia hạn trả hợp đồng ${c.number || c.id}`, zIndex: MODAL_Z, icon: <CalendarPlus size={20} color="var(--amber)" />,
+      title: `Xin gia hạn soạn thảo hợp đồng ${c.number || c.id}`, zIndex: MODAL_Z, icon: <CalendarPlus size={20} color="var(--amber)" />,
       okText: 'Gửi Quản lý duyệt', cancelText: 'Hủy',
       content: (
         <>
-          <p style={{ margin: '0 0 8px' }}>Hạn trả hiện tại <b>{fmtD(c.completeBy)}</b>. Quản lý duyệt và điền số ngày gia hạn.</p>
-          <Input.TextArea autoFocus rows={3} placeholder="Lý do (bắt buộc) — VD: khách đi công tác chưa ký, chờ khách xác nhận khối lượng…"
+          <p style={{ margin: '0 0 8px' }}>Hạn soạn thảo hiện tại <b>{fmtD(c.completeBy)}</b>. Quản lý duyệt và điền số ngày gia hạn.</p>
+          <Input.TextArea autoFocus rows={3} placeholder="Lý do (bắt buộc) — VD: chờ khách xác nhận khối lượng / đơn giá, thiếu thông tin bên mua…"
             onChange={(e) => { reason = e.target.value }} />
         </>
       ),
@@ -46,7 +46,7 @@ export function ExtensionDecision({ e }: { e: ContractExtension }) {
   const askApprove = () => {
     let days: number | null = e.days || 5
     modal.confirm({
-      title: 'Duyệt gia hạn trả hợp đồng', zIndex: MODAL_Z, okText: 'Duyệt gia hạn', cancelText: 'Hủy', icon: <CalendarPlus size={20} color="var(--moss)" />,
+      title: 'Duyệt gia hạn soạn thảo hợp đồng', zIndex: MODAL_Z, okText: 'Duyệt gia hạn', cancelText: 'Hủy', icon: <CalendarPlus size={20} color="var(--moss)" />,
       content: (
         <>
           <p style={{ margin: '0 0 8px' }}>Hạn trả hiện tại <b>{fmtD(e.oldBy)}</b>. Lý do: {e.reason}</p>
@@ -79,7 +79,7 @@ export default function ExtensionsBlock({ list }: { list: ContractExtension[] })
   if (!list.length) return null
   return (
     <>
-      <Sec icon={<History />}>Gia hạn trả hợp đồng</Sec>
+      <Sec icon={<History />}>Gia hạn soạn thảo hợp đồng</Sec>
       <div style={{ display: 'grid', gap: 8 }}>
         {[...list].reverse().map((e) => (
           <div key={e.id} style={{ border: '1px solid var(--rule)', borderRadius: 10, padding: '10px 12px', background: e.status === 'Chờ duyệt' ? 'var(--amber-soft)' : 'var(--canvas)', display: 'grid', gap: 4, fontSize: 13 }}>

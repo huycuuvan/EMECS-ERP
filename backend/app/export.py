@@ -236,7 +236,7 @@ SHEETS: dict[str, Sheet] = {
     "contracts": Sheet("Sổ hợp đồng & tạm ứng", "hop-dong", "hop-dong", [
         ("Mã HĐ", "text"), ("Mã đơn", "text"), ("Mã nội bộ", "text"), ("Khách hàng", "text"), ("Số lượng", "num"),
         ("Đơn vị", "text"), ("Khối lượng (kg)", "kg"), ("Đơn giá (₫/kg)", "money"), ("Giá trị HĐ", "money"),
-        ("Chuyển kế toán", "date"), ("Hạn trả HĐ", "date"), ("Tình trạng hạn trả HĐ", "text"), ("Hạn nhận đủ hồ sơ", "date"), ("Tình trạng hồ sơ", "text"), ("Ngày ký", "date"),
+        ("Chuyển kế toán", "date"), ("Hạn soạn thảo HĐ", "date"), ("Tình trạng soạn thảo HĐ", "text"), ("Hạn nhận đủ hồ sơ", "date"), ("Tình trạng hồ sơ", "text"), ("Ngày ký", "date"),
         ("Tạm ứng %", "pct"), ("Tạm ứng yêu cầu", "money"), ("Tạm ứng đã về", "money"), ("Tình trạng tạm ứng", "text"),
         ("Đã giao (kg)", "kg"), ("Số chuyến đã giao", "num"), ("Giá trị hàng đã giao", "money"),
         ("Tiền về lũy kế", "money"), ("Công nợ", "money"), ("Trạng thái", "text"), ("Phụ trách", "text")], _contracts),

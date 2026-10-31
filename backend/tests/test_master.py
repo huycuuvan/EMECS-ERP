@@ -193,13 +193,13 @@ def test_end_of_day_alerts_role_targeted_once_per_day(c):
     assert sum(t.startswith("Cuối ngày") for t in titles_ql) == 4
     login(c, "kt")
     titles = [n["title"] for n in c.get("/api/notifications").json()]
-    assert any("quá hạn trả hợp đồng" in t for t in titles)
+    assert any("quá hạn soạn thảo hợp đồng" in t for t in titles)
     assert any("quá hạn nhận đủ hồ sơ" in t for t in titles)  # kế toán bấm Hoàn thành khi đủ hồ sơ
     assert not any("lệnh SX" in t or "thẻ lái xe" in t for t in titles)
     assert "Đơn hàng mới DH-2609-05" in titles  # thông báo chung (roles rỗng) vẫn thấy
     login(c, "sx")
     titles = [n["title"] for n in c.get("/api/notifications").json()]
-    assert any("lệnh SX chưa nhập sản lượng" in t for t in titles) and not any("quá hạn trả hợp đồng" in t for t in titles)
+    assert any("lệnh SX chưa nhập sản lượng" in t for t in titles) and not any("quá hạn soạn thảo hợp đồng" in t for t in titles)
     assert not any("hồ sơ" in t for t in titles)  # hạn nhận đủ hồ sơ là việc của kế toán
     login(c, "lx1")
     assert any("thẻ lái xe" in n["title"] for n in c.get("/api/notifications").json())
@@ -209,7 +209,7 @@ def test_end_of_day_alerts_role_targeted_once_per_day(c):
     login(c, "ql")
     ns = {n["title"]: n["read"] for n in c.get("/api/notifications").json()}
     assert ns["Cuối ngày: 1 thẻ lái xe quá hạn điền phiếu"] is False
-    assert ns["Cuối ngày: 2 hợp đồng sắp tới / quá hạn trả hợp đồng"] is False
+    assert ns["Cuối ngày: 2 hợp đồng sắp tới / quá hạn soạn thảo hợp đồng"] is False
     # force=1 chạy lại trong ngày
     assert c.post("/api/alerts/run-end-of-day", params={"force": 1}).json()["created"] == 4
 

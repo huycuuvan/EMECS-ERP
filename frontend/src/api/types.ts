@@ -19,7 +19,7 @@ export interface OrderExcelImport {
 
 /** Tiền về: kế toán nhập → Quản lý duyệt mới tính vào tiền đã về / tạm ứng / công nợ. */
 export type PaymentStatus = 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'
-/** Xin gia hạn trả hợp đồng: kế toán nhập lý do → Quản lý duyệt (tự điền số ngày) / từ chối. */
+/** Xin gia hạn soạn thảo hợp đồng: kế toán nhập lý do → Quản lý duyệt (tự điền số ngày) / từ chối. */
 export interface ContractExtension {
   id: number; contractId: ID; reason: string; requestedBy: string; requestedAt: string
   status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; days: number; oldBy: string | null; newBy: string | null
@@ -41,10 +41,10 @@ export interface Contract {
   payments: Payment[]; note: string
   number: string; completeBy: string | null; deliverBy: string | null; signedFile: string | null; draftedAt: string | null; completedAt: string | null; pendingPayment: number
 }
-/** Cảnh báo theo 1 mốc hạn: hạn trả hợp đồng (complete) hoặc hạn nhận đủ hồ sơ (deliver). */
+/** Cảnh báo theo 1 mốc hạn: hạn soạn thảo hợp đồng (complete) hoặc hạn nhận đủ hồ sơ (deliver). */
 export interface CompleteInfo { state: 'none' | 'ok' | 'fine' | 'soon' | 'overdue'; label: string; days: number | null }
 export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label: string }
-/** GET /contracts trả kèm adv + 2 mốc: complete = hạn trả hợp đồng (kế toán), deliver = hạn nhận đủ hồ sơ (kế toán bấm Hoàn thành) */
+/** GET /contracts trả kèm adv + 2 mốc: complete = hạn soạn thảo hợp đồng (kế toán soạn xong), deliver = hạn nhận đủ hồ sơ (kế toán bấm Hoàn thành) */
 export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo; pendingExtension: ContractExtension | null; billedKg: number; billPendingKg: number
   /** công nợ: giá trị hàng khách đã ký nhận (không VAT), và số còn nợ */
   billedValue: number; debt: number }

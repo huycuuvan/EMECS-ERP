@@ -1,5 +1,5 @@
 /* Hợp đồng & Tạm ứng (màn kế toán): KPI tạm ứng / tiền về chờ duyệt / công nợ · danh sách (bước hợp đồng, ngày hoàn thành,
-   hạn trả HĐ, hạn nhận đủ hồ sơ, tạm ứng, lũy kế giao — tiền) · thao tác theo 4 bước: Soạn thảo → Đã gửi khách hàng → Đã nhận về →
+   hạn soạn thảo HĐ, hạn nhận đủ hồ sơ, tạm ứng, lũy kế giao — tiền) · thao tác theo 4 bước: Soạn thảo → Đã gửi khách hàng → Đã nhận về →
    Đã hoàn thành · + Tiền về (chờ Quản lý duyệt) · Xuất Excel · Đơn hàng chờ làm HĐ. */
 import { Button, Input, Select, Table, Tag, type TableColumnsType } from 'antd'
 import { AlarmClock, AlertTriangle, CheckCircle2, FilePen, Info, Search, ShoppingCart } from 'lucide-react'
@@ -110,10 +110,10 @@ export default function Contracts() {
       render: (_, c) => <span className="num"><b>{moneyShort(c.value)}</b><div className="sub-soft">{fmtNum(c.unitPrice)}₫/kg</div></span>,
     },
     {
-      title: 'Hạn trả HĐ', key: 'complete', width: 140,
+      title: 'Hạn soạn thảo HĐ', key: 'complete', width: 140,
       sorter: (a, b) => (a.completeBy ? new Date(a.completeBy).getTime() : 9e15) - (b.completeBy ? new Date(b.completeBy).getTime() : 9e15),
       render: (_, c) => <>
-        <DeadlineCell info={c.complete} date={c.completeBy} okText="Đã nhận về" />
+        <DeadlineCell info={c.complete} date={c.completeBy} okText="Đã soạn thảo" />
         {c.pendingExtension && <div className="caption" style={{ color: 'var(--amber)', fontWeight: 600, marginTop: 2 }}>Chờ duyệt gia hạn +{c.pendingExtension.days} ngày</div>}
       </>,
     },
@@ -148,7 +148,7 @@ export default function Contracts() {
   return (
     <>
       <PageHeader title="Hợp đồng & Tạm ứng"
-        desc="Kế toán soạn hợp đồng theo mẫu, khách ký trả về trước hạn trả HĐ · nhận đủ hồ sơ (bấm Hoàn thành) trước hạn nhận đủ hồ sơ · tiền về nhập tay, Quản lý duyệt · theo dõi lũy kế hàng — tiền"
+        desc="Kế toán soạn hợp đồng theo mẫu trước hạn soạn thảo HĐ · nhận đủ hồ sơ (bấm Hoàn thành) trước hạn nhận đủ hồ sơ · tiền về nhập tay, Quản lý duyệt · theo dõi lũy kế hàng — tiền"
         extra={<>
           <ExportButton kind="contracts" params={{ status: fs, due: fd }} ids={rows.map((c) => c.id)} total={contracts.length} />
           <Button type="primary" icon={<ShoppingCart size={14} />} onClick={() => navigate('/don-hang?status=' + encodeURIComponent('Chốt đơn'))}>Đơn hàng chờ làm HĐ</Button>
@@ -165,7 +165,7 @@ export default function Contracts() {
         <Kpi tone="signal" label="Sắp tới / quá hạn"
           value={<span className={kpi.late > 0 ? 'text-signal' : ''}>{kpi.late}</span>}
           onClick={kpi.late ? () => setQuick(quick === 'late' ? '' : 'late') : undefined}
-          sub="hợp đồng sắp tới (≤ 7 ngày) / quá hạn trả HĐ hoặc hạn nhận đủ hồ sơ mà chưa xong" />
+          sub="hợp đồng sắp tới (≤ 7 ngày) / quá hạn soạn thảo HĐ hoặc hạn nhận đủ hồ sơ mà chưa xong" />
         <Kpi tone="moss" label="Đối ứng hàng — tiền" value={moneyShort(kpi.debtSum)} sub="khách còn nợ theo hàng đã giao"
           onClick={kpi.debtSum > 0 ? () => setQuick(quick === 'debt' ? '' : 'debt') : undefined} />
       </KpiGrid>
@@ -178,7 +178,7 @@ export default function Contracts() {
             options={[{ value: '', label: 'Tất cả trạng thái' }, ...STATUSES.map((s) => ({ value: s, label: s }))]} />
           <Select value={fd} onChange={setFd} style={{ minWidth: 190 }}
             options={[
-              { value: '', label: 'Hạn trả HĐ / giao hàng: tất cả' }, { value: 'overdue', label: 'Quá hạn' },
+              { value: '', label: 'Hạn soạn thảo HĐ / hồ sơ: tất cả' }, { value: 'overdue', label: 'Quá hạn' },
               { value: 'soon', label: 'Sắp tới hạn (≤ 7 ngày)' },
             ]} />
           <TagFilter value={tag} onChange={setTag} />
@@ -206,7 +206,7 @@ const line1 = { fontWeight: 700, fontSize: 13, lineHeight: 1.35 } as const
 const line2 = { fontSize: 11.5, lineHeight: 1.35, marginTop: 2 } as const
 const LATE = new Set(['soon', 'overdue'])
 
-/** Ô 1 mốc hạn (hạn trả HĐ / hạn nhận đủ hồ sơ): dòng 1 ngày, dòng 2 tình trạng có màu. */
+/** Ô 1 mốc hạn (hạn soạn thảo HĐ / hạn nhận đủ hồ sơ): dòng 1 ngày, dòng 2 tình trạng có màu. */
 function DeadlineCell({ info: k, date, okText }: { info: CompleteInfo; date: string | null | undefined; okText: string }) {
   if (k.state === 'none' || !date) return <span className="text-ash">Chưa có ngày</span>
   const d = k.days ?? 0

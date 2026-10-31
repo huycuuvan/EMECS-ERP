@@ -68,7 +68,7 @@ export default function Dashboard() {
         <Kpi tone="steel" label="Đang triển khai" value={d.activeContracts}
           sub={`hợp đồng · đã giao lũy kế ${fmtT(d.deliveredKgTotal)}`} onClick={() => open('hd', 'HD-2609-01')} />
         <Kpi tone="signal" label="Cảnh báo hợp đồng" value={<span className={alerts.length ? 'text-signal' : ''}>{alerts.length}</span>}
-          sub={<span className="text-signal">{nOver} quá hạn (trả HĐ / giao hàng) · {nSoon} sắp tới hạn · {nAdv} tạm ứng chưa về</span>} onClick={() => scrollTo(refContract)} />
+          sub={<span className="text-signal">{nOver} quá hạn (soạn thảo HĐ / hồ sơ) · {nSoon} sắp tới hạn · {nAdv} tạm ứng chưa về</span>} onClick={() => scrollTo(refContract)} />
         <Kpi tone="signal" label="Thẻ / phiếu quá hạn" value={<span className={d.overdueDocs.length ? 'text-signal' : ''}>{d.overdueDocs.length}</span>}
           sub={<span className="text-signal">chưa điền số kg + ảnh phiếu</span>} onClick={() => scrollTo(refOverdue)} />
         <Kpi tone="rust" label="Sai lệch chờ QL ký" value={<span className={pm.length ? 'text-signal' : ''}>{pm.length}</span>}
@@ -80,7 +80,7 @@ export default function Dashboard() {
       <SectionLabel>Trung tâm cảnh báo</SectionLabel>
       <Grid>
         <div ref={refContract} style={{ scrollMarginTop: 80 }}>
-          <AlertCard icon={<AlarmClock size={15} color="var(--signal)" />} title="Hợp đồng: hạn trả HĐ · hạn nhận đủ hồ sơ · tạm ứng" count={alerts.length} bad>
+          <AlertCard icon={<AlarmClock size={15} color="var(--signal)" />} title="Hợp đồng: hạn soạn thảo HĐ · hạn nhận đủ hồ sơ · tạm ứng" count={alerts.length} bad>
             {alerts.length ? alerts.map((x) => (
               <AlertItem key={x.contract.id} onClick={() => open('hd', x.contract.id)}
                 t1={<><span className="mono" style={{ fontWeight: 700 }}>{x.contract.id}</span> · {x.contract.customer}</>}
@@ -120,7 +120,7 @@ export default function Dashboard() {
         </div>
 
         {d.pendingExtensions.length > 0 && (
-          <AlertCard icon={<CalendarPlus size={15} color="var(--amber)" />} title="Xin gia hạn trả hợp đồng chờ duyệt" count={d.pendingExtensions.length} bad>
+          <AlertCard icon={<CalendarPlus size={15} color="var(--amber)" />} title="Xin gia hạn soạn thảo hợp đồng chờ duyệt" count={d.pendingExtensions.length} bad>
             {d.pendingExtensions.map((e) => (
               <AlertItem key={e.id} onClick={() => open('hd', e.contractId)}
                 t1={<><span className="mono" style={{ fontWeight: 700 }}>{e.contractId}</span> · {e.customer}</>}

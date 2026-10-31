@@ -27,7 +27,7 @@ export default function OverviewTab({ g, onGoFlow, onPay }: { g: ContractAgg; on
         <Cell label="Khách hàng">{c.customer}</Cell>
         <Cell label="Mã nội bộ">{c.code || '—'}</Cell>
         <Cell label="Chuyển kế toán">{fmtD(c.sentToKtAt)}</Cell>
-        <Cell label="Hạn trả hợp đồng (kế toán)" alert={compAlert}>{comp.label}</Cell>
+        <Cell label="Hạn soạn thảo hợp đồng (kế toán)" alert={compAlert}>{comp.label}</Cell>
         <Cell label="Hạn nhận đủ hồ sơ" alert={dlvAlert}>{dlv.label}</Cell>
         <Cell label="Ngày ký">{c.signDate ? fmtD(c.signDate) : 'Chưa ký'}</Cell>
         <Cell label="Phụ trách">{c.owner}</Cell>

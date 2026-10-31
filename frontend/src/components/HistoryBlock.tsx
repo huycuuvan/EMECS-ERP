@@ -25,7 +25,7 @@ const LABEL: Record<string, string> = {
   assignedBy: 'Phát lệnh bởi', acceptedBy: 'Người nhận lệnh', extension: 'Gia hạn đến',
   // đơn hàng / hợp đồng
   customer: 'Khách hàng', code: 'Mã nội bộ', file: 'File ký chốt', items: 'Hàng hóa', totalKg: 'Tổng khối lượng',
-  value: 'Giá trị', owner: 'Phụ trách', dueAt: 'Hạn trả HĐ', completeBy: 'Hạn trả HĐ', deliverBy: 'Hạn nhận đủ hồ sơ', unitPrice: 'Đơn giá/kg', advancePct: '% tạm ứng',
+  value: 'Giá trị', owner: 'Phụ trách', dueAt: 'Hạn soạn thảo HĐ', completeBy: 'Hạn soạn thảo HĐ', deliverBy: 'Hạn nhận đủ hồ sơ', unitPrice: 'Đơn giá/kg', advancePct: '% tạm ứng',
   advanceRequired: 'Tạm ứng yêu cầu', vatPct: 'Thuế VAT (%)',
 }
 const LABEL_BY_TYPE: Partial<Record<HistoryEntity, Record<string, string>>> = {

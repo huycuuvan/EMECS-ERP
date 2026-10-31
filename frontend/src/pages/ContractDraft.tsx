@@ -289,7 +289,7 @@ function Editor({ doc }: { doc: ContractDocument }) {
           <div className="hdd-card">
             <div className="lbl">Trạng thái</div>
             <StatusTag status={doc.status} />
-            {agg && <><div className="lbl" style={{ marginTop: 10 }}>Hạn trả hợp đồng</div><CompleteChip info={agg.complete} />
+            {agg && <><div className="lbl" style={{ marginTop: 10 }}>Hạn soạn thảo hợp đồng</div><CompleteChip info={agg.complete} />
               <div className="lbl" style={{ marginTop: 10 }}>Hạn nhận đủ hồ sơ</div><CompleteChip info={agg.deliver} /></>}
           </div>
           <div className="hdd-card">
