@@ -1,8 +1,8 @@
 /* 4 màn theo vai trò: Quản lý A · Sản xuất · Thủ kho · Lái xe (port renderQL/renderSX/renderKho/renderDriver). */
 import {
-  AlarmClock, AlertTriangle, Banknote, BarChart3, Bell, BellRing, Boxes, CheckCheck, CheckCircle2, ChevronDown, ClipboardList,
+  AlarmClock, AlertTriangle, BarChart3, Bell, BellRing, Boxes, CalendarClock, CheckCheck, CheckCircle2, ChevronDown, ClipboardList,
   Clock, Coffee, Factory, FileClock, FileSignature, FileWarning, Flame, Gauge, History, Hourglass, Inbox,
-  Monitor, Navigation, PackageCheck, PenLine, Plus, Scale, ShieldCheck, Siren, Timer, Truck, UserRound,
+  Monitor, Navigation, PackageCheck, PackagePlus, PenLine, Plus, Scale, ShieldCheck, Siren, Timer, Truck, UserRound,
   UserX, X, type LucideIcon,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -411,13 +411,9 @@ export function QlView({ tab, setTab, onRoleSheet }: RoleViewProps) {
     dash.pendingExtensions.forEach((e) => out.push({ ic: FileClock, t: `${e.contractId} xin gia hạn soạn thảo HĐ — chờ Quản lý duyệt`, s: `${e.customer} · ${e.requestedBy}: ${e.reason}`, red: true, open: ['hd', e.contractId] }))
     dash.overdueDocs.forEach((d) => out.push({ ic: AlarmClock, t: `${d.kind} ${d.id} QUÁ HẠN ${d.hoursOver}h`, s: `${d.person} (${d.dept}) còn thiếu: ${d.missing}`, red: true, open: [d.type, d.id] }))
     dash.pendingMismatches.forEach((mm) => out.push({ ic: FileWarning, t: `${mm.id} lệch ${signed(mm.delta)} kg chờ ký`, s: `${mm.source} · ${mm.refId} · ${mm.reason}`, red: true, open: ['sl', mm.id] }))
-    dash.contractAlerts.forEach((a) => {
-      for (const k of [a.complete, a.deliver]) {
-        if (k.state === 'overdue' || k.state === 'soon')
-          out.push({ ic: FileClock, t: `${a.contract.id} — ${k.label}`, s: a.contract.customer, red: k.state === 'overdue', open: ['hd', a.contract.id] })
-      }
-      if (a.adv.state === 'missing') out.push({ ic: Banknote, t: `${a.contract.id} tạm ứng ${a.adv.label}`, s: a.contract.customer, red: true, open: ['hd', a.contract.id] })
-    })
+    // anh Thắng 31/10: bỏ cảnh báo hạn hợp đồng khỏi dashboard (xem ở màn Hợp đồng); thêm việc chờ Quản lý duyệt
+    ;(dash.lsxExtRequests ?? []).forEach((x) => x.extRequest && out.push({ ic: CalendarClock, t: `${x.id} — xưởng xin gia hạn +${x.extRequest.days} ngày, chờ duyệt`, s: `${x.extRequest.by}: ${x.extRequest.reason}`, red: true, open: ['lsx', x.id] }))
+    ;(dash.pendingMaterials ?? []).forEach((mt) => out.push({ ic: PackagePlus, t: `Phiếu nhập NVL ${mt.id} chờ duyệt`, s: `${mt.supplier} · ${fmtN(mt.kg)} kg · ${mt.by}`, red: false }))
     dash.lsxMissedYesterday.forEach((x) => out.push({ ic: Factory, t: `${x.id} — hôm qua ${ddmm(x.missedDays[0])} xưởng KHÔNG cập nhật sản lượng`, s: x.name, red: true, open: ['lsx', x.id] }))
     dash.pendingLSX.forEach((x) => out.push({ ic: Factory, t: x.id + (x.status === 'Từ chối' ? ' bị xưởng TỪ CHỐI' : ' chờ xưởng nhận'), s: x.rejectReason || x.name, red: x.status === 'Từ chối', open: ['lsx', x.id] }))
     dash.pendingTasks.forEach((t) => out.push({ ic: Truck, t: t.id + (t.status === 'Từ chối' ? ' bị lái xe từ chối' : ' chờ lái xe xác nhận'), s: t.driver + (t.rejectReason ? ' · ' + t.rejectReason : ''), red: t.status === 'Từ chối', open: ['vc', t.id] }))
@@ -442,27 +438,20 @@ export function QlView({ tab, setTab, onRoleSheet }: RoleViewProps) {
 type Dash = NonNullable<ReturnType<typeof useDashboard>['data']>
 
 function QlHome({ dash }: { dash: Dash }) {
-  const als = dash.contractAlerts, ods = dash.overdueDocs
+  const ods = dash.overdueDocs
+  const lxr = dash.lsxExtRequests ?? [], nvl = dash.pendingMaterials ?? []
   const pms = dash.pendingMismatches
   const pl = dash.pendingLSX, pt = dash.pendingTasks
   const nMiss = dash.lsxMissedYesterday
-  const nWarn = als.length + ods.length + nMiss.length
+  const nWarn = lxr.length + nvl.length + ods.length + nMiss.length
   return (
     <>
       <SecTitle icon={Siren} count={nWarn} red={nWarn > 0}>Cảnh báo</SecTitle>
       {!nWarn && <Empty icon={ShieldCheck}>Không có cảnh báo — hệ thống sạch.</Empty>}
       {nMiss.map((x) => <AlertRow key={x.id} a={{ ic: Factory, t: `${x.id} — hôm qua ${ddmm(x.missedDays[0])} xưởng KHÔNG cập nhật sản lượng`, s: `${x.name}${x.missedDays.length > 1 ? ` · bỏ trống ${x.missedDays.length} ngày` : ''}`, red: true, open: ['lsx', x.id] }} />)}
       {ods.map((d) => <AlertRow key={d.id} a={{ ic: AlarmClock, t: `${d.kind} ${d.id} — QUÁ HẠN ${d.hoursOver}h`, s: `${d.person} (${d.dept}) còn thiếu: ${d.missing} · HĐ ${d.contractId}`, red: true, open: [d.type, d.id] }} />)}
-      {als.map((a) => (
-        <div key={a.contract.id}>
-          {[a.complete, a.deliver].filter((k) => k.state === 'overdue' || k.state === 'soon').map((k) => (
-            <AlertRow key={k.label} a={{ ic: FileClock, t: `${a.contract.id} — ${k.label}`, s: `${a.contract.customer} · phụ trách ${a.contract.owner}`, red: k.state === 'overdue', open: ['hd', a.contract.id] }} />
-          ))}
-          {a.adv.state === 'missing' && (
-            <AlertRow a={{ ic: Banknote, t: `${a.contract.id} — tạm ứng ${a.adv.label}`, s: `${a.contract.customer} · đã ký ${a.contract.signDate ? fmtD(a.contract.signDate) : '—'} — đòi trước khi phát lệnh SX`, red: true, open: ['hd', a.contract.id] }} />
-          )}
-        </div>
-      ))}
+      {lxr.map((x) => x.extRequest && <AlertRow key={x.id} a={{ ic: CalendarClock, t: `${x.id} — xưởng xin gia hạn +${x.extRequest.days} ngày`, s: `${x.extRequest.by}: ${x.extRequest.reason} · hạn hiện tại ${fmtD(x.extension?.to ?? x.deadline)}`, red: true, open: ['lsx', x.id] }} />)}
+      {nvl.map((mt) => <AlertRow key={mt.id} a={{ ic: PackagePlus, t: `Phiếu nhập NVL ${mt.id} chờ Quản lý duyệt`, s: `${mt.supplier} · ${fmtN(mt.kg)} kg${mt.kgSupplier != null && Math.abs(mt.kg - mt.kgSupplier) > 0.5 ? ` (NCC ${fmtN(mt.kgSupplier)} kg)` : ''} · duyệt trên máy tính`, red: false }} />)}
 
       <SecTitle icon={FileWarning} count={pms.length} red={pms.length > 0}>Sai lệch chờ ký</SecTitle>
       {pms.length ? <MismatchList list={pms} /> : <Empty icon={CheckCircle2}>Không còn sai lệch chờ ký.</Empty>}

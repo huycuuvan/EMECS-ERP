@@ -174,8 +174,19 @@ def test_material_receipts_and_stats(c):
                                                "spec": "Thép tấm 8×1500×6000", "qty": 10, "unit": "tấm",
                                                "kg": 5652}).json()
     assert m["id"] == "NL-0007" and m["steelGrade"] == "SS400" and m["by"] == "Ngô Minh Kho"
+    assert m["status"] == "Chờ duyệt"  # anh Thắng 31/10: kho nhập → Quản lý duyệt mới tính
     m = c.patch(f"/api/material-receipts/{m['id']}", json={"kg": 5700, "note": "Cân lại"}).json()
     assert m["kg"] == 5700 and m["note"] == "Cân lại"
+    assert c.get("/api/reports/material-stats").json()["totalKg"] == 133107  # chưa duyệt → chưa thống kê
+    assert c.post(f"/api/material-receipts/{m['id']}/approve").status_code == 403  # kho không tự duyệt
+    login(c, "ql")
+    assert [x["id"] for x in c.get("/api/dashboard").json()["pendingMaterials"]] == [m["id"]]
+    m = c.post(f"/api/material-receipts/{m['id']}/approve").json()
+    assert m["status"] == "Đã duyệt" and m["approvedBy"] and not c.get("/api/dashboard").json()["pendingMaterials"]
+    # đã duyệt → không sửa, không xóa (kể cả Quản lý)
+    assert c.patch(f"/api/material-receipts/{m['id']}", json={"kg": 1}).status_code == 400
+    r = c.request("DELETE", f"/api/material-receipts/{m['id']}", json={"reason": "nhập nhầm"})
+    assert r.status_code == 400 and "đã duyệt" in r.json()["detail"]
     s2 = c.get("/api/reports/material-stats").json()
     assert s2["totalKg"] == 133107 + 5700
     assert next(g for g in s2["byGrade"] if g["key"] == "SS400")["count"] == 5
@@ -266,15 +277,18 @@ def test_material_receipt_supplier_vs_actual_notifies_manager(c):
     assert m["kgSupplier"] == 10000 and m["kg"] == 9950 and m["delta"] == -50 and m["photo"]
     login(c, "ql")
     n = c.get("/api/notifications").json()[0]
-    assert n["title"].startswith(f"Phiếu nhập NVL {m['id']}") and "CHÊNH -50 kg" in n["title"]
-    vk = next(e for e in c.get("/api/vloss").json() if e["refId"] == m["id"])  # kho ảo gồm cả chênh nhập NVL
-    assert vk["source"] == "Nhập nguyên liệu" and vk["kg"] == 50 and vk["note"].startswith("Thiếu 50 kg")
-    assert "= 50 kg thiếu" in vk["formula"]["text"]
+    assert n["title"].startswith(f"Phiếu nhập NVL {m['id']} chờ Quản lý duyệt") and "CHÊNH -50 kg" in n["title"]
+    assert all(e["refId"] != m["id"] for e in c.get("/api/vloss").json())  # chưa duyệt → chưa vào kho ảo
+    r = c.post(f"/api/material-receipts/{m['id']}/reject", json={"reason": "Thiếu ảnh hóa đơn NCC"}).json()
+    assert r["status"] == "Từ chối" and r["rejectReason"] == "Thiếu ảnh hóa đơn NCC"
     login(c, "kho")
-    c.patch(f"/api/material-receipts/{m['id']}", json={"kg": 10020})  # sửa thành thừa 20 kg → kho ảo cập nhật theo
+    m = c.patch(f"/api/material-receipts/{m['id']}", json={"kg": 10020}).json()  # sửa → tự gửi duyệt lại
+    assert m["status"] == "Chờ duyệt" and m["rejectReason"] is None
     login(c, "ql")
-    vk = next(e for e in c.get("/api/vloss").json() if e["refId"] == m["id"])
-    assert vk["kg"] == -20 and "= 20 kg thừa" in vk["formula"]["text"]
+    c.post(f"/api/material-receipts/{m['id']}/approve")
+    vk = next(e for e in c.get("/api/vloss").json() if e["refId"] == m["id"])  # kho ảo gồm cả chênh nhập NVL
+    assert vk["source"] == "Nhập nguyên liệu" and vk["kg"] == -20 and vk["note"].startswith("Thừa 20 kg")
+    assert "= 20 kg thừa" in vk["formula"]["text"] and vk["approvedBy"] == "Quản lý A"
 
 
 def test_read_permissions_per_role(c):

@@ -19,7 +19,7 @@ import { NUM } from '@/lib/numberInput'
 
 const NEW = '__new__'
 type ItemVals = { name: string; unit: string; qty?: number; kgPerUnit?: number; price?: number; note?: string }
-interface Vals { cust: string; custNew?: string; code?: string; items: ItemVals[]; vatPct: number; file: string; note?: string }
+interface Vals { cust: string; custNew?: string; code?: string; name?: string; items: ItemVals[]; vatPct: number; file: string; note?: string }
 
 const kgOf = (i?: ItemVals) => (Number(i?.qty) || 0) * (Number(i?.kgPerUnit) || 0)
 const BLANK: ItemVals = { name: '', unit: 'Bộ' }
@@ -53,7 +53,7 @@ export default function OrderFormModal({ order, onClose, onSaved }: { order?: Or
     const its = v.items.map((i) => ({ name: i.name.trim(), qty: i.qty ?? 0, unit: (i.unit || 'Bộ').trim(), kgPerUnit: i.kgPerUnit,
       kg: kgOf(i), price: i.price ?? 0, note: (i.note ?? '').trim() }))
     const file = v.file || ''
-    const body = { customer, items: its, file, note: v.note ?? '', vatPct: v.vatPct ?? 10 }
+    const body = { customer, name: (v.name ?? '').trim(), items: its, file, note: v.note ?? '', vatPct: v.vatPct ?? 10 }
     const o = order
       ? await update.mutateAsync({ id: order.id, ...body, code: v.code?.trim() || undefined })
       : await create.mutateAsync(body)
@@ -88,7 +88,7 @@ export default function OrderFormModal({ order, onClose, onSaved }: { order?: Or
   }
 
   const initial: Vals = order
-    ? { cust: order.customer, code: order.code, file: order.file ?? '', note: order.note, vatPct: order.vatPct ?? 10,
+    ? { cust: order.customer, code: order.code, name: order.name ?? '', file: order.file ?? '', note: order.note, vatPct: order.vatPct ?? 10,
         items: order.items.map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, kgPerUnit: i.kgPerUnit ?? (i.qty ? i.kg / i.qty : undefined),
           price: i.price, note: i.note ?? '' })) }
     : { cust: customers[0], file: '', note: '', vatPct: 10, items: [{ ...BLANK }] }
@@ -108,13 +108,16 @@ export default function OrderFormModal({ order, onClose, onSaved }: { order?: Or
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: order ? 'minmax(0, 3fr) minmax(0, 1fr)' : '1fr', gap: '0 12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: order ? 'minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 1fr)', gap: '0 12px' }}>
           <Form.Item name="cust" label="Công ty đặt hàng" rules={[{ required: true, message: 'Chưa chọn hoặc nhập công ty đặt hàng' }]}
             extra={info && (info.taxCode || info.address || info.representative)
               ? [info.taxCode && `MST ${info.taxCode}`, info.address, info.representative && `Đại diện: ${info.representative}${info.representativeTitle ? ` (${info.representativeTitle})` : ''}`]
                   .filter(Boolean).join(' · ')
               : undefined}>
             <Select showSearch options={[...customers.map((c) => ({ value: c, label: c })), { value: NEW, label: '— Khách mới (nhập tên) —' }]} />
+          </Form.Item>
+          <Form.Item name="name" label="Tên đơn hàng (tùy chọn)" rules={[{ max: 255, message: 'Tối đa 255 ký tự' }]}>
+            <Input placeholder="VD: Cột điện 110kV — TBA Bắc Ninh 3" />
           </Form.Item>
           {order && <Form.Item name="code" label="Mã nội bộ"><Input /></Form.Item>}
         </div>

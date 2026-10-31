@@ -1,28 +1,33 @@
 /* Dashboard điều hành — port pages/01-dashboard.html:
-   KPI · Trung tâm cảnh báo · Đối ứng phiếu giao — xuất (nhật ký mọi phiếu) · biểu đồ · đối ứng 3 điểm cân theo hợp đồng. */
+   KPI · Trung tâm cảnh báo · Đối ứng phiếu giao — xuất (nhật ký mọi phiếu) · biểu đồ · đối ứng 3 điểm cân theo hợp đồng.
+   31/10 (anh Thắng): bỏ cảnh báo hợp đồng (hạn xem ở trang Hợp đồng); thêm việc chờ Quản lý duyệt (xưởng xin gia hạn lệnh SX,
+   phiếu nhập NVL); tổng theo tầng chỉ cộng phiếu đã chốt, phiếu chờ duyệt / đang trên xe ghi riêng dưới ô; khoảng giữa
+   các tầng gọi đúng tên: tồn kho chờ cân / đang đi đường / tồn tại mạ. */
 import { App, Button, Result, Select, Skeleton, Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  AlarmClock, Banknote, AlertTriangle, ArrowRight, BarChart3, BellRing, ClipboardX, Factory, FileSignature, Hourglass, Info, RotateCcw, Scale,
-  Smartphone, TimerOff, XCircle,
+  AlertTriangle, ArrowRight, Banknote, BarChart3, BellRing, CalendarClock, ClipboardX, Factory, FileSignature, Hourglass, Info, PackagePlus,
+  RotateCcw, Scale, Smartphone, TimerOff, XCircle,
 } from 'lucide-react'
-import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { Fragment, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMovementLog, useResetDemo } from '@/api/hooks'
 import { useDashboardByTag, useRunEndOfDay } from '@/api/hooksMaster'
 import type { ContractAggLite, MovementRow } from '@/api/types'
-import { AdvChip, CompleteChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
+import { AdvChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtDelta, fmtDT, fmtKg, fmtT, money, relTime } from '@/lib/format'
+import { fmtD, fmtDelta, fmtDT, fmtKg, fmtT, money, relTime } from '@/lib/format'
 import { PaymentDecision } from '@/peek/drawers/contract/PaymentApprovals'
 import { PendingExtensionsPanel } from '@/peek/drawers/contract/Extensions'
+import MaterialDecision from './materials/MaterialDecision'
+import { useLsxActions } from './lsx/LsxModals'
 import { ddmm } from './lsx/lsxUtil'
 import RecordLink from '@/peek/RecordLink'
 import { usePeek } from '@/peek/context'
 import { Donut, GroupedBar, LegendRow } from './dashboard/charts'
 import { ThreePointChecks, threePoint } from './dashboard/checks'
 import { AlertCard, AlertEmpty, AlertItem, Chip, Grid, Panel, SectionLabel } from './dashboard/common'
-import { MovementFilterBar, MovementTable, tierTotals, useMovementFilter } from './dashboard/movement'
+import { MovementFilterBar, MovementTable, PendingLines, tierTotals, useMovementFilter, type Tier } from './dashboard/movement'
 import { signedKg, useSignMismatchDialog } from './mismatches/sign'
 import CustomerTags from './orders/CustomerTags'
 import { TagFilter } from './customers/tags'
@@ -30,7 +35,6 @@ import { TagFilter } from './customers/tags'
 const DONUT_COLORS = ['#1e6b3a', '#4b5563', '#e30f1b', '#8a6100', '#d4d5d9']
 const tons1 = (kg: number) => Math.round(kg / 100) / 10
 
-const LATE = new Set(['soon', 'overdue'])
 
 export default function Dashboard() {
   const [tag, setTag] = useState<string>()
@@ -40,9 +44,11 @@ export default function Dashboard() {
   const { modal } = App.useApp()
   const reset = useResetDemo()
   const signDialog = useSignMismatchDialog()
+  const lsxAct = useLsxActions()
+  const navigate = useNavigate()
   const canSign = can('sai-lech', 'full')
 
-  const refContract = useRef<HTMLDivElement>(null)
+  const refApprove = useRef<HTMLDivElement>(null)
   const refOverdue = useRef<HTMLDivElement>(null)
   const refMismatch = useRef<HTMLDivElement>(null)
   const scrollTo = (r: RefObject<HTMLDivElement | null>) => r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -51,11 +57,10 @@ export default function Dashboard() {
   if (isLoading) return <>{header}<Skeleton active paragraph={{ rows: 12 }} /></>
   if (isError || !d) return <>{header}<Result status="error" title="Không tải được dữ liệu dashboard" /></>
 
-  const alerts = d.contractAlerts
-  const nOver = alerts.filter((a) => a.complete.state === 'overdue' || a.deliver.state === 'overdue').length
-  const nSoon = alerts.filter((a) => a.complete.state === 'soon' || a.deliver.state === 'soon').length
-  const nAdv = alerts.filter((a) => a.adv.state === 'missing').length
   const pays = d.pendingPayments
+  const lxr = d.lsxExtRequests ?? []
+  const nvl = d.pendingMaterials ?? []
+  const nApprove = pays.length + d.pendingExtensions.length + lxr.length + nvl.length
   const pm = d.pendingMismatches
   const nPending = d.pendingLSX.length + d.pendingTasks.length
 
@@ -68,8 +73,9 @@ export default function Dashboard() {
       <KpiGrid>
         <Kpi tone="steel" label="Đang triển khai" value={d.activeContracts}
           sub={`hợp đồng · đã giao lũy kế ${fmtT(d.deliveredKgTotal)}`} onClick={() => open('hd', 'HD-2609-01')} />
-        <Kpi tone="signal" label="Cảnh báo hợp đồng" value={<span className={alerts.length ? 'text-signal' : ''}>{alerts.length}</span>}
-          sub={<span className="text-signal">{nOver} quá hạn (soạn thảo HĐ / hồ sơ) · {nSoon} sắp tới hạn · {nAdv} tạm ứng chưa về</span>} onClick={() => scrollTo(refContract)} />
+        <Kpi tone="amber" label="Chờ Quản lý duyệt" value={<span className={nApprove ? 'text-signal' : ''}>{nApprove}</span>}
+          sub={<span>{pays.length} tiền về · {d.pendingExtensions.length + lxr.length} xin gia hạn (HĐ / lệnh SX) · {nvl.length} phiếu nhập NVL</span>}
+          onClick={() => scrollTo(refApprove)} />
         <Kpi tone="signal" label="Thẻ / phiếu quá hạn" value={<span className={d.overdueDocs.length ? 'text-signal' : ''}>{d.overdueDocs.length}</span>}
           sub={<span className="text-signal">chưa điền số kg + ảnh phiếu</span>} onClick={() => scrollTo(refOverdue)} />
         <Kpi tone="rust" label="Sai lệch chờ QL ký" value={<span className={pm.length ? 'text-signal' : ''}>{pm.length}</span>}
@@ -80,21 +86,6 @@ export default function Dashboard() {
       {/* ================= TRUNG TÂM CẢNH BÁO ================= */}
       <SectionLabel>Trung tâm cảnh báo</SectionLabel>
       <Grid>
-        <div ref={refContract} style={{ scrollMarginTop: 80 }}>
-          <AlertCard icon={<AlarmClock size={15} color="var(--signal)" />} title="Hợp đồng: hạn soạn thảo HĐ · hạn nhận đủ hồ sơ · tạm ứng" count={alerts.length} bad>
-            {alerts.length ? alerts.map((x) => (
-              <AlertItem key={x.contract.id} onClick={() => open('hd', x.contract.id)}
-                t1={<><span className="mono" style={{ fontWeight: 700 }}>{x.contract.id}</span> · {x.contract.customer}</>}
-                t2={<>{x.contract.code && <>{x.contract.code} · </>}{fmtT(x.contract.totalKg)} · {x.adv.state === 'missing'
-                  ? <span className="text-signal" style={{ fontWeight: 700 }}><AlertTriangle size={11} style={{ verticalAlign: -2 }} /> Tạm ứng {x.adv.label}</span>
-                  : x.adv.label}
-                  {LATE.has(x.deliver.state) && <> · <span className={x.deliver.state === 'overdue' ? 'text-signal' : 'text-amber'} style={{ fontWeight: 700 }}>{x.deliver.label}</span></>}
-                  </>}
-                right={LATE.has(x.complete.state) || !LATE.has(x.deliver.state) ? <CompleteChip info={x.complete} /> : <CompleteChip info={x.deliver} />} />
-            )) : <AlertEmpty>Không có hợp đồng cần chú ý.</AlertEmpty>}
-          </AlertCard>
-        </div>
-
         <div ref={refOverdue} style={{ scrollMarginTop: 80 }}>
           <AlertCard icon={<ClipboardX size={15} color="var(--signal)" />} title="Thẻ công việc & phiếu quá hạn" count={d.overdueDocs.length} bad>
             {d.overdueDocs.length ? d.overdueDocs.map((o) => (
@@ -120,14 +111,47 @@ export default function Dashboard() {
           </AlertCard>
         </div>
 
-        <AlertCard icon={<Banknote size={15} color="var(--amber)" />} title="Tiền về chờ Quản lý duyệt" count={pays.length} bad={pays.length > 0}>
-          {pays.length ? pays.map((p) => (
-            <AlertItem key={p.id} onClick={() => open('hd', p.contractId)}
-              t1={<><span className="mono" style={{ fontWeight: 700 }}>{p.contractId}</span> · {p.customer}</>}
-              t2={<>{p.type} · <b className="num">{money(p.amount)}</b> · {p.createdBy || 'kế toán'} nhập {relTime(p.date)}{p.note && <> · {p.note}</>}</>}
-              right={<PaymentDecision p={p} />} />
-          )) : <AlertEmpty>Không có khoản tiền về chờ duyệt.</AlertEmpty>}
-        </AlertCard>
+        <div ref={refApprove} style={{ scrollMarginTop: 80 }}>
+          <AlertCard icon={<Banknote size={15} color="var(--amber)" />} title="Tiền về chờ Quản lý duyệt" count={pays.length} bad={pays.length > 0}>
+            {pays.length ? pays.map((p) => (
+              <AlertItem key={p.id} onClick={() => open('hd', p.contractId)}
+                t1={<><span className="mono" style={{ fontWeight: 700 }}>{p.contractId}</span> · {p.customer}</>}
+                t2={<>{p.type} · <b className="num">{money(p.amount)}</b> · {p.createdBy || 'kế toán'} nhập {relTime(p.date)}{p.note && <> · {p.note}</>}</>}
+                right={<PaymentDecision p={p} />} />
+            )) : <AlertEmpty>Không có khoản tiền về chờ duyệt.</AlertEmpty>}
+          </AlertCard>
+        </div>
+
+        {lxr.length > 0 && (
+          <AlertCard icon={<CalendarClock size={15} color="var(--amber)" />} title="Xưởng xin gia hạn lệnh SX — chờ Quản lý duyệt" count={lxr.length} bad>
+            {lxr.map((x) => x.extRequest && (
+              <AlertItem key={x.id} onClick={() => open('lsx', x.id)}
+                t1={<><span className="mono" style={{ fontWeight: 700 }}>{x.id}</span> · {x.name}</>}
+                t2={<>Xin <b>+{x.extRequest.days} ngày</b> (hạn hiện tại {fmtD(x.extension?.to ?? x.deadline)}) · {x.extRequest.by}: {x.extRequest.reason}
+                  {' '}· đã làm {fmtKg(x.kgDone)} / {fmtKg(x.kgPlan)}</>}
+                right={<span style={{ display: 'inline-flex', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                  <Button size="small" type="primary" onClick={() => lsxAct.extend(x)}>Duyệt…</Button>
+                  <Button size="small" danger onClick={() => lsxAct.extReject(x)}>Từ chối</Button>
+                </span>} />
+            ))}
+          </AlertCard>
+        )}
+
+        {nvl.length > 0 && (
+          <AlertCard icon={<PackagePlus size={15} color="var(--amber)" />} title="Phiếu nhập nguyên liệu chờ Quản lý duyệt" count={nvl.length} bad>
+            {nvl.map((m) => {
+              const dd = m.kgSupplier != null ? m.kg - m.kgSupplier : 0
+              return (
+                <AlertItem key={m.id} onClick={() => navigate('/nguyen-lieu')}
+                  t1={<><span className="mono" style={{ fontWeight: 700 }}>{m.id}</span> · {m.supplier}</>}
+                  t2={<>{[m.steelGrade, m.spec].filter(Boolean).join(' · ') || 'Nguyên liệu'} · cân <b className="num">{fmtKg(m.kg)}</b>
+                    {m.kgSupplier != null && <> · NCC {fmtKg(m.kgSupplier)}{Math.abs(dd) > 0.5 && <b className="text-signal"> ({dd > 0 ? '+' : '−'}{fmtKg(Math.abs(dd))})</b>}</>}
+                    {' '}· {m.by} {relTime(m.date)}</>}
+                  right={<MaterialDecision m={m} />} />
+              )
+            })}
+          </AlertCard>
+        )}
 
         {d.lsxMissedYesterday.length > 0 && (
           <AlertCard icon={<Factory size={15} color="var(--signal)" />} title="Xưởng không cập nhật sản lượng hôm qua" count={d.lsxMissedYesterday.length} bad>
@@ -170,6 +194,8 @@ export default function Dashboard() {
           {!nPending && <AlertEmpty>Mọi lệnh và thẻ đã được xác nhận.</AlertEmpty>}
         </AlertCard>
       </Grid>
+
+      {lsxAct.node}
 
       {/* ================= ĐỐI ỨNG PHIẾU GIAO — XUẤT ================= */}
       <SectionLabel>Đối ứng phiếu giao — xuất (nhật ký mọi phiếu)</SectionLabel>
@@ -232,25 +258,40 @@ function Header({ tag, setTag }: { tag?: string; setTag: (v?: string) => void })
 }
 
 /* ---------------------------------------------------------------- nhật ký phiếu + tổng theo tầng */
+/** Khoảng giữa 2 tầng = hàng ĐANG Ở ĐÂU (tồn kho chờ cân / đang đi đường / tồn tại mạ), không gọi chung là "chênh". */
+const GAPS: { label: string; hint: string }[] = [
+  { label: 'Tồn kho chờ cân xuất', hint: 'đã giao kho, chưa cân xuất (hoặc phiếu cân chưa chốt)' },
+  { label: 'Đang đi đường tới mạ', hint: 'đã cân xuất, mạ chưa xác nhận (trên xe / chờ duyệt)' },
+  { label: 'Tồn tại mạ · đang giao', hint: 'mạ đã nhận, khách chưa ký nhận' },
+]
+
 function MovementSection() {
   const { f, setF, params } = useMovementFilter()
   const { data, isLoading } = useMovementLog(params)
   const rows = data ?? []
   const shown = f.kind ? rows.filter((r) => r.kind === f.kind) : rows
-  // tổng theo tầng trong kỳ (theo thời gian + hợp đồng, không phụ thuộc lọc loại phiếu)
+  // tổng theo tầng trong kỳ (theo thời gian + hợp đồng, không phụ thuộc lọc loại phiếu) — chỉ phiếu đã chốt
   const tot = tierTotals(rows)
-  const cell = (lb: string, v: number) => (
-    <div style={{ padding: '8px 12px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 10, minWidth: 118 }}>
+  const tiers: { label: string; k: Tier }[] = [
+    { label: 'Chuẩn bị hàng (giao kho)', k: 'ptn' }, { label: 'Cân xuất công ty', k: 'pc' },
+    { label: 'Mạ xác nhận', k: 'ma' }, { label: 'Giao khách ký', k: 'giao' },
+  ]
+  const cell = (lb: string, k: Tier) => (
+    <div style={{ padding: '8px 12px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 10, flex: '1 1 0', minWidth: 140, alignSelf: 'stretch' }}>
       <div style={{ fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--ash)' }}>{lb}</div>
-      <div className="mono num" style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>{fmtKg(v)}</div>
+      <div className="mono num" style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>{fmtKg(tot[k])}</div>
+      <PendingLines list={tot.pending[k]} />
     </div>
   )
-  const delta = (a: number, b: number) => {
-    const dd = b - a, bad = Math.abs(dd) > 0.5
+  const gap = (i: number, a: number, b: number) => {
+    const dd = a - b, off = Math.abs(dd) > 0.5
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, fontSize: 10, color: 'var(--ash)', minWidth: 62 }}>
+      <div title={GAPS[i].hint} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, fontSize: 10, color: 'var(--ash)', width: 92, flex: 'none', textAlign: 'center' }}>
         <ArrowRight size={13} />
-        <span className="mono num" style={{ fontWeight: 700, fontSize: 11.5, color: bad ? 'var(--signal)' : 'var(--moss)' }}>{bad ? fmtDelta(dd) : 'khớp'}</span>
+        <span style={{ lineHeight: 1.25 }}>{GAPS[i].label}</span>
+        <span className="mono num" style={{ fontWeight: 700, fontSize: 11.5, color: !off ? 'var(--moss)' : dd > 0 ? 'var(--amber)' : 'var(--signal)' }}>
+          {!off ? '0 kg' : dd > 0 ? fmtKg(dd) : `lệch ${fmtDelta(-dd)}`}
+        </span>
       </div>
     )
   }
@@ -259,14 +300,17 @@ function MovementSection() {
       <MovementFilterBar f={f} setF={setF} />
       <MovementTable rows={shown} loading={isLoading} />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', padding: '12px 4px 2px', borderTop: '2px solid var(--rule)', marginTop: 8 }}>
-        {cell('Chuẩn bị hàng (giao kho)', tot.ptn)}{delta(tot.ptn, tot.pc)}
-        {cell('Cân xuất công ty', tot.pc)}{delta(tot.pc, tot.ma)}
-        {cell('Mạ xác nhận', tot.ma)}{delta(tot.ma, tot.giao)}
-        {cell('Giao khách ký', tot.giao)}
+        {tiers.map((t, i) => (
+          <Fragment key={t.k}>
+            {i > 0 && gap(i - 1, tot[tiers[i - 1].k], tot[t.k])}
+            {cell(t.label, t.k)}
+          </Fragment>
+        ))}
       </div>
       <p className="caption" style={{ margin: '8px 0 0' }}>
-        <Info size={12} style={{ verticalAlign: -2 }} /> Tổng theo tầng trong kỳ lọc. Chênh giữa các tầng <b className="text-signal">bôi đỏ</b> = hàng đang kẹt ở tầng trước
-        (tồn kho, trên đường, tại mạ) hoặc thất thoát — bấm phiếu để truy nguyên.
+        <Info size={12} style={{ verticalAlign: -2 }} /> Tổng theo tầng trong kỳ lọc, <b>chỉ cộng phiếu đã chốt</b> (đạt / Quản lý đã duyệt).
+        Phiếu chờ cân, đang trên xe, chờ Quản lý duyệt, Quản lý từ chối… ghi riêng dưới từng ô. Giữa các ô là hàng đang ở đâu:
+        tồn kho chờ cân xuất → đang đi đường tới mạ → tồn tại mạ / đang giao khách; số <b className="text-signal">đỏ</b> = tầng sau nhiều hơn tầng trước — bấm phiếu để truy nguyên.
       </p>
     </Panel>
   )

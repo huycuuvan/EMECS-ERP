@@ -115,6 +115,7 @@ def render(db: Session, c: Contract, key: str, mark: bool = True) -> tuple[bytes
 
     _, path, name = _form(key)
     tpl = DocxTemplate(prepared(path, mark))
+    CD.stamp_logo(tpl, CD.logo_file(db))
     tpl.render(context(db, c), autoescape=True)
     buf = BytesIO()
     tpl.save(buf)
@@ -130,7 +131,7 @@ def render_pack(db: Session, c: Contract, mark: bool = True) -> tuple[bytes, str
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         doc = CD.document(db, c)
-        z.writestr(CD.docx_filename(doc), CD.render_docx(doc, mark))
+        z.writestr(CD.docx_filename(doc), CD.render_docx(doc, mark, CD.logo_file(db)))
         for key, (_, file, _) in FORMS.items():
             if (TEMPLATES / file).exists():
                 data, name = render(db, c, key, mark)

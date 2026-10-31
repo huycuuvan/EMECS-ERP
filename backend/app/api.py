@@ -195,7 +195,7 @@ def get_order(oid: str, user: User = Depends(get_current_user), db: Session = DB
 @router.post("/orders", dependencies=[Depends(require("don-hang", "full"))])
 def create_order(body: SC.OrderCreate, db: Session = DB):
     o = svc.create_order(db, body.customer, [i.model_dump() for i in body.items], body.file, body.note, body.code,
-                         body.customer_id, body.vat_pct)
+                         body.customer_id, body.vat_pct, body.name)
     return S.order(o)
 
 
@@ -214,7 +214,7 @@ def send_to_kt(oid: str, body: SC.SendToKtIn, db: Session = DB):
 
 # ---------------------------------------------------------------- hợp đồng
 # Hợp đồng bản rút gọn cho vai trò không có màn Hợp đồng (kho, xưởng, lái xe…): đủ để chọn / hiển thị, KHÔNG có tiền
-LITE_KEYS = ("id", "orderId", "code", "number", "customer", "customerId", "status", "totalQty", "unit", "totalKg",
+LITE_KEYS = ("id", "orderId", "orderName", "code", "number", "customer", "customerId", "status", "totalQty", "unit", "totalKg",
              "completeBy", "deliverBy", "signDate", "sentToKtAt")
 MONEY_AGG_KEYS = ("billedValue", "billedValues", "deliveredValue", "paidTotal", "debt",
                   "pendingPayment", "pctPaid", "billedKg", "billPendingKg")
@@ -228,7 +228,7 @@ def contract_lite(d: dict) -> dict:
 def list_contracts(tag: int | None = None, segment: str | None = None, db: Session = DB,
                    user: User = Depends(get_current_user)):
     out = []
-    cust_of = {o.id: o.customer_id for o in db.scalars(select(Order))}
+    orders = {o.id: o for o in db.scalars(select(Order))}
     keep = svc.contract_ids_for_tag(db, tag) if tag else None
     if segment:
         seg = svc.contract_ids_for_customers(db, svc.customer_ids_for_segment(db, segment))
@@ -238,7 +238,8 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
         if keep is not None and c.id not in keep:
             continue
         d = S.contract(c)
-        d["customerId"] = cust_of.get(c.order_id)
+        o = orders.get(c.order_id)
+        d["customerId"], d["orderName"] = (o.customer_id, o.name or "") if o else (None, "")
         d["adv"] = svc.advance_info(c)
         d["pendingExtension"] = ext_wait.get(c.id)  # đang xin gia hạn soạn thảo HĐ, chờ Quản lý duyệt
         d["complete"] = svc.complete_info(c)
@@ -306,7 +307,7 @@ def save_contract_document(cid: str, body: dict, db: Session = DB):
 @router.get("/contracts/{cid}/document.docx", dependencies=[Depends(require_any(*R_CONTRACT_FULL))])
 def contract_docx(cid: str, mark: bool = True, db: Session = DB):
     doc = CD.document(db, svc.get_or_404(db, Contract, cid))
-    data = CD.render_docx(doc, mark)
+    data = CD.render_docx(doc, mark, CD.logo_file(db))
     name = CD.docx_filename(doc)
     cd = f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"
     return Response(content=data, headers={"Content-Disposition": cd},
@@ -358,6 +359,17 @@ def delete_legal_file(fid: str, db: Session = DB):
 @router.get("/settings/seller")
 def get_seller(db: Session = DB):
     return CD.get_seller(db)
+
+
+@router.post("/settings/company-logo", dependencies=[Depends(require_roles("admin"))])
+async def put_company_logo(file: UploadFile = File(...), db: Session = DB):
+    """Logo công ty in ở đầu trang hợp đồng + bộ hồ sơ gửi khách (tải 1 lần)."""
+    return CD.set_logo(db, file.filename or "", await file.read())
+
+
+@router.delete("/settings/company-logo", dependencies=[Depends(require_roles("admin"))])
+def delete_company_logo(db: Session = DB):
+    return CD.delete_logo(db)
 
 
 @router.put("/settings/seller", dependencies=[Depends(require_roles("admin"))])
@@ -431,12 +443,24 @@ def lsx_reject(lid: str, body: SC.ReasonIn, db: Session = DB):
 @router.post("/lsx/{lid}/daily", dependencies=[Depends(require_roles("sx"))])
 def lsx_daily(lid: str, body: SC.LsxDailyIn, db: Session = DB):
     """Xưởng báo sản lượng theo ngày (kg)."""
-    return S.lsx(svc.lsx_daily(db, lid, body.day, body.kg, body.note))
+    return S.lsx(svc.lsx_daily(db, lid, body.day, body.kg, body.note, body.mode))
 
 
 @router.post("/lsx/{lid}/extend", dependencies=[Depends(require_roles("admin"))])
 def lsx_extend(lid: str, body: SC.LsxExtendIn, db: Session = DB):
+    """Quản lý gia hạn (tự gia hạn hoặc duyệt đề nghị của xưởng)."""
     return S.lsx(svc.lsx_extend(db, lid, body.to, body.reason, body.days))
+
+
+@router.post("/lsx/{lid}/extend-request", dependencies=[Depends(require_roles("sx"))])
+def lsx_ext_request(lid: str, body: SC.LsxExtRequestIn, db: Session = DB):
+    """Xưởng xin gia hạn lệnh (lý do + số ngày) → chờ Quản lý duyệt."""
+    return S.lsx(svc.lsx_ext_request(db, lid, body.days, body.reason))
+
+
+@router.post("/lsx/{lid}/extend-reject", dependencies=[Depends(require_roles("admin"))])
+def lsx_ext_reject(lid: str, body: SC.ReasonIn, db: Session = DB):
+    return S.lsx(svc.lsx_ext_reject(db, lid, body.reason))
 
 
 # ---------------------------------------------------------------- phiếu chuẩn bị hàng

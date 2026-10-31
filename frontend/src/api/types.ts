@@ -7,6 +7,8 @@ export interface OrderItem { id?: number; name: string; qty: number; unit: strin
 export type OrderStatus = 'Chốt đơn' | 'Đã chuyển kế toán' | 'Đã có hợp đồng'
 export interface Order {
   id: ID; customer: string; code: string; date: string; file: string | null; items: OrderItem[]
+  /** tên đơn hàng nhập tay (tùy chọn) */
+  name: string
   totalKg: number; value: number; status: OrderStatus; contractId: ID | null; note: string
   vatPct: number; vatAmount: number; valueAfterVat: number; customerId?: number | null; completeBy: string | null; deliverBy?: string | null
   /** trạng thái hiện tại của hợp đồng của đơn (Chờ soạn thảo → … → Đã hoàn thành); null = chưa có hợp đồng */
@@ -44,6 +46,8 @@ export interface Contract {
   advance: { pct: number; required: number; received: number; receivedAt: string | null }
   payments: Payment[]; note: string
   number: string; completeBy: string | null; deliverBy: string | null; signedFile: string | null; draftedAt: string | null; completedAt: string | null; pendingPayment: number
+  /** tên đơn hàng gốc (danh sách + chi tiết hợp đồng) */
+  orderName?: string
 }
 /** Cảnh báo theo 1 mốc hạn: hạn soạn thảo hợp đồng (complete) hoặc hạn nhận đủ hồ sơ (deliver). */
 export interface CompleteInfo { state: 'none' | 'ok' | 'fine' | 'soon' | 'overdue'; label: string; days: number | null }
@@ -64,6 +68,8 @@ export interface Lsx {
   deadline: string; status: LsxStatus; acceptedAt: string | null; acceptedBy: string | null
   rejectReason: string | null; qtyPlan: number; kgPlan: number; qtyDone: number; kgDone: number
   extension: { to: string; reason: string; approvedBy: string; at: string } | null
+  /** xưởng xin gia hạn (số ngày + lý do), chờ Quản lý duyệt / từ chối */
+  extRequest: { days: number; reason: string; by: string; at: string } | null
   log: { at: string; text: string }[]
   daily: LsxDay[]; lastUpdateAt: string | null; today: LsxDayEntry | null
   /** sản lượng hôm qua; missedYesterday = hôm qua xưởng KHÔNG nhập (kể cả 0); missedDays = các ngày bỏ trống (mới → cũ) */
@@ -159,7 +165,11 @@ export interface LedgerRow {
 }
 export interface Ledger { contract: Contract; rows: LedgerRow[]; final: Record<LedgerKey, number>; totalIn: number; allocated: number; balanced: boolean }
 
-export interface MovementRow { kind: string; type: 'ptn' | 'pc' | 'vc'; id: ID; contractId: ID; date: string | null; kg: number | null; desc: string; who: string }
+/** state "Đã chốt" mới cộng vào tổng tầng; còn lại (Chờ cân, Đang trên xe, Chờ QL duyệt, QL từ chối…) hiện riêng với kg tạm kgPlan */
+export interface MovementRow { kind: string; type: 'ptn' | 'pc' | 'vc'; id: ID; contractId: ID; date: string | null; kg: number | null; kgPlan: number | null; state: string; desc: string; who: string }
+export const MV_OK = 'Đã chốt'
+/** Phiếu nhập NVL kho gửi lên chờ Quản lý duyệt (dashboard). */
+export interface PendingMaterial { id: ID; date: string; supplier: string; steelGrade: string; spec: string; kg: number; kgSupplier: number | null; by: string }
 export interface OverdueDoc { kind: string; type: 'pc' | 'vc'; id: ID; contractId: ID; person: string; dept: string; deadline: string; hoursOver: number; missing: string }
 
 export interface Dashboard {
@@ -171,6 +181,9 @@ export interface Dashboard {
   pendingLSX: Lsx[]; pendingTasks: Task[]; contracts: ContractAggLite[]
   /** lệnh đang SX mà hôm qua xưởng không nhập sản lượng */
   lsxMissedYesterday: Lsx[]
+  /** xưởng xin gia hạn lệnh SX, chờ Quản lý duyệt */
+  lsxExtRequests: Lsx[]
+  pendingMaterials: PendingMaterial[]
 }
 
 export interface Notification { id: number; at: string; title: string; sub: string; type: 'info' | 'success' | 'warning' | 'error'; read: boolean; refId: string | null }
@@ -200,6 +213,8 @@ export interface Party {
   name: string; address: string; phone: string; banks: string[]; taxCode: string; representative: string; title: string
   /** chỉ có ở Thông tin công ty: người ký bộ hồ sơ giao hàng (xưng hô giám đốc, quản đốc / QLSX), nơi lập biên bản */
   representativeHonorific?: string; workshopRep?: string; workshopTitle?: string; workshopHonorific?: string; city?: string
+  /** logo công ty (link xem đã ký) — in ở đầu trang mọi file Word xuất ra */
+  logo?: string | null
 }
 /** Bộ hồ sơ gửi khách kèm hợp đồng (biên bản giao nhận, chứng chỉ xuất xưởng): phần điền riêng từng hợp đồng */
 export interface LegalFields {

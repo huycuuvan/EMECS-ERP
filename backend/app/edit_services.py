@@ -120,6 +120,7 @@ def edit_weighing(db: Session, pid: str, data: dict) -> tuple[Weighing, dict]:
                                       reason)
         status = "Lệch — chờ ký" if _pending_mismatch(db, p) else "Đã cân"
         apply_changes(db, p, "pc", p.id, {"status": ("status", status)}, reason)
+        svc.sync_auto_vloss(db, "pc", p)  # chênh trong dung sai ở kho ảo theo số mới
     db.commit()
     return p, _outcome(changed, f"Đã lưu {p.id}" + (f" — {msg}" if msg else ""), action, mid)
 
@@ -204,6 +205,7 @@ def edit_task(db: Session, tid: str, data: dict) -> tuple[Task, dict]:
             exp, act = (picked, delivered) if abs(delta) > 0.5 else (t.kg_required, picked)
             action, mid, msg = _reconcile(db, t, "vc", out, "Giao khách", exp, act, data.get("mismatch_reason"),
                                           data.get("reason_note"), t.driver, "Vận tải", reason)
+        svc.sync_auto_vloss(db, "vc", t)  # chênh trong dung sai ở kho ảo theo số mới
     db.commit()
     return t, _outcome(changed, f"Đã lưu {t.id}" + (f" — {msg}" if msg else ""), action, mid)
 

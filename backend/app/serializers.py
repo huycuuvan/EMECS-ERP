@@ -12,7 +12,7 @@ def vat_amount(o: Order) -> int:
 
 def order(o: Order) -> dict:
     return {
-        "id": o.id, "customer": o.customer, "code": o.code, "date": iso(o.date), "file": sign_photo(o.file),
+        "id": o.id, "customer": o.customer, "code": o.code, "name": o.name or "", "date": iso(o.date), "file": sign_photo(o.file),
         "items": [{"id": i.id, "name": i.name, "qty": i.qty, "unit": i.unit,
                    "kgPerUnit": i.kg_per_unit if i.kg_per_unit is not None else (i.kg / i.qty if i.qty else 0),
                    "kg": i.kg, "price": i.price, "amount": round(i.kg * i.price), "note": i.note or ""}
@@ -59,6 +59,8 @@ def lsx(x: Lsx) -> dict:
         "qtyPlan": x.qty_plan, "kgPlan": x.kg_plan, "qtyDone": x.qty_done, "kgDone": x.kg_done,
         "extension": ({"to": iso(x.ext_to), "reason": x.ext_reason, "approvedBy": x.ext_approved_by,
                        "at": iso(x.ext_at)} if x.ext_to else None),
+        "extRequest": ({"days": x.ext_req_days, "reason": x.ext_req_reason, "by": x.ext_req_by,
+                        "at": iso(x.ext_req_at)} if x.ext_req_at else None),  # xưởng xin gia hạn, chờ Quản lý duyệt
         "log": [{"at": iso(lg.at), "text": lg.text} for lg in x.logs],
         **daily_info(x),
     }

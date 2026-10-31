@@ -1,17 +1,20 @@
 /* Kho & Trạm cân → Nguyên liệu mua vào (M04): kho nhập phiếu nguyên liệu (thép tấm, thép hình…);
-   thống kê theo tháng, nhà cung cấp, mác thép và so với thành phẩm SX bàn giao kho trong kỳ. */
-import { Button, DatePicker, Input, Select, Table, type TableColumnsType } from 'antd'
+   thống kê theo tháng, nhà cung cấp, mác thép và so với thành phẩm SX bàn giao kho trong kỳ.
+   31/10 (anh Thắng): phiếu kho nhập gửi Quản lý duyệt — chỉ phiếu đã duyệt mới vào thống kê / kho ảo; đã duyệt thì
+   không sửa, không xóa; bị từ chối thì kho sửa lại (tự gửi duyệt lại) hoặc xóa. */
+import { Button, DatePicker, Input, Segmented, Select, Table, type TableColumnsType } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { Info, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useMaterials, useMaterialStats } from '@/api/hooksMaster'
 import type { MaterialReceipt, StatGroup } from '@/api/typesMaster'
 import { DeleteButton } from '@/components/DeleteRecord'
-import { Kpi, KpiGrid, PageHeader } from '@/components/ui'
+import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtD, fmtKg, fmtNum, fmtT } from '@/lib/format'
 import { HBar } from './dashboard/charts'
 import { Grid, Panel } from './dashboard/common'
+import MaterialDecision from './materials/MaterialDecision'
 import MaterialFormModal from './materials/MaterialFormModal'
 import '@/peek/drawers/contract/contract.css'
 
@@ -49,10 +52,11 @@ export default function Materials() {
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(PRESETS[0].value)
   const period = useMemo(() => range ? { from: range[0].format('YYYY-MM-DD'), to: range[1].format('YYYY-MM-DD') } : undefined, [range])
   const { data: rows = [], isLoading } = useMaterials(period)
-  const { data: st } = useMaterialStats(period)
+  const { data: stats } = useMaterialStats(period)
   const [q, setQ] = useState('')
   const [sup, setSup] = useState<string>()
   const [grade, setGrade] = useState<string>()
+  const [st, setSt] = useState<string>('')
   const [editing, setEditing] = useState<MaterialReceipt | 'new' | null>(null)
 
   const shown = useMemo(() => {
@@ -60,11 +64,14 @@ export default function Materials() {
     return rows.filter((m) => {
       if (sup && m.supplier !== sup) return false
       if (grade && m.steelGrade !== grade) return false
+      if (st && m.status !== st) return false
       if (s && !(m.id + ' ' + m.supplier + ' ' + m.spec + ' ' + m.steelGrade + ' ' + m.note).toLowerCase().includes(s)) return false
       return true
     })
-  }, [rows, q, sup, grade])
+  }, [rows, q, sup, grade, st])
   const shownKg = shown.reduce((s, m) => s + m.kg, 0)
+  const nWait = rows.filter((m) => m.status === 'Chờ duyệt').length
+  const locked = (m: MaterialReceipt) => m.status === 'Đã duyệt'  // đã duyệt: không sửa, không xóa
 
   const columns: TableColumnsType<MaterialReceipt> = [
     { title: 'Mã phiếu', key: 'id', width: 110, render: (_, m) => <span className="mono" style={{ fontWeight: 700 }}>{m.id}</span> },
@@ -79,11 +86,19 @@ export default function Materials() {
     { title: 'Chứng từ', key: 'photo', render: (_, m) => m.photo
       ? <a href={m.photo} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>Xem ảnh</a> : <span className="text-ash">Chưa có</span> },
     { title: 'Người nhập', key: 'by', render: (_, m) => <span className="caption">{m.by}</span> },
-    { title: '', key: 'del', width: 80, render: (_, m) => <DeleteButton url={`/material-receipts/${m.id}`} label={`phiếu nhập ${m.id}`} /> },
+    {
+      title: 'Duyệt', key: 'st', width: 190, render: (_, m) => <div>
+        <StatusTag status={m.status} />
+        {m.status === 'Đã duyệt' && m.approvedBy && <div className="sub-soft">{m.approvedBy} · {fmtD(m.approvedAt)}</div>}
+        {m.status === 'Từ chối' && <div className="sub-soft text-signal" style={{ maxWidth: 200 }}>{m.rejectReason} — kho sửa lại để gửi duyệt lại</div>}
+        {m.status === 'Chờ duyệt' && <div style={{ marginTop: 4 }}><MaterialDecision m={m} /></div>}
+      </div>,
+    },
+    { title: '', key: 'del', width: 80, render: (_, m) => locked(m) ? null : <DeleteButton url={`/material-receipts/${m.id}`} label={`phiếu nhập ${m.id}`} /> },
   ]
 
   const top = (g?: StatGroup[]) => g?.[0]
-  const pct = st?.producedPct
+  const pct = stats?.producedPct
   return (
     <>
       <PageHeader title="Nguyên liệu mua vào" desc="Kho nhập phiếu nguyên liệu (thép tấm, thép hình, thép ống…) — thống kê theo tháng, nhà cung cấp, mác thép"
@@ -96,28 +111,29 @@ export default function Materials() {
       </div>
 
       <KpiGrid>
-        <Kpi tone="rust" label="Nguyên liệu nhập" value={fmtT(st?.totalKg)} sub={`${st?.count ?? 0} phiếu nhập trong kỳ`} />
-        <Kpi tone="steel" label="Nhà cung cấp chính" value={top(st?.bySupplier) ? fmtT(top(st?.bySupplier)!.kg) : '—'}
-          sub={top(st?.bySupplier)?.key ?? 'chưa có phiếu'} onClick={top(st?.bySupplier) ? () => setSup(top(st?.bySupplier)!.key) : undefined} />
-        <Kpi tone="amber" label="Mác thép nhiều nhất" value={top(st?.byGrade)?.key ?? '—'}
-          sub={top(st?.byGrade) ? `${fmtT(top(st?.byGrade)!.kg)} · ${top(st?.byGrade)!.count} phiếu` : ''}
-          onClick={top(st?.byGrade) ? () => setGrade(top(st?.byGrade)!.key) : undefined} />
+        <Kpi tone="rust" label="Nguyên liệu nhập (đã duyệt)" value={fmtT(stats?.totalKg)}
+          sub={<>{stats?.count ?? 0} phiếu đã duyệt trong kỳ{nWait > 0 && <> · <a className="text-signal" style={{ fontWeight: 700 }} onClick={() => setSt('Chờ duyệt')}>{nWait} chờ Quản lý duyệt</a></>}</>} />
+        <Kpi tone="steel" label="Nhà cung cấp chính" value={top(stats?.bySupplier) ? fmtT(top(stats?.bySupplier)!.kg) : '—'}
+          sub={top(stats?.bySupplier)?.key ?? 'chưa có phiếu'} onClick={top(stats?.bySupplier) ? () => setSup(top(stats?.bySupplier)!.key) : undefined} />
+        <Kpi tone="amber" label="Mác thép nhiều nhất" value={top(stats?.byGrade)?.key ?? '—'}
+          sub={top(stats?.byGrade) ? `${fmtT(top(stats?.byGrade)!.kg)} · ${top(stats?.byGrade)!.count} phiếu` : ''}
+          onClick={top(stats?.byGrade) ? () => setGrade(top(stats?.byGrade)!.key) : undefined} />
         <Kpi tone="moss" label="SX hoàn thành / nguyên liệu nhập" value={pct == null ? '—' : `${pct}%`}
-          sub={`SX bàn giao kho ${fmtT(st?.producedKg)} · nhập ${fmtT(st?.totalKg)}`} />
+          sub={`SX bàn giao kho ${fmtT(stats?.producedKg)} · nhập ${fmtT(stats?.totalKg)}`} />
       </KpiGrid>
 
       <Grid min={320}>
-        <Panel title="Nhập theo tháng" sub="Tổng khối lượng nguyên liệu nhập mỗi tháng (tấn)"><MonthBars data={st?.byMonth ?? []} /></Panel>
+        <Panel title="Nhập theo tháng" sub="Tổng khối lượng nguyên liệu nhập mỗi tháng (tấn)"><MonthBars data={stats?.byMonth ?? []} /></Panel>
         <Panel title="Theo nhà cung cấp" sub="kg nhập trong kỳ">
-          {st?.bySupplier.length ? <HBar color="#4b5563" items={st.bySupplier.map((g) => ({ label: `${g.key} (${g.count})`, value: g.kg }))} /> : <p className="caption">—</p>}
+          {stats?.bySupplier.length ? <HBar color="#4b5563" items={stats.bySupplier.map((g) => ({ label: `${g.key} (${g.count})`, value: g.kg }))} /> : <p className="caption">—</p>}
         </Panel>
         <Panel title="Theo mác thép" sub="kg nhập trong kỳ">
-          {st?.byGrade.length ? <HBar color="#d11a24" items={st.byGrade.map((g) => ({ label: `${g.key} (${g.count})`, value: g.kg }))} /> : <p className="caption">—</p>}
+          {stats?.byGrade.length ? <HBar color="#d11a24" items={stats.byGrade.map((g) => ({ label: `${g.key} (${g.count})`, value: g.kg }))} /> : <p className="caption">—</p>}
         </Panel>
         <Panel title="Nguyên liệu nhập vs SX hoàn thành" sub="SX hoàn thành = thành phẩm xưởng bàn giao kho (phiếu chuẩn bị hàng) trong kỳ">
           <HBar color="#1e6b3a" items={[
-            { label: 'Nguyên liệu nhập', value: st?.totalKg ?? 0 },
-            { label: 'SX hoàn thành bàn giao kho', value: st?.producedKg ?? 0 },
+            { label: 'Nguyên liệu nhập', value: stats?.totalKg ?? 0 },
+            { label: 'SX hoàn thành bàn giao kho', value: stats?.producedKg ?? 0 },
           ]} />
           <p className="caption" style={{ margin: '10px 0 0' }}>Chênh lệch = nguyên liệu còn tồn / đang gia công, bavia – phế liệu. Chỉ là thống kê, chưa quản lý nhập–xuất–tồn nguyên liệu.</p>
         </Panel>
@@ -128,19 +144,24 @@ export default function Materials() {
           <Input allowClear prefix={<Search size={14} color="var(--ash)" />} placeholder="Tìm mã phiếu, NCC, quy cách, ghi chú..."
             value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 220 }} />
           <Select allowClear placeholder="Tất cả nhà cung cấp" value={sup} onChange={setSup} style={{ minWidth: 220 }}
-            options={(st?.bySupplier ?? []).map((g) => ({ value: g.key, label: g.key }))} />
+            options={(stats?.bySupplier ?? []).map((g) => ({ value: g.key, label: g.key }))} />
           <Select allowClear placeholder="Tất cả mác thép" value={grade} onChange={setGrade} style={{ minWidth: 160 }}
-            options={(st?.byGrade ?? []).map((g) => ({ value: g.key, label: g.key }))} />
+            options={(stats?.byGrade ?? []).map((g) => ({ value: g.key, label: g.key }))} />
+          <Segmented value={st} onChange={(v) => setSt(String(v))} options={[
+            { value: '', label: 'Tất cả' }, { value: 'Chờ duyệt', label: `Chờ duyệt${nWait ? ` (${nWait})` : ''}` },
+            { value: 'Đã duyệt', label: 'Đã duyệt' }, { value: 'Từ chối', label: 'Từ chối' }]} />
           <span className="caption" style={{ marginLeft: 'auto' }}>{shown.length} phiếu · <b className="num">{fmtKg(shownKg)}</b></span>
         </div>
         <Table<MaterialReceipt> rowKey="id" size="middle" loading={isLoading} columns={columns} dataSource={shown} scroll={{ x: 1000 }}
           pagination={shown.length > 20 ? { pageSize: 20, showSizeChanger: false } : false}
-          rowClassName={canEdit ? 'clickable-row' : undefined} onRow={(m) => ({ onClick: canEdit ? () => setEditing(m) : undefined })}
+          rowClassName={(m) => (canEdit && !locked(m) ? 'clickable-row' : '') + (m.status === 'Chờ duyệt' ? ' row-ext' : '')}
+          onRow={(m) => ({ onClick: canEdit && !locked(m) ? () => setEditing(m) : undefined })}
           locale={{ emptyText: 'Không có phiếu nhập nguyên liệu trong kỳ.' }} />
       </div>
       <p className="list-foot">
         <Info size={13} style={{ marginTop: 2, flex: 'none' }} />
-        <span>Thủ kho nhập phiếu khi nguyên liệu về xưởng (theo phiếu cân / hóa đơn NCC). Bấm dòng để sửa phiếu.</span>
+        <span>Thủ kho nhập phiếu khi nguyên liệu về xưởng (theo phiếu cân / hóa đơn NCC) → <b>Quản lý duyệt</b> mới tính vào thống kê và kho ảo.
+          Bấm dòng để sửa phiếu chưa duyệt / bị từ chối; phiếu đã duyệt không sửa, không xóa.</span>
       </p>
       {editing && <MaterialFormModal item={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />}
     </>

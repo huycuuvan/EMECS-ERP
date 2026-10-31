@@ -50,7 +50,7 @@ export default function Contracts() {
   const rows = useMemo(() => {
     const s = q.trim().toLowerCase()
     return contracts.filter((c) => {
-      if (s && !(c.id + c.customer + c.code + c.orderId).toLowerCase().includes(s)) return false
+      if (s && !(c.id + c.customer + c.code + c.orderId + (c.orderName ?? '') + c.number).toLowerCase().includes(s)) return false
       if (fs && c.status !== fs) return false
       if (fd && c.complete.state !== fd && c.deliver.state !== fd) return false
       if (quick === 'pay' && !(c.pendingPayment > 0)) return false
@@ -98,6 +98,7 @@ export default function Contracts() {
         <>
           <div className="mono" style={{ fontWeight: 700 }}>{c.id}</div>
           <div className="sub-soft">Đơn <RecordLink id={c.orderId} type="dh" style={{ color: 'var(--rust)', fontWeight: 600 }} />{c.code && <> · {c.code}</>}</div>
+          {c.orderName && <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.35, marginTop: 2 }}>{c.orderName}</div>}
         </>
       ),
     },

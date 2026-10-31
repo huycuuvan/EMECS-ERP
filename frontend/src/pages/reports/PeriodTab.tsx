@@ -1,17 +1,18 @@
-/* Tab 1 — Đối ứng phiếu theo kỳ: 5 ô tổng theo tầng, bóc tách chênh Cân xuất ↔ Đến mạ (trên xe / rơi rớt chưa duyệt),
-   biểu đồ 4 tuần, nhật ký chứng từ trong kỳ. */
+/* Tab 1 — Đối ứng phiếu theo kỳ: 4 ô tổng theo tầng (chỉ phiếu đã chốt; phiếu chờ duyệt / trên xe ghi riêng dưới ô) +
+   rơi rớt chưa duyệt; hàng giữa các tầng gọi đúng tên (anh Thắng 31/10, trước là "Chênh giữa các tầng"):
+   tồn kho chờ cân xuất · đang đi đường tới mạ · tồn tại mạ / đang giao khách; biểu đồ 4 tuần, nhật ký chứng từ trong kỳ. */
 import { Button, Modal, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { Archive } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useMismatches, useMovementLog, useTasks, useVlossList } from '@/api/hooks'
-import type { Task } from '@/api/types'
+import { MV_OK, type Task } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { fmtKg } from '@/lib/format'
 import RecordLink from '@/peek/RecordLink'
 import { GroupedBar, LegendRow } from '../dashboard/charts'
 import { Panel, StatCell } from '../dashboard/common'
-import { MovementFilterBar, MovementTable, tierTotals, useMovementFilter } from '../dashboard/movement'
+import { MovementFilterBar, MovementTable, PendingLines, tierTotals, useMovementFilter, type Tier } from '../dashboard/movement'
 import { MODAL_Z, signedKg } from '../mismatches/sign'
 
 const STAT_CSS = `
@@ -19,16 +20,17 @@ const STAT_CSS = `
 .stat5b{margin-top:-6px}
 .stat5b>div{position:relative}
 .stat5b>div::before{content:'';position:absolute;top:-9px;left:26px;width:1px;height:9px;background:var(--rule)}
-.stat5b .c1{grid-column:2/3;transform:translateX(50%)}
-.stat5b .c2{grid-column:3/4;transform:translateX(50%)}
-@media (max-width:1100px){.stat5{grid-template-columns:repeat(2,minmax(0,1fr))}.stat5b .c1,.stat5b .c2{grid-column:auto;transform:none}}
+.stat5b .c1{grid-column:1/2;transform:translateX(50%)}
+.stat5b .c2{grid-column:2/3;transform:translateX(50%)}
+.stat5b .c3{grid-column:3/4;transform:translateX(50%)}
+@media (max-width:1100px){.stat5{grid-template-columns:repeat(2,minmax(0,1fr))}.stat5b .c1,.stat5b .c2,.stat5b .c3{grid-column:auto;transform:none}}
 `
 
 export default function PeriodTab() {
   const { f, setF, params } = useMovementFilter()
   const { data: periodRows, isLoading } = useMovementLog(params)
   const { data: chartRows } = useMovementLog({ contractId: params.contractId })
-  const { data: tasks } = useTasks({ type: 'di_ma' })
+  const { data: tasks } = useTasks()
   const { data: vloss } = useVlossList()
   const { data: mismatches } = useMismatches()
   const [popup, setPopup] = useState<'truck' | 'loss' | null>(null)
@@ -37,23 +39,35 @@ export default function PeriodTab() {
   const shown = f.kind ? all.filter((r) => r.kind === f.kind) : all
   // 5 ô tổng trong kỳ (không áp bộ lọc loại phiếu để đối ứng đủ tầng)
   const t = tierTotals(all)
-  const chenh = t.pc - t.giao
+  const pendingKg = (k: Tier, state?: string) => t.pending[k].filter((p) => !state || p.state === state).reduce((s, p) => s + p.kg, 0)
 
   // ---- bóc tách chênh CÂN XUẤT ↔ ĐẾN MẠ ----
-  const { truckList, lossList, onTruck, vaultKg } = useMemo(() => {
+  const { truckList, lossList, onTruck, vaultKg, picked, onTruckGiao } = useMemo(() => {
     // so sánh theo thời điểm (chuỗi ISO có thể khác số chữ số ms) → dùng Date
     const inKyD = (d: string | null) => !!d && (!params.from || new Date(d) >= new Date(params.from)) && (!params.to || new Date(d) <= new Date(params.to))
-    const diMa = (tasks ?? []).filter((x) => x.status !== 'Từ chối' && (!params.contractId || x.contractId === params.contractId) && inKyD(x.departedAt || x.assignedAt))
-    const truckList = diMa.filter((x) => x.kgAtGalv == null)
+    const inKy = (x: Task) => x.status !== 'Từ chối' && (!params.contractId || x.contractId === params.contractId) && inKyD(x.departedAt || x.assignedAt)
+    const diMa = (tasks ?? []).filter((x) => x.type === 'di_ma' && inKy(x))
+    const giao = (tasks ?? []).filter((x) => x.type === 'giao_khach' && inKy(x))
+    // phiếu cân chưa chốt (chờ QL duyệt / chờ cân) không cộng vào "Cân xuất" → chuyến xe của nó cũng không tính trên xe
+    const openPc = new Set((periodRows ?? []).filter((r) => r.type === 'pc' && r.state !== MV_OK).map((r) => r.id))
+    const truckList = diMa.filter((x) => x.kgAtGalv == null && !(x.refId && openPc.has(x.refId)))
     const lossList = diMa.filter((x) => x.kgAtGalv != null && x.kgAtGalv !== x.kgRequired)
     const vaultList = (vloss ?? []).filter((e) => e.source === 'Cân tại xưởng mạ' && (!params.contractId || e.contractId === params.contractId) && inKyD(e.date))
     return {
       truckList, lossList,
       onTruck: truckList.reduce((s, x) => s + (Number(x.kgRequired) || 0), 0),
       vaultKg: vaultList.reduce((s, e) => s + (Number(e.kg) || 0), 0),
+      // lấy ra từ mạ (đã ký với mạ) + chuyến giao khách đang chạy chưa điền phiếu
+      picked: giao.reduce((s, x) => s + (Number(x.kgPicked) || 0), 0),
+      onTruckGiao: giao.filter((x) => x.kgPicked == null && x.status === 'Đang chạy').reduce((s, x) => s + (Number(x.kgRequired) || 0), 0),
     }
-  }, [tasks, vloss, params])
-  const loss = t.pc - t.ma - onTruck - vaultKg // phần rơi rớt CHƯA được QL duyệt
+  }, [tasks, vloss, params, periodRows])
+  // phần rơi rớt CHƯA được QL duyệt = cân xuất − mạ đã chốt − trên xe − phiếu mạ đang chờ duyệt / bị từ chối − kho ảo
+  const maOpen = t.pending.ma.filter((p) => p.state !== 'Đang trên xe' && p.state !== 'Chưa xuất phát').reduce((s, p) => s + p.kg, 0)
+  const loss = t.pc - t.ma - onTruck - maOpen - vaultKg
+  const stock = t.ptn - t.pc  // đã giao kho, chưa cân xuất (kể cả phiếu cân chưa chốt)
+  const atGalv = t.ma - picked - onTruckGiao  // mạ đã nhận (đã chốt), chưa lấy đi giao
+  const pend = (k: Tier) => t.pending[k].length ? <PendingLines list={t.pending[k]} /> : undefined
 
   // ---- biểu đồ 4 tuần (theo hợp đồng, không theo kỳ) ----
   const series = useMemo(() => {
@@ -75,22 +89,26 @@ export default function PeriodTab() {
         <MovementFilterBar f={f} setF={setF} />
         <div className="stat5">
           <StatCell label="SX bàn giao (PTN)" value={fmtKg(t.ptn)} cap="kho tiếp nhận từ xưởng" color="var(--steel)" />
-          <StatCell label="Cân xuất công ty (PC)" value={fmtKg(t.pc)} cap="kg thực cân tại trạm" />
-          <StatCell label="Đến xưởng mạ" value={fmtKg(t.ma)} cap="bên mạ xác nhận cân" color="var(--rust)" />
-          <StatCell label="Giao khách" value={fmtKg(t.giao)} cap="khách ký nhận" color="var(--moss)" />
-          <StatCell label="Chênh giữa các tầng" danger={chenh !== 0} color={chenh !== 0 ? 'var(--signal)' : 'var(--moss)'}
-            value={(chenh === 0 ? '' : chenh > 0 ? '−' : '+') + fmtKg(Math.abs(chenh))} cap="= hàng đang đi đường / tồn tại mạ / có sai lệch" />
+          <StatCell label="Cân xuất công ty (PC)" value={fmtKg(t.pc)} cap={pend('pc') ?? 'kg thực cân tại trạm (đã chốt)'} />
+          <StatCell label="Đến xưởng mạ" value={fmtKg(t.ma)} cap={pend('ma') ?? 'bên mạ xác nhận cân (đã chốt)'} color="var(--rust)" />
+          <StatCell label="Giao khách" value={fmtKg(t.giao)} cap={pend('giao') ?? 'khách ký nhận (đã chốt)'} color="var(--moss)" />
+          <StatCell dashed danger={Math.abs(loss) > 0.5} color={Math.abs(loss) > 0.5 ? 'var(--signal)' : 'var(--moss)'} onClick={() => setPopup('loss')}
+            title="Bấm xem phiếu liên quan" label="Rơi rớt chưa duyệt"
+            value={Math.abs(loss) <= 0.5 ? '0 kg ✓' : (loss > 0 ? '−' : '+') + fmtKg(Math.abs(loss))}
+            cap={`Cân xuất ${fmtKg(t.pc)} − mạ ${fmtKg(t.ma)} − trên xe ${fmtKg(onTruck)}${maOpen ? ` − chờ duyệt ${fmtKg(maOpen)}` : ''} − kho ảo ${fmtKg(vaultKg)} — bấm xem`} />
         </div>
         <div className="stat5 stat5b">
           <div className="c1">
-            <StatCell dashed label="Trên xe đang tới mạ" value={fmtKg(onTruck)} color="#8a6100" onClick={() => setPopup('truck')} title="Bấm xem danh sách chuyến xe"
-              cap={`${truckList.length} chuyến đã cân xuất, mạ chưa xác nhận — bấm xem phiếu`} />
+            <StatCell dashed label="Tồn kho chờ cân xuất" value={fmtKg(Math.max(0, stock))} color="var(--steel)"
+              cap={pendingKg('pc') ? `đã giao kho, chưa cân xuất · gồm ${fmtKg(pendingKg('pc'))} phiếu cân chưa chốt` : 'đã giao kho, chưa cân xuất'} />
           </div>
           <div className="c2">
-            <StatCell dashed danger={loss !== 0} color={loss !== 0 ? 'var(--signal)' : 'var(--moss)'} onClick={() => setPopup('loss')}
-              title="Bấm xem phiếu liên quan" label="Rơi rớt chưa duyệt"
-              value={loss === 0 ? '0 kg ✓' : (loss > 0 ? '−' : '+') + fmtKg(Math.abs(loss))}
-              cap={`Cân xuất ${fmtKg(t.pc)} − mạ ${fmtKg(t.ma)} − xe ${fmtKg(onTruck)} − kho ảo ${fmtKg(vaultKg)} — bấm xem`} />
+            <StatCell dashed label="Đang đi đường tới mạ" value={fmtKg(onTruck)} color="#8a6100" onClick={() => setPopup('truck')} title="Bấm xem danh sách chuyến xe"
+              cap={`${truckList.length} chuyến đã cân xuất, mạ chưa xác nhận — bấm xem phiếu`} />
+          </div>
+          <div className="c3">
+            <StatCell dashed label="Tồn tại mạ · đang giao" value={fmtKg(Math.max(0, atGalv) + onTruckGiao)} color="var(--rust)"
+              cap={`tồn tại mạ ${fmtKg(Math.max(0, atGalv))} · trên xe đi giao khách ${fmtKg(onTruckGiao)}`} />
           </div>
         </div>
 

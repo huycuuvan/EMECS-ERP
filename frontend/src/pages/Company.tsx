@@ -1,9 +1,10 @@
 /* Danh mục → Thông tin công ty (anh Thắng 31/10: trước chỉ sửa được trong trang Soạn thảo của 1 hợp đồng, khó tìm):
-   Bên B trên hợp đồng + người ký bộ hồ sơ giao hàng + giấy tờ công ty kèm bộ .zip. Chỉ Quản lý sửa. */
-import { Alert, Button, Skeleton } from 'antd'
-import { Pencil } from 'lucide-react'
+   Bên B trên hợp đồng + người ký bộ hồ sơ giao hàng + logo (in đầu trang file Word, 31/10) + giấy tờ công ty kèm bộ .zip.
+   Chỉ Quản lý sửa. */
+import { Alert, Button, Popconfirm, Skeleton, Upload } from 'antd'
+import { ImageOff, Pencil, Trash2, Upload as UploadIcon } from 'lucide-react'
 import { useState } from 'react'
-import { useSeller } from '@/api/hooks'
+import { useDeleteLogo, useSeller, useSetLogo } from '@/api/hooks'
 import { Cell, CellGrid, PageHeader, Sec } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { Panel } from './dashboard/common'
@@ -44,11 +45,47 @@ export default function Company() {
             </CellGrid>
           </Panel>
           <Panel>
+            <Sec>Logo công ty</Sec>
+            <CompanyLogo url={s.logo} canEdit={isQl} />
+          </Panel>
+          <Panel>
             <CompanyFiles canEdit={can('hop-dong', 'edit')} />
           </Panel>
         </div>
       )}
       {editing && s && <SellerModal seller={s} onClose={() => setEditing(false)} />}
+    </div>
+  )
+}
+
+/** Logo in ở đầu trang hợp đồng, biên bản giao nhận, chứng chỉ xuất xưởng (tải 1 lần). */
+function CompanyLogo({ url, canEdit }: { url?: string | null; canEdit: boolean }) {
+  const setLogo = useSetLogo()
+  const delLogo = useDeleteLogo()
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+      <div style={{ width: 96, height: 96, border: '1px dashed var(--rule)', borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--paper)', flex: 'none' }}>
+        {url ? <img src={url} alt="Logo công ty" style={{ maxWidth: 84, maxHeight: 84, objectFit: 'contain' }} /> : <ImageOff size={22} color="var(--ash)" />}
+      </div>
+      <div style={{ display: 'grid', gap: 8, minWidth: 0, flex: 1 }}>
+        <span className="caption">
+          {url ? 'Đang in ở góc trên bên trái mọi trang: hợp đồng, biên bản giao nhận, chứng chỉ xuất xưởng (cả trong bộ .zip).'
+            : 'Chưa có logo. Tải ảnh PNG / JPG (nền trong suốt càng đẹp, tối đa 5MB) — tự in ở đầu trang mọi file Word xuất ra.'}
+        </span>
+        {canEdit && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Upload showUploadList={false} accept=".png,.jpg,.jpeg" beforeUpload={(f) => { setLogo.mutate(f); return false }}>
+              <Button size="small" icon={<UploadIcon size={12} />} loading={setLogo.isPending}>{url ? 'Đổi logo' : 'Tải logo lên'}</Button>
+            </Upload>
+            {url && (
+              <Popconfirm title="Gỡ logo?" description="File Word xuất ra sau đó sẽ không còn logo." okText="Gỡ" cancelText="Hủy"
+                okButtonProps={{ danger: true }} onConfirm={() => delLogo.mutateAsync(undefined)}>
+                <Button size="small" danger type="text" icon={<Trash2 size={13} />}>Gỡ logo</Button>
+              </Popconfirm>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

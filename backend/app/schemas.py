@@ -1,5 +1,6 @@
 """Request body (camelCase từ FE)."""
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
@@ -29,6 +30,7 @@ class OrderItemIn(In):
 class OrderCreate(In):
     customer: str = Field(min_length=1)
     code: str | None = None
+    name: str | None = Field(default=None, max_length=255)  # tên đơn hàng (tùy chọn)
     items: list[OrderItemIn] = Field(min_length=1)
     file: str | None = None
     note: str = ""
@@ -40,6 +42,7 @@ class OrderUpdate(In):
     customer: str | None = None
     customer_id: int | None = None
     code: str | None = None
+    name: str | None = Field(default=None, max_length=255)
     items: list[OrderItemIn] | None = None
     file: str | None = None
     note: str | None = None
@@ -83,6 +86,13 @@ class LsxDailyIn(In):
     day: date | None = None  # mặc định hôm nay (giờ VN)
     kg: float = Field(ge=0)  # sản lượng trong ngày; không làm thì 0
     note: str = ""
+    # ngày đã có số: "add" = cộng thêm vào số của ngày (nhập nhiều lần trong ngày), "set" = sửa lại số của ngày
+    mode: Literal["add", "set"] = "add"
+
+
+class LsxExtRequestIn(In):
+    days: int = Field(ge=1, le=365)  # xưởng đề nghị gia hạn thêm bao nhiêu ngày
+    reason: str = Field(min_length=1)
 
 
 class LsxExtendIn(In):

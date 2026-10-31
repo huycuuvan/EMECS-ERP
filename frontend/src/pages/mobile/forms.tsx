@@ -3,7 +3,7 @@ import { App } from 'antd'
 import { CalendarClock, PackageCheck, Save, SendHorizontal, XOctagon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
-  useContract, useCreateReceipt, useFillWeighing, useLsxExtend, useLsxList, useLsxDaily, useLsxReject, useReceipts,
+  useContract, useCreateReceipt, useFillWeighing, useLsxExtend, useLsxExtReject, useLsxExtRequest, useLsxList, useLsxDaily, useLsxReject, useReceipts,
   useTaskFillDelivery, useTaskFillGalv, useTaskReject, useUpdateContract,
 } from '@/api/hooks'
 import type { Contract, Lsx, Task, Weighing } from '@/api/types'
@@ -64,13 +64,17 @@ export function LsxProgressForm({ x }: { x: Lsx }) {
   const daily = useLsxDaily()
   const [day, setDay] = useState(localDay())
   const cur = x.daily.find((d) => d.day === day)
-  const [kg, setKg] = useState(cur ? String(cur.kg) : '')
-  const [note, setNote] = useState(cur?.note ?? '')
-  const pick = (d: string) => { setDay(d); const e = x.daily.find((z) => z.day === d); setKg(e ? String(e.kg) : ''); setNote(e?.note ?? '') }
-  const after = x.kgDone - (cur?.kg ?? 0) + num(kg)
+  // ngày đã có số: mặc định CỘNG THÊM (nhập nhiều lần trong ngày); "Sửa lại" khi nhập nhầm
+  const [mode, setMode] = useState<'add' | 'set'>('add')
+  const [kg, setKg] = useState('')
+  const [note, setNote] = useState('')
+  const setting = !!cur && mode === 'set'
+  const pick = (d: string) => { setDay(d); setMode('add'); setKg(''); setNote('') }
+  const pickMode = (v: 'add' | 'set') => { setMode(v); setKg(v === 'set' && cur ? String(cur.kg) : ''); setNote(v === 'set' ? cur?.note ?? '' : '') }
+  const after = x.kgDone - (setting ? cur.kg : 0) + num(kg)
   const submit = async () => {
-    if (kg.trim() === '' || num(kg) < 0) { message.error('Nhập số kg làm được trong ngày (không làm thì nhập 0).'); return }
-    try { await daily.mutateAsync({ id: x.id, day, kg: num(kg), note: note.trim() }); m.pop() } catch { /* đã báo */ }
+    if (kg.trim() === '' || num(kg) < 0) { message.error('Nhập số kg làm được (không làm thì nhập 0).'); return }
+    try { await daily.mutateAsync({ id: x.id, day, kg: num(kg), note: note.trim(), mode }); m.pop() } catch { /* đã báo */ }
   }
   return (
     <div className="m-form flat">
@@ -84,41 +88,67 @@ export function LsxProgressForm({ x }: { x: Lsx }) {
           ))}
         </div>
       )}
-      <label className="f-lbl">Khối lượng làm được trong ngày (kg)</label>
+      {cur && (
+        <>
+          <div className="f-hint" style={{ color: 'var(--amber)' }}>Ngày này đã nhập <b>{fmtN(cur.kg)} kg</b> lúc {fmtDT(cur.updatedAt ?? cur.createdAt)}.</div>
+          <div className="seg" style={{ marginTop: 6 }}>
+            <button type="button" className={mode === 'add' ? 'active' : ''} onClick={() => pickMode('add')}><span className="nm">Cộng thêm</span></button>
+            <button type="button" className={mode === 'set' ? 'active' : ''} onClick={() => pickMode('set')}><span className="nm">Sửa lại số cả ngày</span></button>
+          </div>
+        </>
+      )}
+      <label className="f-lbl">{cur ? (setting ? 'Khối lượng CẢ NGÀY (kg)' : 'Khối lượng làm THÊM (kg)') : 'Khối lượng làm được trong ngày (kg)'}</label>
       <NumInput big value={kg} onChange={setKg} />
-      <div className="f-hint">Hôm nào không làm thì nhập <b>0</b>. Hạn nhập trước <b>20h</b> mỗi ngày.</div>
-      {cur && <div className="f-hint" style={{ color: 'var(--amber)' }}>Ngày này đã nhập <b>{fmtN(cur.kg)} kg</b> lúc {fmtDT(cur.updatedAt ?? cur.createdAt)} — lưu lại sẽ sửa số (Quản lý được báo).</div>}
+      <div className="f-hint">Trong ngày nhập nhiều lần thì số được <b>cộng dồn</b>. Hôm nào không làm thì nhập <b>0</b>. Hạn nhập trước <b>20h</b> mỗi ngày.</div>
+      {setting && <div className="f-hint red-txt">Lưu sẽ <b>thay</b> số {fmtN(cur.kg)} kg của ngày này (Quản lý được báo).</div>}
       <label className="f-lbl">Ghi chú (tùy chọn)</label>
-      <input className="inp" value={note} onChange={(e) => setNote(e.target.value)} placeholder="VD: nghỉ chờ vật tư" />
-      <div className="f-hint">Sau khi lưu: lũy kế <b>{fmtN(after)} / {fmtN(x.kgPlan)} kg</b>{after >= x.kgPlan && x.kgPlan > 0 ? ' — lệnh chuyển Hoàn thành' : ''}.</div>
+      <input className="inp" value={note} onChange={(e) => setNote(e.target.value)} placeholder="VD: ca chiều, nghỉ chờ vật tư" />
+      <div className="f-hint">Sau khi lưu: {cur && !setting && <>ngày này <b>{fmtN(cur.kg + num(kg))} kg</b> · </>}lũy kế <b>{fmtN(after)} / {fmtN(x.kgPlan)} kg</b>{after >= x.kgPlan && x.kgPlan > 0 ? ' — lệnh chuyển Hoàn thành' : ''}.</div>
       <div className="btn-row"><Btn variant="primary" icon={Save} loading={daily.isPending} onClick={submit}>Lưu sản lượng</Btn></div>
     </div>
   )
 }
 
 /* ---------------------------------------------------------------- gia hạn lệnh SX (Quản lý) */
-export function LsxExtendForm({ x }: { x: Lsx }) {
+/** Quản lý gia hạn (hoặc duyệt / từ chối đề nghị của xưởng) · ask: xưởng xin gia hạn (lý do + số ngày) gửi Quản lý. */
+export function LsxExtendForm({ x, ask }: { x: Lsx; ask?: boolean }) {
   const m = useMob()
   const { message } = App.useApp()
   const extend = useLsxExtend()
-  const [days, setDays] = useState('')
+  const request = useLsxExtRequest()
+  const extReject = useLsxExtReject()
+  const rq = ask ? null : x.extRequest
+  const [days, setDays] = useState(rq ? String(rq.days) : ask ? '3' : '')
   const [reason, setReason] = useState('')
   const n = Math.floor(Number(days))
   const base = x.extension?.to ?? x.deadline
   const submit = async () => {
     if (!(n >= 1)) { message.error('Nhập số ngày gia hạn (từ 1 ngày).'); return }
-    if (!reason.trim()) { message.error('Nhập lý do gia hạn.'); return }
-    try { await extend.mutateAsync({ id: x.id, days: n, reason: reason.trim() }); m.pop() } catch { /* đã báo */ }
+    if (!reason.trim() && !rq) { message.error(ask ? 'Nhập lý do xin gia hạn.' : 'Nhập lý do gia hạn.'); return }
+    const why = reason.trim() || `Duyệt đề nghị của xưởng: ${rq?.reason}`
+    try {
+      await (ask ? request : extend).mutateAsync({ id: x.id, days: n, reason: why })
+      m.pop()
+    } catch { /* đã báo */ }
+  }
+  const reject = async () => {
+    if (!reason.trim()) { message.error('Nhập lý do không duyệt vào ô lý do.'); return }
+    try { await extReject.mutateAsync({ id: x.id, reason: reason.trim() }); m.pop() } catch { /* đã báo */ }
   }
   return (
     <div className="m-form flat">
-      <div className="f-hint" style={{ marginTop: 0, marginBottom: 8 }}>Hạn hiện tại <b>{fmtD(x.extension?.to ?? x.deadline)}</b>{x.extension ? ' (đã gia hạn)' : ''}.</div>
-      <label className="f-lbl">Gia hạn thêm (ngày)</label>
+      <div className="f-hint" style={{ marginTop: 0, marginBottom: 8 }}>Hạn hiện tại <b>{fmtD(x.extension?.to ?? x.deadline)}</b>{x.extension ? ' (đã gia hạn)' : ''} · đã làm {fmtN(x.kgDone)} / {fmtN(x.kgPlan)} kg.</div>
+      {rq && <div className="f-hint" style={{ color: 'var(--amber)' }}>Xưởng ({rq.by}) xin <b>+{rq.days} ngày</b> lúc {fmtDT(rq.at)} — {rq.reason}</div>}
+      <label className="f-lbl">{ask ? 'Xin gia hạn thêm (ngày)' : 'Gia hạn thêm (ngày)'}</label>
       <input type="number" inputMode="numeric" min={1} className="inp" value={days} onChange={(e) => setDays(e.target.value)} placeholder="VD: 3" />
-      {n >= 1 && base && <div className="f-hint">Hạn mới: <b>{fmtD(new Date(new Date(base).getTime() + n * 86400000).toISOString())}</b></div>}
-      <label className="f-lbl">Lý do gia hạn (bắt buộc)</label>
-      <textarea className="inp" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ví dụ: khách đổi bản vẽ chi tiết liên kết…" />
-      <div className="btn-row"><Btn variant="primary" icon={CalendarClock} loading={extend.isPending} onClick={submit}>Duyệt gia hạn</Btn></div>
+      {n >= 1 && base && <div className="f-hint">Hạn mới{ask ? ' nếu được duyệt' : ''}: <b>{fmtD(new Date(new Date(base).getTime() + n * 86400000).toISOString())}</b></div>}
+      <label className="f-lbl">{ask ? 'Lý do (bắt buộc)' : rq ? 'Ghi chú duyệt / lý do không duyệt' : 'Lý do gia hạn (bắt buộc)'}</label>
+      <textarea className="inp" rows={2} value={reason} onChange={(e) => setReason(e.target.value)}
+        placeholder={ask ? 'Ví dụ: chờ thép tấm về, máy chấn bảo trì…' : 'Ví dụ: khách đổi bản vẽ chi tiết liên kết…'} />
+      <div className="btn-row">
+        <Btn variant="primary" icon={CalendarClock} loading={(ask ? request : extend).isPending} onClick={submit}>{ask ? 'Gửi Quản lý duyệt' : 'Duyệt gia hạn'}</Btn>
+        {rq && <Btn icon={XOctagon} loading={extReject.isPending} onClick={reject}>Không duyệt</Btn>}
+      </div>
     </div>
   )
 }

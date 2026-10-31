@@ -80,7 +80,7 @@ function useAction<TVars, TRes>(fn: (v: TVars) => Promise<TRes>, success?: strin
   })
 }
 
-export type OrderInput = { customer: string; customerId?: number; code?: string; items: Omit<OrderItem, 'id' | 'amount'>[]; file?: string; note?: string; vatPct?: number }
+export type OrderInput = { customer: string; customerId?: number; code?: string; name?: string; items: Omit<OrderItem, 'id' | 'amount'>[]; file?: string; note?: string; vatPct?: number }
 export const useCreateOrder = () => useAction((v: OrderInput) => post<Order>('/orders', v), (o) => `Đã tạo đơn ${o.id}`)
 export const useUpdateOrder = () => useAction(({ id, ...v }: Partial<OrderInput> & { id: ID }) => api.patch<Order>(`/orders/${id}`, v).then((r) => r.data), (o) => `Đã lưu đơn ${o.id}`)
 export const useSendOrderToKT = () => useAction(({ id, completeBy, deliverBy }: { id: ID; completeBy: string; deliverBy: string }) =>
@@ -112,12 +112,21 @@ export const useAddLegalFile = () => useAction((file: File) => {
 }, 'Đã thêm giấy tờ công ty')
 export const useDeleteLegalFile = () => useAction((id: string) => api.delete<LegalFile[]>(`/settings/legal-files/${id}`).then((r) => r.data), 'Đã xóa giấy tờ')
 export const useSaveSeller = () => useAction((v: Party) => api.put<Party>('/settings/seller', v).then((r) => r.data), 'Đã lưu thông tin công ty (Bên B)')
+export const useSetLogo = () => useAction((file: File) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return api.post<Party>('/settings/company-logo', fd).then((r) => r.data)
+}, 'Đã lưu logo — các file Word xuất ra sẽ có logo ở đầu trang')
+export const useDeleteLogo = () => useAction(() => api.delete<Party>('/settings/company-logo').then((r) => r.data), 'Đã gỡ logo')
 
 export const useCreateLsx = () => useAction((v: { contractId: ID; name?: string; qty?: number; kg: number; leadDays: number }) => post<Lsx>('/lsx', v), (x) => `Đã phát lệnh ${x.id}`)
 export const useLsxAccept = () => useAction((id: ID) => post<Lsx>(`/lsx/${id}/accept`), (x) => `Xưởng đã nhận lệnh ${x.id}`)
 export const useLsxReject = () => useAction(({ id, reason }: { id: ID; reason: string }) => post<Lsx>(`/lsx/${id}/reject`, { reason }), (x) => `Đã từ chối ${x.id}`)
-export const useLsxDaily = () => useAction(({ id, ...v }: { id: ID; day?: string; kg: number; note?: string }) => post<Lsx>(`/lsx/${id}/daily`, v), (x) => `Đã ghi sản lượng ${x.id} — lũy kế ${x.kgDone.toLocaleString('vi-VN')} kg`)
+/** mode: ngày đã có số → "add" cộng thêm (mặc định), "set" sửa lại số của ngày */
+export const useLsxDaily = () => useAction(({ id, ...v }: { id: ID; day?: string; kg: number; note?: string; mode?: 'add' | 'set' }) => post<Lsx>(`/lsx/${id}/daily`, v), (x) => `Đã ghi sản lượng ${x.id} — lũy kế ${x.kgDone.toLocaleString('vi-VN')} kg`)
 export const useLsxExtend = () => useAction(({ id, ...v }: { id: ID; days: number; reason: string }) => post<Lsx>(`/lsx/${id}/extend`, v), (x) => `Đã duyệt gia hạn ${x.id}`)
+export const useLsxExtRequest = () => useAction(({ id, ...v }: { id: ID; days: number; reason: string }) => post<Lsx>(`/lsx/${id}/extend-request`, v), (x) => `Đã gửi Quản lý xin gia hạn ${x.id}`)
+export const useLsxExtReject = () => useAction(({ id, reason }: { id: ID; reason: string }) => post<Lsx>(`/lsx/${id}/extend-reject`, { reason }), (x) => `Đã từ chối gia hạn ${x.id}`)
 
 export const useCreateReceipt = () => useAction((v: { lsxId: ID; qty?: number; kg?: number; note?: string; items?: { itemId: number; qty: number }[]; driver?: string; vehiclePlate?: string; galvanizerId?: number; arriveAt?: string; fillDeadline?: string }) => post<Receipt>('/receipts', v), (r) => `Đã lập phiếu chuẩn bị hàng ${r.id}`)
 

@@ -29,8 +29,11 @@ export interface MaterialReceipt {
   note: string; by: string
   /** KG theo bên cung cấp; delta = thực tế − NCC; photo = ảnh chứng từ */
   kgSupplier: number | null; delta: number | null; photo: string | null
+  /** kho nhập → Quản lý duyệt mới tính thống kê / kho ảo; đã duyệt thì không sửa, không xóa */
+  status: MaterialStatus; approvedBy: string | null; approvedAt: string | null; rejectReason: string | null
 }
-export type MaterialInput = Partial<Omit<MaterialReceipt, 'id' | 'by' | 'delta'>>
+export type MaterialStatus = 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'
+export type MaterialInput = Partial<Omit<MaterialReceipt, 'id' | 'by' | 'delta' | 'status' | 'approvedBy' | 'approvedAt' | 'rejectReason'>>
 
 export interface StatGroup { key: string; kg: number; count: number }
 export interface MaterialStats {

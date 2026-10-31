@@ -81,7 +81,9 @@ export const useCreateGalvanizer = () => useAction((v: GalvanizerInput) => post<
 export const useUpdateGalvanizer = () => useAction(({ id, ...v }: GalvanizerInput & { id: number }) => patch<Galvanizer>(`/galvanizers/${id}`, v), (g) => `Đã lưu ${g.name}`)
 export const useDeleteGalvanizer = () => useAction((id: number) => del(`/galvanizers/${id}`), 'Đã xóa xưởng mạ')
 
-export const useCreateMaterial = () => useAction((v: MaterialInput) => post<MaterialReceipt>('/material-receipts', v), (m) => `Đã lập phiếu nhập ${m.id}`)
+export const useCreateMaterial = () => useAction((v: MaterialInput) => post<MaterialReceipt>('/material-receipts', v), (m) => `Đã lập phiếu nhập ${m.id} — gửi Quản lý duyệt`)
 export const useUpdateMaterial = () => useAction(({ id, ...v }: MaterialInput & { id: string }) => patch<MaterialReceipt>(`/material-receipts/${id}`, v), (m) => `Đã lưu ${m.id}`)
+export const useApproveMaterial = () => useAction((id: string) => post<MaterialReceipt>(`/material-receipts/${id}/approve`), (m) => `Đã duyệt phiếu nhập ${m.id}`)
+export const useRejectMaterial = () => useAction(({ id, reason }: { id: string; reason: string }) => post<MaterialReceipt>(`/material-receipts/${id}/reject`, { reason }), (m) => `Đã từ chối phiếu nhập ${m.id}`)
 
 export const useRunEndOfDay = () => useAction((force: boolean) => post<EndOfDayResult>(`/alerts/run-end-of-day${force ? '?force=1' : ''}`))

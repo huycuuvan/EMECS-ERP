@@ -122,6 +122,9 @@ const ACTION_LABEL: [RegExp, string][] = [
   [/\/contracts\/[^/]+\/returned$/, 'Trả hợp đồng'], [/\/contracts\/[^/]+$/, 'Sửa hợp đồng'],
   [/\/lsx$/, 'Phát lệnh SX'], [/\/lsx\/[^/]+\/accept$/, 'Nhận lệnh SX'], [/\/lsx\/[^/]+\/reject$/, 'Từ chối lệnh SX'],
   [/\/lsx\/[^/]+\/daily$/, 'Nhập sản lượng ngày'], [/\/lsx\/[^/]+\/extend$/, 'Duyệt gia hạn'],
+  [/\/lsx\/[^/]+\/extend-request$/, 'Xưởng xin gia hạn lệnh SX'], [/\/lsx\/[^/]+\/extend-reject$/, 'Từ chối gia hạn lệnh SX'],
+  [/\/material-receipts\/[^/]+\/approve$/, 'Duyệt phiếu nhập NVL'], [/\/material-receipts\/[^/]+\/reject$/, 'Từ chối phiếu nhập NVL'],
+  [/\/material-receipts$/, 'Lập phiếu nhập NVL'], [/\/settings\/company-logo$/, 'Cập nhật logo công ty'],
   [/\/receipts$/, 'Lập phiếu chuẩn bị hàng'], [/\/weighings$/, 'Tạo phiếu cân'], [/\/weighings\/[^/]+\/fill$/, 'Nhập kết quả cân'],
   [/\/weighings\/[^/]+\/photo$/, 'Cập nhật ảnh phiếu cân'], [/\/tasks$/, 'Giao thẻ lái xe'], [/\/tasks\/[^/]+\/accept$/, 'Lái xe nhận thẻ'],
   [/\/tasks\/[^/]+\/reject$/, 'Lái xe từ chối'], [/\/tasks\/[^/]+\/depart$/, 'Xe xuất phát'], [/\/tasks\/[^/]+\/fill-galv$/, 'Điền phiếu mạ'],
@@ -132,7 +135,7 @@ const ACTION_LABEL: [RegExp, string][] = [
   [/\/notifications\/read-all$/, 'Đọc thông báo'],
 ]
 const actionOf = (path: string) => ACTION_LABEL.find(([re]) => re.test(path))?.[1] ?? path
-const recordOf = (path: string) => path.match(/\/(DH|HD|LSX|PTN|PC|VC|SL|VK)-[\w-]+/)?.[0].slice(1) ?? ''
+const recordOf = (path: string) => path.match(/\/(DH|HD|LSX|PTN|PC|VC|SL|VK|NL)-[\w-]+/)?.[0].slice(1) ?? ''
 
 function AuditTab() {
   const { data: users = [] } = useUsers()

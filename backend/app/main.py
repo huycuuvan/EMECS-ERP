@@ -22,6 +22,7 @@ from .db import SessionLocal, utcnow
 from .models import AuditLog, User
 from .master_api import router as master_router
 from .seed import seed
+from .services import backfill_auto_vloss
 
 
 def migrate() -> None:
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
     with SessionLocal() as db:
         if db.scalar(select(User).limit(1)) is None:
             seed(db)
+        backfill_auto_vloss(db)  # 1 lần: kho ảo ghi cả chênh trong dung sai của các phiếu đã có
     realtime.bind_loop(asyncio.get_running_loop())  # đẩy thông báo từ threadpool xuống các kết nối SSE
     # cảnh báo cuối ngày (asyncio task nền) — tắt bằng ALERTS_ENABLED=0
     alerts_task = asyncio.create_task(end_of_day_loop()) if ALERTS_ENABLED else None

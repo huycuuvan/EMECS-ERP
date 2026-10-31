@@ -468,17 +468,22 @@ def material_out(m: MaterialReceipt) -> dict:
     return {"id": m.id, "date": iso(m.date), "supplier": m.supplier, "steelGrade": m.steel_grade, "spec": m.spec,
             "qty": m.qty, "unit": m.unit, "kg": m.kg, "note": m.note, "by": m.by, "kgSupplier": m.kg_supplier,
             "delta": (m.kg - m.kg_supplier) if m.kg_supplier is not None else None,  # thực tế − NCC
-            "photo": sign_photo(m.photo) if m.photo else None}
+            "photo": sign_photo(m.photo) if m.photo else None,
+            "status": m.status, "approvedBy": m.approved_by, "approvedAt": iso(m.approved_at), "rejectReason": m.reject_reason}
+
+
+NL_WAIT, NL_OK, NL_REJECTED = "Chờ duyệt", "Đã duyệt", "Từ chối"
 
 
 NVL_SOURCE = "Nhập nguyên liệu"
 
 
 def _sync_vloss_material(db: Session, m: MaterialReceipt) -> None:
-    """Kho ảo gồm cả chênh lệch nhập nguyên liệu: kg = NCC − cân thực tế (dương = thiếu, âm = thừa). Lệch bao nhiêu ghi bấy nhiêu."""
+    """Kho ảo gồm cả chênh lệch nhập nguyên liệu: kg = NCC − cân thực tế (dương = thiếu, âm = thừa). Lệch bao nhiêu ghi bấy nhiêu.
+    Chỉ phiếu Quản lý ĐÃ DUYỆT mới vào kho ảo."""
     from .models import VLoss
     e = db.scalar(select(VLoss).where(VLoss.ref_type == "nl", VLoss.ref_id == m.id))
-    d = (m.kg_supplier - m.kg) if m.kg_supplier is not None else 0
+    d = (m.kg_supplier - m.kg) if m.kg_supplier is not None and m.status == NL_OK else 0
     if abs(d) <= 0.5:
         if e:
             db.delete(e)
@@ -487,25 +492,25 @@ def _sync_vloss_material(db: Session, m: MaterialReceipt) -> None:
         + (f" — {m.note}" if m.note else "")
     if e is None:
         db.add(VLoss(id=svc.next_id(db, "VK", "vk"), date=utcnow(), ref_type="nl", ref_id=m.id, contract_id="",
-                     source=NVL_SOURCE, kg=d, approved_by=m.by or "Kho", status="Đã ghi nhận", note=note))
+                     source=NVL_SOURCE, kg=d, approved_by=m.approved_by or "Quản lý", status="Đã ghi nhận", note=note))
     else:
         e.kg, e.note = d, note
 
 
 def _notify_material(db: Session, m: MaterialReceipt) -> None:
-    """Phiếu nhập NVL gửi lên Quản lý (chỉ ghi nhận / thống kê, không cần duyệt); có chênh thì ghi rõ."""
+    """Phiếu nhập NVL gửi Quản lý DUYỆT (anh Thắng 31/10: duyệt rồi mới tính thống kê / kho ảo); có chênh thì ghi rõ."""
     d = (m.kg - m.kg_supplier) if m.kg_supplier is not None else 0
     lech = f" — CHÊNH {d:+,.0f} kg".replace(",", ".") if abs(d) > 0.5 else ""
-    svc.notify(db, f"Phiếu nhập NVL {m.id}: {m.supplier}{lech}",
+    svc.notify(db, f"Phiếu nhập NVL {m.id} chờ Quản lý duyệt: {m.supplier}{lech}",
                (f"NCC {m.kg_supplier:,.0f} kg · ".replace(",", ".") if m.kg_supplier is not None else "")
                + f"cân thực tế {m.kg:,.0f} kg".replace(",", ".") + f" · {m.by}" + (f" · {m.note}" if m.note else ""),
                "warning" if lech else "info", roles="admin")
 
 
-def _materials(db: Session, frm, to) -> list[MaterialReceipt]:
+def _materials(db: Session, frm, to, approved_only: bool = False) -> list[MaterialReceipt]:
     frm, to = _period(frm, to)
     return [m for m in db.scalars(select(MaterialReceipt).order_by(MaterialReceipt.date.desc()))
-            if (not frm and not to) or _in(m.date, frm, to)]
+            if ((not frm and not to) or _in(m.date, frm, to)) and (not approved_only or m.status == NL_OK)]
 
 
 @router.get("/material-receipts", dependencies=[Depends(require_any(*R_MATERIALS))])
@@ -518,11 +523,10 @@ def create_material(body: MaterialIn, db: Session = DB):
     m = MaterialReceipt(id=svc.next_id(db, "NL", "nl"), date=body.date or utcnow(), supplier=_clean(body.supplier),
                         steel_grade=_clean(body.steel_grade).upper(), spec=_clean(body.spec), qty=body.qty,
                         unit=_clean(body.unit) or "tấm", kg=body.kg, note=body.note or "",
-                        by=actor(PEOPLE["kho"]["name"]), kg_supplier=body.kg_supplier, photo=body.photo)
+                        by=actor(PEOPLE["kho"]["name"]), kg_supplier=body.kg_supplier, photo=body.photo, status=NL_WAIT)
     db.add(m)
     db.flush()
     _notify_material(db, m)
-    _sync_vloss_material(db, m)
     db.commit()
     return material_out(m)
 
@@ -530,6 +534,8 @@ def create_material(body: MaterialIn, db: Session = DB):
 @router.patch("/material-receipts/{mid}", dependencies=NL_EDIT)
 def update_material(mid: str, body: MaterialPatch, db: Session = DB):
     m = db.get(MaterialReceipt, mid) or _404(mid)
+    if m.status == NL_OK:
+        raise HTTPException(400, f"Phiếu {mid} Quản lý đã duyệt — không sửa được")
     data = body.model_dump(exclude_none=True)
     for f in ("supplier", "spec", "unit"):
         if f in data:
@@ -539,14 +545,46 @@ def update_material(mid: str, body: MaterialPatch, db: Session = DB):
     for f in ("date", "qty", "kg", "note", "kg_supplier", "photo"):
         if f in data:
             setattr(m, f, data[f])
+    if m.status == NL_REJECTED:  # kho sửa phiếu bị từ chối → gửi duyệt lại
+        m.status, m.reject_reason, m.approved_by, m.approved_at = NL_WAIT, None, None, None
+        _notify_material(db, m)
+    db.commit()
+    return material_out(m)
+
+
+@router.post("/material-receipts/{mid}/approve", dependencies=ADMIN)
+def approve_material(mid: str, db: Session = DB):
+    """Quản lý duyệt phiếu nhập NVL → tính vào thống kê + kho ảo (chênh NCC); đã duyệt thì không sửa / xóa."""
+    m = db.get(MaterialReceipt, mid) or _404(mid)
+    if m.status != NL_WAIT:
+        raise HTTPException(400, f"Phiếu {mid} đang \"{m.status}\" — không duyệt được")
+    m.status, m.approved_by, m.approved_at, m.reject_reason = NL_OK, actor(PEOPLE["ql"]["name"]), utcnow(), None
     _sync_vloss_material(db, m)
+    svc.notify(db, f"Quản lý đã duyệt phiếu nhập NVL {m.id}", f"{m.supplier} · {m.kg:,.0f} kg".replace(",", "."),
+               "success", roles="kho,admin", ref=m.id)
+    db.commit()
+    return material_out(m)
+
+
+class MaterialRejectIn(In):
+    reason: str = Field(min_length=1)
+
+
+@router.post("/material-receipts/{mid}/reject", dependencies=ADMIN)
+def reject_material(mid: str, body: MaterialRejectIn, db: Session = DB):
+    """Quản lý từ chối → kho sửa phiếu (tự gửi duyệt lại) hoặc xóa."""
+    m = db.get(MaterialReceipt, mid) or _404(mid)
+    if m.status != NL_WAIT:
+        raise HTTPException(400, f"Phiếu {mid} đang \"{m.status}\" — không từ chối được")
+    m.status, m.reject_reason, m.approved_by, m.approved_at = NL_REJECTED, body.reason.strip(), actor(PEOPLE["ql"]["name"]), utcnow()
+    svc.notify(db, f"Quản lý từ chối phiếu nhập NVL {m.id}", body.reason.strip(), "error", roles="kho,admin", ref=m.id)
     db.commit()
     return material_out(m)
 
 
 @router.get("/reports/material-stats", dependencies=[Depends(require_any(*R_MATERIALS))])
 def material_stats(frm: datetime | None = Query(None, alias="from"), to: datetime | None = None, db: Session = DB):
-    rows = _materials(db, frm, to)
+    rows = _materials(db, frm, to, approved_only=True)  # chỉ phiếu Quản lý đã duyệt
     pfrm, pto = _period(frm, to)
 
     def group(key) -> list[dict]:

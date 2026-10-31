@@ -10,6 +10,10 @@ import { C } from '@/theme'
 /** Hạn hiệu lực = hạn gia hạn (nếu có) hoặc hạn gốc. */
 export const effDeadline = (x: Lsx) => x.extension?.to ?? x.deadline
 export const isLate = (x: Lsx) => x.status !== 'Hoàn thành' && x.status !== 'Từ chối' && new Date(effDeadline(x)) < new Date()
+/** Sắp hết hạn: lệnh đang mở, còn ≤ 2 ngày (chưa trễ). */
+export const isSoon = (x: Lsx) => x.status !== 'Hoàn thành' && x.status !== 'Từ chối' && !isLate(x) && daysLeft(effDeadline(x)) <= 2
+/** Xưởng xin gia hạn được khi lệnh đang mở và chưa có yêu cầu chờ duyệt. */
+export const canAskExt = (x: Lsx) => (x.status === 'Đang SX' || x.status === 'Chờ nhận') && !x.extRequest
 /** "5 giờ" — thời gian lệnh đã chờ xưởng nhận. */
 export const waitLabel = (x: Lsx) => relTime(x.assignedAt).replace(' trước', '')
 export const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0)
@@ -42,6 +46,11 @@ export function LsxDueCell({ x }: { x: Lsx }) {
         )}
       </div>
       <div style={{ marginTop: 4 }}><LsxDueChip x={x} /></div>
+      {x.extRequest && (
+        <div title={`${x.extRequest.by}: ${x.extRequest.reason}`} style={{ marginTop: 4 }}>
+          <Tag variant="filled" style={{ ...chipBase, background: C.amberSoft, color: C.amber }}>Xưởng xin +{x.extRequest.days} ngày · chờ QL</Tag>
+        </div>
+      )}
     </div>
   )
 }

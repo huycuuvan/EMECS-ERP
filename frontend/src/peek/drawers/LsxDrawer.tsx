@@ -8,7 +8,7 @@ import { Bar, Cell, CellGrid, Sec } from '@/components/ui'
 import { daysLeft, fmtD, fmtDT, fmtKg, fmtT, relTime } from '@/lib/format'
 import { LsxAdminActions } from '@/pages/lsx/LsxEditModals'
 import { useLsxActions } from '@/pages/lsx/LsxModals'
-import { effDeadline, isLate, LsxTimeline, pctOf, TodayOutput, useLsxPerms } from '@/pages/lsx/lsxUtil'
+import { canAskExt, effDeadline, isLate, LsxTimeline, pctOf, TodayOutput, useLsxPerms } from '@/pages/lsx/lsxUtil'
 import { C } from '@/theme'
 import PeekShell from '../PeekShell'
 import RecordLink from '../RecordLink'
@@ -41,7 +41,9 @@ export default function LsxDrawer({ id }: { id: string }) {
         <Button size="small" ghost onClick={() => act.reject(x)}>Từ chối</Button>
       </>}
       {(x.status === 'Đang SX' || x.status === 'Hoàn thành') && canSx && <Button size="small" type="primary" onClick={() => act.progress(x)}>Nhập sản lượng ngày</Button>}
-      {open && canQl && <Button size="small" ghost danger={late} onClick={() => act.extend(x)}>Gia hạn (QL)</Button>}
+      {canSx && !canQl && canAskExt(x) && <Button size="small" ghost danger={late} onClick={() => act.extRequest(x)}>Xin gia hạn</Button>}
+      {open && canQl && <Button size="small" ghost danger={late} onClick={() => act.extend(x)}>{x.extRequest ? `Duyệt gia hạn +${x.extRequest.days} ngày` : 'Gia hạn (QL)'}</Button>}
+      {canQl && x.extRequest && <Button size="small" ghost danger onClick={() => act.extReject(x)}>Từ chối gia hạn</Button>}
       <LsxAdminActions x={x} ghost />
     </>
   )
@@ -70,6 +72,9 @@ export default function LsxDrawer({ id }: { id: string }) {
           {x.acceptedBy && <div className="caption" style={{ fontWeight: 400 }}>{x.acceptedBy}</div>}
         </Cell>
         {x.rejectReason && <Cell label="Lý do từ chối" wide alert>{x.rejectReason}</Cell>}
+        {x.extRequest && <Cell label={`Xưởng xin gia hạn +${x.extRequest.days} ngày — chờ Quản lý duyệt`} wide alert>
+          {x.extRequest.reason}<div className="caption" style={{ fontWeight: 400 }}>{x.extRequest.by} · {fmtDT(x.extRequest.at)}</div>
+        </Cell>}
         {x.extension && <Cell label="Lý do gia hạn (QL duyệt)" wide>
           {x.extension.reason}
           <div className="caption" style={{ fontWeight: 400 }}>Duyệt bởi {x.extension.approvedBy} · {fmtDT(x.extension.at)}</div>
@@ -87,11 +92,11 @@ export default function LsxDrawer({ id }: { id: string }) {
         </Cell>
       </CellGrid>
 
-      <Sec icon={<CalendarDays />}>Sản lượng theo ngày (xưởng nhập · giờ nhập / sửa)</Sec>
+      <Sec icon={<CalendarDays />}>Sản lượng theo ngày (xưởng nhập · nhập nhiều lần trong ngày thì cộng dồn)</Sec>
       {x.daily.length ? (
         <div style={{ overflowX: 'auto' }}>
           <table className="pk-items" style={{ minWidth: 560 }}>
-            <thead><tr><th>Ngày</th><th className="r">Sản lượng</th><th className="r">Lũy kế</th><th>Nhập lúc</th><th>Sửa gần nhất</th><th>Ghi chú</th></tr></thead>
+            <thead><tr><th>Ngày</th><th className="r">Sản lượng</th><th className="r">Lũy kế</th><th>Nhập lúc</th><th>Cập nhật gần nhất</th><th>Ghi chú</th></tr></thead>
             <tbody>
               {x.daily.map((d) => (
                 <tr key={d.id}>

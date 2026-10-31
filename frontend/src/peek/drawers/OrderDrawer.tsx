@@ -37,11 +37,12 @@ export default function OrderDrawer({ id }: { id: string }) {
 
   return (
     <PeekShell type="dh" id={id} status={o?.status} loading={isLoading} notFound={isError || (!isLoading && !o)} actions={actions}
-      sub={o ? `${o.customer} · ${fmtT(o.totalKg)}` : undefined}>
+      sub={o ? [o.name, o.customer, fmtT(o.totalKg)].filter(Boolean).join(' · ') : undefined}>
       {o && (
         <>
           <Sec icon={<Info />}>Thông tin đơn</Sec>
           <CellGrid>
+            {o.name && <Cell label="Tên đơn hàng" wide>{o.name}</Cell>}
             <Cell label="Khách hàng" extra={<CustomerTags name={o.customer} />}>{o.customer}</Cell>
             <Cell label="Mã nội bộ">{o.code || '—'}</Cell>
             <Cell label="Ngày chốt">{fmtD(o.date)}</Cell>

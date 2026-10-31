@@ -73,6 +73,12 @@ def _days_left(d: datetime) -> int:
 
 
 # ---------------------------------------------------------------- tổng hợp theo hợp đồng
+def order_name(db: Session, c: Contract) -> str:
+    """Tên đơn hàng gốc (nhập tay ở đơn hàng) — hiện kèm hợp đồng."""
+    o = db.get(Order, c.order_id) if c.order_id else None
+    return (o.name or "") if o else ""
+
+
 def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
     c = get_or_404(db, Contract, cid)
     lsxs = db.scalars(select(Lsx).where(Lsx.contract_id == cid)).all()
@@ -122,7 +128,7 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
         "tasksGiao": [S.task(t, photo=False) for t in giao],
     } if detail else {}
     return {
-        "contract": S.contract(c), **lists,
+        "contract": {**S.contract(c), "orderName": order_name(db, c)}, **lists,
         "producedKg": produced_kg, "producedQty": produced_qty, "receivedKg": received_kg, "weighedKg": weighed_kg,
         "sentGalvKg": sent_galv_kg, "inTransitToGalvKg": in_transit_kg, "atGalvKg": at_galv_kg,
         "pickedKg": picked_kg, "deliveredKg": delivered_kg, "stockKg": stock_kg,
@@ -195,26 +201,59 @@ def contract_flow_ledger(db: Session, cid: str) -> dict:
             "balanced": abs(total_in - allocated) < 0.5}
 
 
+MV_OK = "Đã chốt"  # phiếu đã chốt số (đạt / Quản lý đã duyệt) — chỉ trạng thái này cộng vào tổng từng tầng
+
+
+def _pc_state(p: Weighing) -> str:
+    if p.kg_actual is None:
+        return "Chờ cân"
+    return {"Chờ QL duyệt": "Chờ QL duyệt", "Lệch — chờ ký": "Chờ QL duyệt", "QL từ chối": "QL từ chối — cân lại"}.get(p.status, MV_OK)
+
+
+def _task_state(t: Task) -> str:
+    """Trạng thái chặng của thẻ lái xe: chưa chạy → đang trên xe → chờ QL duyệt (lệch) / QL từ chối → đã chốt."""
+    if t.status == "Hoàn thành":
+        return MV_OK
+    if t.status == "Chờ QL duyệt":
+        return "Chờ QL duyệt"
+    if t.status == "Từ chối":
+        return "Lái xe từ chối"
+    if t.status == "Đang chạy":
+        return "QL từ chối — điền lại" if t.reject_reason_ql and t.filled_at else "Đang trên xe"
+    return "Chưa xuất phát"
+
+
 def movement_log(db: Session, cid: str | None, frm: datetime | None, to: datetime | None) -> list[dict]:
+    """Nhật ký mọi phiếu theo 4 tầng. state: "Đã chốt" mới cộng vào tổng tầng; còn lại (chờ cân, đang trên xe, chờ
+    Quản lý duyệt, QL từ chối…) hiện riêng dưới ô tầng đó với kg tạm (kgPlan) — anh Thắng 31/10."""
     out = []
     q = lambda m: select(m).where(m.contract_id == cid) if cid else select(m)
     for r in db.scalars(q(Receipt)):
         out.append({"kind": "Chuẩn bị hàng", "type": "ptn", "id": r.id, "contractId": r.contract_id, "date": r.date,
-                    "kg": r.kg, "desc": f"Quản lý giao kho {fmt_kg(r.kg)}" + (f" · {r.qty:g} bộ" if r.qty else ""), "who": r.by})
+                    "kg": r.kg, "kgPlan": r.kg, "state": MV_OK,
+                    "desc": f"Quản lý giao kho {fmt_kg(r.kg)}" + (f" · {r.qty:g} bộ" if r.qty else ""), "who": r.by})
     for p in db.scalars(q(Weighing)):
         out.append({"kind": "Cân xuất đi mạ", "type": "pc", "id": p.id, "contractId": p.contract_id, "date": p.date,
-                    "kg": p.kg_actual, "who": p.by,
+                    "kg": p.kg_actual, "kgPlan": p.kg_actual if p.kg_actual is not None else p.kg_expected,
+                    "state": _pc_state(p), "who": p.by,
                     "desc": f"Cân trạm {fmt_kg(p.kg_actual)}" if p.kg_actual is not None else "Cân trạm chưa cân"})
     for t in db.scalars(q(Task)):
         d = t.filled_at or t.departed_at or t.assigned_at
+        st = _task_state(t)
         if t.type == "di_ma":
             out.append({"kind": "Nhập xưởng mạ", "type": "vc", "id": t.id, "contractId": t.contract_id, "date": d,
-                        "kg": t.kg_at_galv, "who": t.driver,
-                        "desc": f"Mạ xác nhận {fmt_kg(t.kg_at_galv)}" if t.kg_at_galv is not None else "Chưa có số cân mạ"})
+                        "kg": t.kg_at_galv, "kgPlan": t.kg_at_galv if t.kg_at_galv is not None else t.kg_required,
+                        "state": st, "who": t.driver,
+                        "desc": f"Mạ xác nhận {fmt_kg(t.kg_at_galv)}" if t.kg_at_galv is not None
+                        else f"Trên xe {fmt_kg(t.kg_required)} — mạ chưa cân" if st == "Đang trên xe"
+                        else f"{fmt_kg(t.kg_required)} chờ chở đi mạ"})
         else:
             out.append({"kind": "Giao khách", "type": "vc", "id": t.id, "contractId": t.contract_id, "date": d,
-                        "kg": t.kg_delivered, "who": t.driver,
-                        "desc": f"Khách ký {fmt_kg(t.kg_delivered)}" if t.kg_delivered is not None else "Chưa giao xong"})
+                        "kg": t.kg_delivered, "kgPlan": t.kg_delivered if t.kg_delivered is not None
+                        else (t.kg_picked if t.kg_picked is not None else t.kg_required),
+                        "state": st, "who": t.driver,
+                        "desc": f"Khách ký {fmt_kg(t.kg_delivered)}" if t.kg_delivered is not None
+                        else "Đang trên xe đi giao khách" if st == "Đang trên xe" else "Chưa lấy hàng ở mạ"})
     from .utils import VN_TZ
     # ngày không kèm múi giờ (vd 2026-09-25) hiểu theo giờ Việt Nam
     frm = frm.replace(tzinfo=VN_TZ) if frm and frm.tzinfo is None else frm
@@ -358,13 +397,25 @@ def dashboard(db: Session, tag: int | None = None, segment: str | None = None) -
         "pendingMismatchKg": _sum(pending_sl, lambda m: abs(m.delta)),
         "pendingLSX": [S.lsx(x) for x in db.scalars(select(Lsx).where(Lsx.status.in_(("Chờ nhận", "Từ chối"))))
                        if keep(x.contract_id)],
+        "lsxExtRequests": [S.lsx(x) for x in db.scalars(select(Lsx).where(Lsx.ext_req_at.is_not(None)))
+                           if keep(x.contract_id)],  # xưởng xin gia hạn lệnh SX, chờ Quản lý duyệt
         "pendingTasks": [S.task(t, photo=False) for t in db.scalars(select(Task).where(Task.status.in_(("Chờ xác nhận", "Từ chối"))))
                          if keep(t.contract_id)],
         # lệnh đang SX mà HÔM QUA xưởng không nhập sản lượng (kể cả 0)
         "lsxMissedYesterday": [d for d in (S.lsx(x) for x in db.scalars(select(Lsx).where(Lsx.status == "Đang SX"))
                                            if keep(x.contract_id)) if d["missedYesterday"]],
         "contracts": [contract_agg(db, c.id, detail=False) for c in contracts],
+        "pendingMaterials": pending_materials(db),
     }
+
+
+def pending_materials(db: Session) -> list[dict]:
+    """Phiếu nhập NVL kho gửi lên, chờ Quản lý duyệt (không gắn hợp đồng → không lọc theo thẻ khách)."""
+    from .models import MaterialReceipt
+    return [{"id": m.id, "date": S.iso(m.date), "supplier": m.supplier, "steelGrade": m.steel_grade, "spec": m.spec,
+             "kg": m.kg, "kgSupplier": m.kg_supplier, "by": m.by}
+            for m in db.scalars(select(MaterialReceipt).where(MaterialReceipt.status == "Chờ duyệt")
+                                .order_by(MaterialReceipt.date.desc()))]
 
 
 # ---------------------------------------------------------------- đơn hàng & hợp đồng
@@ -389,15 +440,15 @@ def _set_items(o: Order, items: list[dict]) -> None:
 
 
 def create_order(db: Session, customer: str, items: list[dict], file: str | None, note: str, code: str | None,
-                 customer_id: int | None = None, vat_pct: float = 10) -> Order:
+                 customer_id: int | None = None, vat_pct: float = 10, name: str | None = None) -> Order:
     cu = ensure_customer(db, customer, customer_id)
     customer = cu.name
-    o = Order(id=next_id(db, "DH", "dh", month_code=True), customer=customer, code=(code or "").strip(), date=utcnow(),
+    o = Order(id=next_id(db, "DH", "dh", month_code=True), customer=customer, code=(code or "").strip(), name=(name or "").strip(), date=utcnow(),
               file=file or None, status="Chốt đơn", vat_pct=vat_pct,
               contract_id=None, note=note or "", customer_id=cu.id)
     _set_items(o, items)
     db.add(o)
-    notify(db, f"Đơn hàng mới {o.id}", f"{customer} — chờ chuyển kế toán làm hợp đồng", "info",
+    notify(db, f"Đơn hàng mới {o.id}", f"{customer}{f' · {o.name}' if o.name else ''} — chờ chuyển kế toán làm hợp đồng", "info",
            roles="admin,kt", ref=o.id)
     db.commit()
     return o
@@ -411,6 +462,8 @@ def update_order(db: Session, oid: str, data: dict) -> Order:
     for k in ("customer", "file", "note", "code", "vat_pct"):
         if data.get(k) is not None:
             setattr(o, k, data[k])
+    if data.get("name") is not None:
+        o.name = data["name"].strip()
     if data.get("items"):
         _set_items(o, data["items"])
     db.commit()
@@ -691,8 +744,9 @@ def vn_today():
     return utcnow().astimezone(VN_TZ).date()
 
 
-def lsx_daily(db: Session, lid: str, day, kg: float, note: str) -> Lsx:
-    """Xưởng báo sản lượng 1 ngày (kg; không làm thì 0). Nhập lại cùng ngày = sửa (lưu số cũ + giờ sửa).
+def lsx_daily(db: Session, lid: str, day, kg: float, note: str, mode: str = "add") -> Lsx:
+    """Xưởng báo sản lượng 1 ngày (kg; không làm thì 0). Ngày đã có số: mode "add" CỘNG THÊM (nhập nhiều lần trong
+    ngày — anh Thắng 31/10: nhập 2.000 rồi 1.000 thì lũy kế phải 3.000), "set" sửa lại số của ngày (lưu số cũ + giờ sửa).
     Lũy kế lệnh = tổng các ngày; mỗi lần nhập / sửa đều báo Quản lý kèm giờ để biết số liệu mới nhất."""
     x = get_or_404(db, Lsx, lid)
     if x.status not in ("Đang SX", "Hoàn thành"):
@@ -709,12 +763,18 @@ def lsx_daily(db: Session, lid: str, day, kg: float, note: str) -> Lsx:
     row = next((d for d in x.daily if d.day == day), None)
     if row is None:
         x.daily.append(LsxDaily(day=day, kg=kg, note=note or "", created_at=now, created_by=who))
-        verb = "báo"
-    else:
+        verb, what = "báo", f"báo sản lượng ngày {day:%d/%m}: {fmt_kg(kg)}"
+    elif mode == "set":
         if row.kg == kg and (note or "") == (row.note or ""):
             return x
         row.prev_kg, row.kg, row.note, row.updated_at, row.updated_by = row.kg, kg, note or "", now, who
-        verb = f"sửa ({fmt_kg(row.prev_kg)} → {fmt_kg(kg)})"
+        verb, what = "sửa", f"sửa sản lượng ngày {day:%d/%m}: {fmt_kg(row.prev_kg)} → {fmt_kg(kg)}"
+    else:
+        if not kg and not note:
+            return x
+        notes = "; ".join(n for n in (row.note, note) if n)
+        row.prev_kg, row.kg, row.note, row.updated_at, row.updated_by = row.kg, round(row.kg + kg, 3), notes, now, who
+        verb, what = "thêm", f"thêm {fmt_kg(kg)} sản lượng ngày {day:%d/%m} ({fmt_kg(row.prev_kg)} → {fmt_kg(row.kg)})"
     db.flush()
     x.kg_done = round(sum(d.kg for d in x.daily), 3)
     if x.kg_plan and x.kg_done >= x.kg_plan - 0.5:
@@ -722,8 +782,8 @@ def lsx_daily(db: Session, lid: str, day, kg: float, note: str) -> Lsx:
     elif x.status == "Hoàn thành":
         x.status = "Đang SX"
     at = now.astimezone(VN_TZ).strftime("%H:%M %d/%m")
-    _log(x, f"{who} {verb} sản lượng ngày {day:%d/%m}: {fmt_kg(kg)} — lũy kế {fmt_kg(x.kg_done)}/{fmt_kg(x.kg_plan)}")
-    notify(db, f"{lid}: xưởng {verb.split(' ')[0]} sản lượng ngày {day:%d/%m} — {fmt_kg(kg)}",
+    _log(x, f"{who} {what} — lũy kế {fmt_kg(x.kg_done)}/{fmt_kg(x.kg_plan)}")
+    notify(db, f"{lid}: xưởng {verb} sản lượng ngày {day:%d/%m} — {fmt_kg(kg)}",
            f"Lũy kế {fmt_kg(x.kg_done)} / {fmt_kg(x.kg_plan)} · {who} lúc {at}" + (f" · {note}" if note else ""),
            "info", roles="admin")
     db.commit()
@@ -741,6 +801,42 @@ def lsx_extend(db: Session, lid: str, to: datetime | None, reason: str, days: in
         raise HTTPException(400, "Nhập số ngày gia hạn")
     x.ext_to, x.ext_reason, x.ext_approved_by, x.ext_at = to, reason, actor(QL), utcnow()
     _log(x, f"{actor(QL)} gia hạn{f' +{days} ngày' if days else ''} đến {fmt_d(to)} — {reason}")
+    if x.ext_req_at:  # duyệt đề nghị của xưởng → báo xưởng, xóa yêu cầu
+        notify(db, f"Quản lý duyệt gia hạn {lid} đến {fmt_d(to)}", reason, "success", roles="sx,admin", ref=lid)
+        _clear_ext_req(x)
+    db.commit()
+    return x
+
+
+def _clear_ext_req(x: Lsx) -> None:
+    x.ext_req_reason = x.ext_req_days = x.ext_req_by = x.ext_req_at = None
+
+
+def lsx_ext_request(db: Session, lid: str, days: int, reason: str) -> Lsx:
+    """Xưởng xin gia hạn lệnh (sắp hết hạn / đã trễ): lý do + số ngày → chờ Quản lý duyệt (sửa được số ngày) / từ chối."""
+    x = get_or_404(db, Lsx, lid)
+    if x.status not in ("Chờ nhận", "Đang SX"):
+        raise HTTPException(400, f"Lệnh {lid} đang \"{x.status}\" — không xin gia hạn")
+    if x.ext_req_at:
+        raise HTTPException(400, f"Lệnh {lid} đã xin gia hạn, đang chờ Quản lý duyệt")
+    reason = (reason or "").strip()
+    if not reason:
+        raise HTTPException(400, "Nhập lý do xin gia hạn")
+    x.ext_req_reason, x.ext_req_days, x.ext_req_by, x.ext_req_at = reason, days, actor(SX), utcnow()
+    _log(x, f"{actor(SX)} xin gia hạn +{days} ngày (hạn hiện tại {fmt_d(x.ext_to or x.deadline)}) — {reason}")
+    notify(db, f"{lid}: xưởng xin gia hạn +{days} ngày — chờ Quản lý duyệt",
+           f"Hạn hiện tại {fmt_d(x.ext_to or x.deadline)} · {reason}", "warning", roles="admin", ref=lid)
+    db.commit()
+    return x
+
+
+def lsx_ext_reject(db: Session, lid: str, reason: str) -> Lsx:
+    x = get_or_404(db, Lsx, lid)
+    if not x.ext_req_at:
+        raise HTTPException(400, f"Lệnh {lid} không có yêu cầu gia hạn đang chờ")
+    _log(x, f"{actor(QL)} KHÔNG duyệt gia hạn +{x.ext_req_days} ngày — {reason}")
+    notify(db, f"Quản lý không duyệt gia hạn {lid}", reason, "error", roles="sx,admin", ref=lid)
+    _clear_ext_req(x)
     db.commit()
     return x
 
@@ -874,6 +970,8 @@ def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | N
                f"{p.receipt_id or ''} · giao {fmt_kg(exp)} · cân {fmt_kg(p.kg_actual)} · {reason}", "warning", roles="admin")
     else:
         p.mismatch_id, p.status, p.reason, p.reason_note, p.reject_reason = None, "Đã cân", None, None, None
+        p.approved_by = p.approved_at = None
+    sync_auto_vloss(db, "pc", p)
     db.commit()
     return p
 
@@ -881,14 +979,83 @@ def fill_weighing(db: Session, pid: str, kg_actual: float | None, photo: str | N
 PREP_SOURCE = "Cân xuất (chuẩn bị hàng)"
 
 
+VLOSS_AUTO = "Trong dung sai"  # trạng thái khoản kho ảo tự ghi (chênh trong dung sai, không cần Quản lý duyệt)
+
+
+def _vloss_of(db: Session, ref_type: str, rid: str) -> VLoss | None:
+    return db.scalar(select(VLoss).where(VLoss.ref_type == ref_type, VLoss.ref_id == rid))
+
+
 def record_vloss(db: Session, ref_type: str, rec, kg: float, source: str, note: str, by: str) -> None:
-    """Kho ảo = thống kê các chênh lệch VƯỢT DUNG SAI đã được Quản lý chấp nhận (chuẩn bị hàng, xưởng mạ, giao khách).
-    Trong dung sai không ghi. Không thao tác xử lý."""
+    """Kho ảo = thống kê MỌI chênh lệch kg (chuẩn bị hàng, xưởng mạ, giao khách, nhập NVL). Khoản VƯỢT DUNG SAI ghi
+    khi Quản lý chấp nhận ("Đã ghi nhận"); phiếu đã có dòng tự ghi trong dung sai thì chuyển dòng đó. Không thao tác xử lý."""
     if abs(kg or 0) < 0.001 or rec.loss_accepted:
         return
-    db.add(VLoss(id=next_id(db, "VK", "vk"), date=utcnow(), ref_type=ref_type, ref_id=rec.id, contract_id=rec.contract_id,
-                 source=source, kg=kg, approved_by=by, status="Đã ghi nhận", note=note or ""))
+    e = _vloss_of(db, ref_type, rec.id)
+    if e is None:
+        db.add(VLoss(id=next_id(db, "VK", "vk"), date=utcnow(), ref_type=ref_type, ref_id=rec.id,
+                     contract_id=rec.contract_id, source=source, kg=kg, approved_by=by, status="Đã ghi nhận",
+                     note=note or ""))
+    else:
+        e.date, e.source, e.kg, e.approved_by, e.status, e.note = utcnow(), source, kg, by, "Đã ghi nhận", note or ""
     rec.loss_accepted = True
+
+
+def _final_delta(rec, ref_type: str) -> tuple[float, str] | None:
+    """(kg chênh = số gốc − số sau, nguồn) của phiếu ĐÃ CHỐT TRONG DUNG SAI (không qua Quản lý duyệt); chưa chốt, đang
+    chờ duyệt, hoặc lệch vượt dung sai (luồng biên bản sai lệch cũ — ghi kho ảo khi Quản lý cho phép) → None."""
+    if ref_type == "pc":
+        if rec.status != "Đã cân" or rec.kg_actual is None or rec.approved_by or rec.mismatch_id:
+            return None
+        exp, d = rec.kg_expected or 0, (rec.kg_expected or 0) - rec.kg_actual
+        ok = (d >= -0.001 and d <= exp * PC_TOLERANCE_PCT / 100) if rec.receipt_id else abs(d) <= TOLERANCE_KG
+        return (d, PREP_SOURCE if rec.receipt_id else "Trạm cân công ty") if ok else None
+    if rec.status != "Hoàn thành" or rec.filled_at is None or rec.approved_by or rec.mismatch_id:
+        return None
+    if rec.type == "di_ma":
+        ok = abs((rec.kg_at_galv or 0) - (rec.kg_required or 0)) <= TOLERANCE_KG or not rec.kg_required
+    else:
+        ok = abs((rec.kg_delivered or 0) - (rec.kg_picked or 0)) <= 0.5 and \
+            (not rec.kg_required or abs((rec.kg_picked or 0) - rec.kg_required) <= TOLERANCE_KG)
+    return _task_delta(rec) if ok else None
+
+
+def sync_auto_vloss(db: Session, ref_type: str, rec) -> None:
+    """Anh Thắng 31/10: chênh TRONG dung sai (trạm cân hụt ≤ 5%, mạ / khách ±30 kg) cũng phải hiện ở kho ảo để thống kê
+    → tự ghi dòng "Trong dung sai" khi phiếu chốt; sửa số cân thì cập nhật / xóa theo. Dòng do Quản lý duyệt không đụng."""
+    if rec.loss_accepted:
+        return
+    e = _vloss_of(db, ref_type, rec.id)
+    if e is not None and e.status != VLOSS_AUTO:
+        return
+    got = _final_delta(rec, ref_type)
+    if got is None or abs(got[0]) < 0.001:
+        if e is not None:
+            db.delete(e)
+        return
+    kg, source = got
+    note = "Chênh trong dung sai — tự ghi, không cần Quản lý duyệt"
+    if e is None:
+        db.add(VLoss(id=next_id(db, "VK", "vk"), date=utcnow(), ref_type=ref_type, ref_id=rec.id,
+                     contract_id=rec.contract_id, source=source, kg=kg, approved_by="Tự động (trong dung sai)",
+                     status=VLOSS_AUTO, note=note))
+    else:
+        e.kg, e.source = kg, source
+
+
+def backfill_auto_vloss(db: Session) -> None:
+    """Chạy 1 lần khi khởi động: ghi kho ảo cho các phiếu đã chốt trong dung sai trước khi có quy tắc trên."""
+    from .models import Setting
+    if db.get(Setting, "vloss_auto_v1"):
+        return
+    for p in db.scalars(select(Weighing)):
+        sync_auto_vloss(db, "pc", p)
+        db.flush()
+    for t in db.scalars(select(Task)):
+        sync_auto_vloss(db, "vc", t)
+        db.flush()
+    db.add(Setting(key="vloss_auto_v1", value="1"))
+    db.commit()
 
 
 def approve_weighing(db: Session, pid: str) -> Weighing:
@@ -1092,6 +1259,8 @@ def _task_result(db: Session, t: Task, off: bool, what: str, reason: str | None,
                "warning", roles="admin")
     else:
         t.status, t.reason, t.reason_note, t.reject_reason_ql = "Hoàn thành", None, None, None
+        t.approved_by = t.approved_at = None
+    sync_auto_vloss(db, "vc", t)
 
 
 def task_fill_galv(db: Session, tid: str, kg: float, photo: str | None, reason: str | None,

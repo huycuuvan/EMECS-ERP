@@ -1,5 +1,6 @@
-/* 11 — Kho ảo chênh lệch: CHỈ THỐNG KÊ các khoản lệch kg Quản lý đã chấp nhận (duyệt ở màn lái xe → ghi tự động).
-   Không có thao tác xử lý ở màn này. */
+/* 11 — Kho ảo chênh lệch: CHỈ THỐNG KÊ mọi khoản lệch kg đã chốt — vượt dung sai thì ghi khi Quản lý duyệt ("Đã ghi nhận"),
+   trong dung sai tự ghi khi phiếu chốt ("Trong dung sai", anh Thắng 31/10: trước không ghi nên kho ảo trống); nhập NVL ghi
+   khi Quản lý duyệt phiếu nhập. Không có thao tác xử lý ở màn này. */
 import { Button, Input, Select, Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { BarChart3, Info, Search } from 'lucide-react'
@@ -78,7 +79,7 @@ export default function VirtualLoss() {
   return (
     <div>
       <PageHeader title="Kho ảo chênh lệch"
-        desc="Thống kê chênh lệch kg: nhập nguyên liệu (mọi khoản thừa / thiếu) và hàng xuất vượt dung sai (chuẩn bị hàng, xưởng mạ, giao khách)"
+        desc="Thống kê MỌI chênh lệch kg đã chốt: nhập nguyên liệu (thừa / thiếu so với NCC) và hàng xuất — chuẩn bị hàng, xưởng mạ, giao khách (kể cả lệch nhỏ trong dung sai)"
         extra={<>
           <ExportButton kind="vloss" params={{ source: src, status: st }} ids={rows.map((e) => e.id)} total={all.length} />
           {can('bao-cao') && <Button icon={<BarChart3 size={14} />} onClick={() => nav('/bao-cao')}>Báo cáo đối ứng</Button>}
@@ -102,14 +103,15 @@ export default function VirtualLoss() {
         </div>
         <Table<VLoss> rowKey="id" size="middle" loading={isLoading} dataSource={rows} columns={columns} scroll={{ x: 1300 }}
           pagination={{ pageSize: 20, hideOnSinglePage: true }}
-          locale={{ emptyText: 'Chưa có khoản lệch nào được Quản lý chấp nhận.' }}
+          locale={{ emptyText: 'Chưa có khoản chênh lệch nào — phiếu nào chốt có lệch sẽ tự hiện ở đây.' }}
           rowClassName="clickable-row" onRow={(e) => ({ onClick: () => open('vk', e.id) })} />
       </div>
 
       <p className="caption" style={{ marginTop: 12, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
         <Info size={13} style={{ flexShrink: 0, marginTop: 2 }} />
         <span>Kho ảo tổng hợp chênh lệch: <b>nhập nguyên liệu</b> (bên cung cấp − cân thực tế, ghi mọi khoản thừa / thiếu khi kho lập phiếu), <b>chuẩn bị hàng</b> (QL giao − cân thực), <b>xưởng mạ</b> (cân xuất − mạ cân nhận), <b>giao khách</b> (lấy từ mạ − khách ký).
-          Chỉ ghi khoản <b>vượt dung sai</b>, khi Quản lý duyệt ở màn Chuẩn bị hàng / Thẻ lái xe; lệch trong dung sai không ghi. Chỉ để thống kê.</span>
+          Lệch <b>trong dung sai</b> (trạm cân hụt ≤ 5%, mạ / khách ±30 kg) tự ghi khi phiếu chốt — trạng thái <b>Trong dung sai</b>; lệch <b>vượt dung sai</b> ghi khi Quản lý duyệt
+          ở màn Chuẩn bị hàng / Thẻ lái xe — trạng thái <b>Đã ghi nhận</b>; nhập nguyên liệu ghi khi Quản lý duyệt phiếu nhập. Phiếu đang chờ duyệt chưa vào kho ảo. Chỉ để thống kê.</span>
       </p>
 
     </div>

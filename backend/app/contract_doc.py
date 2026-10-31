@@ -8,6 +8,7 @@ và cập nhật giá trị hợp đồng / tạm ứng; `render_docx` xuất fi
 """
 import json
 import re
+import uuid
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -15,8 +16,9 @@ from pathlib import Path
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from .config import CT_DONE, CT_DRAFTED, CT_RECEIVED, CT_WAIT
+from .config import CT_DONE, CT_DRAFTED, CT_RECEIVED, CT_WAIT, UPLOAD_DIR
 from .db import utcnow
+from .files import sign_photo
 from .models import Contract, Customer, Order, Setting
 from .utils import VN_TZ
 
@@ -97,7 +99,72 @@ def get_seller(db: Session) -> dict:
     data = json.loads(s.value) if s and s.value else {}
     out = {k: data.get(k, [] if k == "banks" else "") for k in SELLER_KEYS}
     out["banks"] = [b for b in (out["banks"] or []) if str(b).strip()]
+    logo = logo_file(db)
+    out["logo"] = sign_photo(f"/uploads/{logo.name}") if logo else None  # link xem logo (đã ký, 12 giờ)
     return out
+
+
+# ---------------------------------------------------------------- logo công ty (in đầu trang mọi file Word xuất ra)
+LOGO_KEY = "company_logo"
+LOGO_EXTS = (".png", ".jpg", ".jpeg")
+LOGO_MAX = 5 * 1024 * 1024
+LOGO_HEIGHT_CM = 1.6
+
+
+def logo_file(db: Session) -> Path | None:
+    s = db.get(Setting, LOGO_KEY)
+    name = (json.loads(s.value) if s and s.value else {}).get("file")
+    path = UPLOAD_DIR / name if name else None
+    return path if path and path.is_file() else None
+
+
+def set_logo(db: Session, filename: str, data: bytes) -> dict:
+    """Quản lý tải logo 1 lần (Danh mục → Thông tin công ty) → tự in ở đầu trang hợp đồng + bộ hồ sơ gửi khách."""
+    ext = Path(filename or "").suffix.lower()
+    if ext not in LOGO_EXTS:
+        raise HTTPException(400, "Logo phải là ảnh PNG hoặc JPG")
+    if not data:
+        raise HTTPException(400, "File rỗng")
+    if len(data) > LOGO_MAX:
+        raise HTTPException(400, "Logo tối đa 5MB")
+    old = logo_file(db)
+    name = f"logo_{uuid.uuid4().hex[:10]}{ext}"
+    (UPLOAD_DIR / name).write_bytes(data)
+    s = db.get(Setting, LOGO_KEY) or Setting(key=LOGO_KEY)
+    s.value = json.dumps({"file": name, "name": Path(filename).name}, ensure_ascii=False)
+    db.add(s)
+    db.commit()
+    if old:
+        old.unlink(missing_ok=True)
+    return get_seller(db)
+
+
+def delete_logo(db: Session) -> dict:
+    old = logo_file(db)
+    s = db.get(Setting, LOGO_KEY)
+    if s:
+        db.delete(s)
+        db.commit()
+    if old:
+        old.unlink(missing_ok=True)
+    return get_seller(db)
+
+
+def stamp_logo(tpl, logo: Path | None) -> None:
+    """Đặt logo vào đầu trang (header) mọi trang, giữ nội dung header sẵn có của mẫu. Gọi TRƯỚC tpl.render():
+    docxtpl render thay part header bằng bản mới (python-docx vẫn giữ part cũ) nên sửa sau render sẽ bị mất."""
+    if not logo:
+        return
+    tpl.init_docx()
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Cm
+    for sec in tpl.docx.sections:
+        hdr = sec.header
+        hdr.is_linked_to_previous = False
+        first = hdr.paragraphs[0] if hdr.paragraphs else hdr.add_paragraph()
+        p = first if not first.text.strip() and not first.runs else first.insert_paragraph_before()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.add_run().add_picture(str(logo), height=Cm(LOGO_HEIGHT_CM))
 
 
 def set_seller(db: Session, data: dict) -> dict:
@@ -244,8 +311,8 @@ def save_draft(db: Session, c: Contract, data: dict) -> dict:
 
 
 # ---------------------------------------------------------------- xuất Word
-def render_docx(doc: dict, mark: bool = True) -> bytes:
-    """mark: bôi vàng các ô điền theo hợp đồng (docx_marks)."""
+def render_docx(doc: dict, mark: bool = True, logo: Path | None = None) -> bytes:
+    """mark: bôi vàng các ô điền theo hợp đồng (docx_marks) · logo: in đầu trang (logo_file)."""
     from docxtpl import DocxTemplate  # import muộn: chỉ cần khi xuất file
 
     from .docx_marks import prepared
@@ -273,6 +340,7 @@ def render_docx(doc: dict, mark: bool = True) -> bytes:
         "delivery_place": doc["deliveryPlace"], "acceptance_place": doc["acceptancePlace"],
     }
     tpl = DocxTemplate(prepared(TEMPLATE, mark))
+    stamp_logo(tpl, logo)
     tpl.render(ctx, autoescape=True)
     buf = BytesIO()
     tpl.save(buf)

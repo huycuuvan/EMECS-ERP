@@ -37,7 +37,7 @@ export default function Orders() {
     const s = q.trim().toLowerCase()
     return orders.filter((o) => {
       const itn = o.items.map((i) => i.name).join(' ')
-      if (s && !(o.id + o.customer + o.code + itn).toLowerCase().includes(s)) return false
+      if (s && !(o.id + o.customer + o.code + (o.name ?? '') + itn).toLowerCase().includes(s)) return false
       if (fs && o.status !== fs) return false
       return true
     })
@@ -49,8 +49,12 @@ export default function Orders() {
 
   const columns: TableColumnsType<Order> = [
     {
-      title: 'Mã đơn', key: 'id', width: 130,
-      render: (_, o) => <><div className="mono" style={{ fontWeight: 700 }}>{o.id}</div>{o.code && <div className="sub-soft">{o.code}</div>}</>,
+      title: 'Mã · tên đơn', key: 'id', width: 190,
+      render: (_, o) => <>
+        <div className="mono" style={{ fontWeight: 700 }}>{o.id}</div>
+        {o.name && <div style={{ fontWeight: 600, fontSize: 12.5, lineHeight: 1.35, marginTop: 2 }}>{o.name}</div>}
+        {o.code && <div className="sub-soft">{o.code}</div>}
+      </>,
     },
     { title: 'Khách hàng', key: 'customer', render: (_, o) => <>{o.customer}<CustomerTags name={o.customer} customerId={o.customerId} /></> },
     {

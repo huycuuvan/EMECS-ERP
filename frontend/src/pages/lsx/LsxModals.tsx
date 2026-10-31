@@ -1,10 +1,11 @@
 /* Các thao tác trên Lệnh sản xuất (dùng chung trang danh sách + drawer):
-   phát lệnh (QL, chỉ khối lượng) · xưởng nhận · xưởng từ chối có lý do · xưởng nhập sản lượng theo NGÀY · QL duyệt gia hạn. */
-import { App, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd'
+   phát lệnh (QL, chỉ khối lượng) · xưởng nhận · xưởng từ chối có lý do · xưởng nhập sản lượng theo NGÀY (nhập nhiều lần
+   trong ngày thì cộng dồn) · xưởng xin gia hạn khi sắp hết hạn / trễ → QL duyệt (sửa được số ngày) / từ chối; QL tự gia hạn. */
+import { App, DatePicker, Form, Input, InputNumber, Modal, Radio, Select } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useState, type ReactNode } from 'react'
 import {
-  useContracts, useCreateLsx, useLsxAccept, useLsxDaily, useLsxExtend, useLsxList, useLsxReject, useMeta,
+  useContracts, useCreateLsx, useLsxAccept, useLsxDaily, useLsxExtend, useLsxExtReject, useLsxExtRequest, useLsxList, useLsxReject, useMeta,
 } from '@/api/hooks'
 import type { ID, Lsx } from '@/api/types'
 import { daysLeft, fmtD, fmtDT, fmtKg, fmtNum } from '@/lib/format'
@@ -47,26 +48,36 @@ function RejectModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
 }
 
 /* ---------------------------------------------------------------- sản lượng theo ngày (xưởng) */
+/** Ngày đã có số: "add" cộng thêm (nhập nhiều lần trong ngày — mặc định), "set" sửa lại số cả ngày. */
+type DailyMode = 'add' | 'set'
+
 function ProgressModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
   const daily = useLsxDaily()
-  const [form] = Form.useForm<{ day: Dayjs; kg: number | null; note?: string }>()
+  const [form] = Form.useForm<{ day: Dayjs; kg: number | null; note?: string; mode: DailyMode }>()
   const day = Form.useWatch('day', form) as Dayjs | undefined
   const kg = Form.useWatch('kg', form) as number | null | undefined
+  const mode = (Form.useWatch('mode', form) as DailyMode | undefined) ?? 'add'
   const start = dayjs(x.acceptedAt ?? x.assignedAt).startOf('day')
   const existing = day ? x.daily.find((d) => d.day === day.format('YYYY-MM-DD')) : undefined
-  const after = x.kgDone - (existing?.kg ?? 0) + (Number(kg) || 0)
+  const setting = !!existing && mode === 'set'
+  const after = x.kgDone - (setting ? existing.kg : 0) + (Number(kg) || 0)
 
   return (
     <Modal open title={`Nhập sản lượng ngày — ${x.id}`} okText="Ghi sản lượng" cancelText="Hủy" onCancel={onClose}
       confirmLoading={daily.isPending} onOk={() => form.submit()}>
       <p className="caption" style={{ marginTop: 8 }}>
-        Kế hoạch <b>{fmtKg(x.kgPlan)}</b> · đã làm lũy kế <b>{fmtKg(x.kgDone)}</b>. Nhập số kg làm được <b>trong ngày</b> —
-        hôm nào không làm thì nhập <b>0</b>. Hạn nhập trước <b>20h</b> mỗi ngày.
+        Kế hoạch <b>{fmtKg(x.kgPlan)}</b> · đã làm lũy kế <b>{fmtKg(x.kgDone)}</b>. Nhập số kg làm được — trong ngày nhập nhiều lần thì
+        số được <b>cộng dồn</b>; hôm nào không làm thì nhập <b>0</b>. Hạn nhập trước <b>20h</b> mỗi ngày.
       </p>
-      <Form form={form} layout="vertical" initialValues={{ day: dayjs(), kg: x.today ? x.today.kg : null }}
-        onValuesChange={(ch) => { if (ch.day) { const e = x.daily.find((d) => d.day === (ch.day as Dayjs).format('YYYY-MM-DD')); form.setFieldValue('kg', e ? e.kg : null) } }}
+      <Form form={form} layout="vertical" initialValues={{ day: dayjs(), kg: null, mode: 'add' }}
+        onValuesChange={(ch, all) => {
+          if (ch.day || ch.mode) {
+            const e = x.daily.find((d) => d.day === (all.day as Dayjs).format('YYYY-MM-DD'))
+            form.setFieldValue('kg', e && all.mode === 'set' ? e.kg : null)
+          }
+        }}
         onFinish={async (v) => {
-          await daily.mutateAsync({ id: x.id, day: v.day.format('YYYY-MM-DD'), kg: Number(v.kg) || 0, note: (v.note || '').trim() })
+          await daily.mutateAsync({ id: x.id, day: v.day.format('YYYY-MM-DD'), kg: Number(v.kg) || 0, note: (v.note || '').trim(), mode: v.mode })
           onClose()
         }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -74,30 +85,67 @@ function ProgressModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
             <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} allowClear={false}
               disabledDate={(d) => d.isAfter(dayjs(), 'day') || d.isBefore(start, 'day')} />
           </Form.Item>
-          <Form.Item name="kg" label="Khối lượng làm được trong ngày (kg)" rules={[{ required: true, message: 'Nhập số kg (không làm thì 0).' }]}>
-            <InputNumber<number> min={0} style={{ width: '100%' }} placeholder="0 nếu không làm" formatter={numFormatter} parser={numParser} />
+          <Form.Item name="kg" label={existing ? (setting ? 'Khối lượng CẢ NGÀY (kg)' : 'Khối lượng làm THÊM (kg)') : 'Khối lượng làm được trong ngày (kg)'}
+            rules={[{ required: true, message: 'Nhập số kg (không làm thì 0).' }]}>
+            <InputNumber<number> min={0} style={{ width: '100%' }} placeholder={existing && !setting ? 'số kg làm thêm' : '0 nếu không làm'} formatter={numFormatter} parser={numParser} />
           </Form.Item>
         </div>
-        <Form.Item name="note" label="Ghi chú (tùy chọn)"><Input placeholder="VD: nghỉ chờ vật tư, máy chấn bảo trì..." /></Form.Item>
+        <Form.Item name="mode" hidden={!existing}
+          label={existing && <>Ngày {dayjs(existing.day).format('DD/MM')} đã nhập <b>&nbsp;{fmtKg(existing.kg)}&nbsp;</b> lúc {fmtDT(existing.updatedAt ?? existing.createdAt)} ({existing.updatedBy ?? existing.createdBy})</>}>
+          <Radio.Group options={[
+            { value: 'add', label: 'Cộng thêm vào số đã nhập' },
+            { value: 'set', label: 'Sửa lại số cả ngày (nhập nhầm)' },
+          ]} />
+        </Form.Item>
+        <Form.Item name="note" label="Ghi chú (tùy chọn)"><Input placeholder="VD: ca chiều, nghỉ chờ vật tư, máy chấn bảo trì..." /></Form.Item>
       </Form>
-      {existing && (
-        <WarnBox>Ngày {dayjs(existing.day).format('DD/MM')} đã nhập <b>{fmtKg(existing.kg)}</b> lúc {fmtDT(existing.updatedAt ?? existing.createdAt)}
-          {' '}({existing.updatedBy ?? existing.createdBy}) — ghi lại sẽ <b>sửa</b> số này, Quản lý được báo kèm giờ sửa.</WarnBox>
+      {setting && (
+        <WarnBox>Ghi lại sẽ <b>thay</b> số {fmtKg(existing.kg)} của ngày {dayjs(existing.day).format('DD/MM')} — Quản lý được báo kèm giờ sửa.</WarnBox>
       )}
       <p className="caption" style={{ margin: '8px 0 0' }}>
-        Sau khi ghi: lũy kế <b>{fmtKg(after)}</b> / {fmtKg(x.kgPlan)}{after >= x.kgPlan && x.kgPlan > 0 ? ' — lệnh chuyển Hoàn thành.' : '.'}
+        Sau khi ghi: {existing && !setting && <>ngày {dayjs(existing.day).format('DD/MM')} = <b>{fmtKg(existing.kg + (Number(kg) || 0))}</b> · </>}
+        lũy kế <b>{fmtKg(after)}</b> / {fmtKg(x.kgPlan)}{after >= x.kgPlan && x.kgPlan > 0 ? ' — lệnh chuyển Hoàn thành.' : '.'}
       </p>
     </Modal>
   )
 }
 
-/* ---------------------------------------------------------------- gia hạn (QL) */
+/* ---------------------------------------------------------------- xưởng xin gia hạn (sắp hết hạn / đã trễ) */
+function ExtRequestModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
+  const req = useLsxExtRequest()
+  const [form] = Form.useForm<{ days: number; reason: string }>()
+  const eff = effDeadline(x)
+  const dl = daysLeft(eff)
+  const days = Form.useWatch('days', form) as number | undefined
+  return (
+    <Modal open title={`Xin gia hạn lệnh ${x.id}`} okText="Gửi Quản lý duyệt" cancelText="Hủy" onCancel={onClose}
+      confirmLoading={req.isPending} onOk={() => form.submit()}>
+      <p className="caption" style={{ marginTop: 8 }}>
+        Hạn hiện tại <b className={dl <= 2 ? 'text-signal' : undefined}>{fmtD(eff)}</b>{dl < 0 ? <> — đã trễ {Math.abs(dl)} ngày</> : <> — còn {dl} ngày</>}
+        {' '}· đã làm {fmtKg(x.kgDone)} / {fmtKg(x.kgPlan)}. Quản lý duyệt (có thể sửa số ngày) hoặc từ chối.
+      </p>
+      <Form form={form} layout="vertical" initialValues={{ days: 3 }}
+        onFinish={async (v) => { await req.mutateAsync({ id: x.id, days: v.days, reason: v.reason.trim() }); onClose() }}>
+        <Form.Item name="days" label="Xin gia hạn thêm (ngày)" rules={[{ required: true, message: 'Nhập số ngày.' }]}
+          extra={days ? <>Hạn mới nếu được duyệt: <b>{fmtD(dayjs(eff).add(days, 'day').toISOString())}</b></> : undefined}>
+          <InputNumber min={1} max={365} precision={0} style={{ width: '100%' }} addonAfter="ngày" />
+        </Form.Item>
+        <Form.Item name="reason" label="Lý do (bắt buộc)" rules={[{ required: true, whitespace: true, message: 'Nhập lý do xin gia hạn.' }]}>
+          <Input.TextArea rows={3} placeholder="VD: chờ thép tấm 12ly về, máy chấn bảo trì 2 ngày..." />
+        </Form.Item>
+      </Form>
+    </Modal>
+  )
+}
+
+/* ---------------------------------------------------------------- gia hạn (QL) — tự gia hạn hoặc duyệt đề nghị của xưởng */
 function ExtendModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
   const extend = useLsxExtend()
   const [form] = Form.useForm<{ days: number; reason: string }>()
   const eff = effDeadline(x)
   const dl = daysLeft(eff)
   const days = Form.useWatch('days', form) as number | undefined
+  const rq = x.extRequest
   return (
     <Modal open title={`Gia hạn tiến độ — ${x.id} (Quản lý duyệt)`} okText="Duyệt gia hạn" cancelText="Hủy" onCancel={onClose}
       confirmLoading={extend.isPending} onOk={() => form.submit()}>
@@ -105,7 +153,8 @@ function ExtendModal({ x, onClose }: { x: Lsx; onClose: () => void }) {
         Hạn hiệu lực hiện tại: <b className="text-signal">{fmtD(eff)}</b>
         {dl < 0 ? <> — đã trễ {Math.abs(dl)} ngày.</> : <> — còn {dl} ngày.</>} Gia hạn sẽ ghi vào nhật ký lệnh kèm người duyệt.
       </p>
-      <Form form={form} layout="vertical"
+      {rq && <WarnBox>Xưởng ({rq.by}) xin <b>+{rq.days} ngày</b> lúc {fmtDT(rq.at)} — lý do: <b>{rq.reason}</b>. Sửa số ngày nếu cần rồi bấm Duyệt.</WarnBox>}
+      <Form form={form} layout="vertical" initialValues={rq ? { days: rq.days, reason: `Duyệt đề nghị của xưởng: ${rq.reason}` } : undefined}
         onFinish={async (v) => {
           await extend.mutateAsync({ id: x.id, days: v.days, reason: v.reason.trim() })
           onClose()
@@ -190,13 +239,14 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
 }
 
 /* ---------------------------------------------------------------- hook */
-type State = { kind: 'reject' | 'progress' | 'extend'; x: Lsx } | { kind: 'create' } | null
+type State = { kind: 'reject' | 'progress' | 'extend' | 'extRequest'; x: Lsx } | { kind: 'create' } | null
 
 /** Trả về các hàm mở thao tác + `node` (render vào cây component). */
 export function useLsxActions(opts?: { onCreated?: (id: ID) => void }) {
   const { modal } = App.useApp()
   const { data: meta } = useMeta()
   const accept = useLsxAccept()
+  const extReject = useLsxExtReject()
   const [state, setState] = useState<State>(null)
   const close = () => setState(null)
 
@@ -215,10 +265,25 @@ export function useLsxActions(opts?: { onCreated?: (id: ID) => void }) {
     onOk: () => accept.mutateAsync(x.id).catch(() => undefined),
   })
 
+  const doExtReject = (x: Lsx) => {
+    let reason = ''
+    modal.confirm({
+      title: `Không duyệt gia hạn ${x.id}?`, okText: 'Từ chối', okButtonProps: { danger: true }, cancelText: 'Hủy',
+      content: (
+        <>
+          {x.extRequest && <p style={{ margin: '0 0 8px' }}>Xưởng xin +{x.extRequest.days} ngày — {x.extRequest.reason}</p>}
+          <Input.TextArea autoFocus rows={2} placeholder="Lý do (bắt buộc) — VD: đã có vật tư, giữ hạn cũ" onChange={(e) => { reason = e.target.value }} />
+        </>
+      ),
+      onOk: () => (reason.trim() ? extReject.mutateAsync({ id: x.id, reason: reason.trim() }) : Promise.reject(new Error('Nhập lý do'))),
+    })
+  }
+
   let node: ReactNode = null
   if (state?.kind === 'reject') node = <RejectModal x={state.x} onClose={close} />
   else if (state?.kind === 'progress') node = <ProgressModal x={state.x} onClose={close} />
   else if (state?.kind === 'extend') node = <ExtendModal x={state.x} onClose={close} />
+  else if (state?.kind === 'extRequest') node = <ExtRequestModal x={state.x} onClose={close} />
   else if (state?.kind === 'create') node = <CreateModal onClose={close} onCreated={opts?.onCreated} />
 
   return {
@@ -226,6 +291,9 @@ export function useLsxActions(opts?: { onCreated?: (id: ID) => void }) {
     reject: (x: Lsx) => setState({ kind: 'reject', x }),
     progress: (x: Lsx) => setState({ kind: 'progress', x }),
     extend: (x: Lsx) => setState({ kind: 'extend', x }),
+    /** xưởng xin gia hạn → Quản lý duyệt (extend, điền sẵn số ngày xin) / từ chối (extReject) */
+    extRequest: (x: Lsx) => setState({ kind: 'extRequest', x }),
+    extReject: doExtReject,
     create: () => setState({ kind: 'create' }),
     node,
   }

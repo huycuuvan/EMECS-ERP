@@ -57,6 +57,7 @@ function DetailLsx({ id }: { id: string }) {
         <DItem k="Đã đạt">{fmtN(x.kgDone)} kg{x.lastUpdateAt && <small> · cập nhật {fmtDT(x.lastUpdateAt)}</small>}</DItem>
         {x.rejectReason && <DItem k="Lý do từ chối" full small><span className="red-txt">{x.rejectReason}</span></DItem>}
         {x.extension && <DItem k="Lý do gia hạn" full small>{x.extension.reason} — duyệt bởi {x.extension.approvedBy}</DItem>}
+        {x.extRequest && <DItem k={`Xưởng xin gia hạn +${x.extRequest.days} ngày — chờ Quản lý`} full small><span className="red-txt">{x.extRequest.reason}</span></DItem>}
       </DGrid>
       <PgRow label="Khối lượng" done={x.kgDone} plan={x.kgPlan} unit="kg" tone="success" />
       {(x.daily.length > 0 || x.missedDays.length > 0) && (
@@ -70,7 +71,7 @@ function DetailLsx({ id }: { id: string }) {
           {x.daily.map((d) => (
             <div key={d.id} className="log-line">
               <span className="lt">{ddmm(d.day)}</span>
-              <span><b>{fmtN(d.kg)} kg</b> · {d.updatedAt ? `sửa lúc ${fmtDT(d.updatedAt)} (${fmtN(d.prevKg ?? 0)} → ${fmtN(d.kg)})` : `nhập lúc ${fmtDT(d.createdAt)}`}{d.note ? ` · ${d.note}` : ''}</span>
+              <span><b>{fmtN(d.kg)} kg</b> · {d.updatedAt ? `cập nhật lúc ${fmtDT(d.updatedAt)} (${fmtN(d.prevKg ?? 0)} → ${fmtN(d.kg)})` : `nhập lúc ${fmtDT(d.createdAt)}`}{d.note ? ` · ${d.note}` : ''}</span>
             </div>
           ))}
         </>
@@ -80,7 +81,11 @@ function DetailLsx({ id }: { id: string }) {
           <Btn variant="primary" icon={Gauge} onClick={() => m.sheet({ icon: Gauge, title: `Cập nhật tiến độ ${x.id}`, body: <LsxProgressForm x={x} /> })}>Cập nhật tiến độ</Btn>
         )}
         {m.role === 'quanly' && (x.status === 'Đang SX' || x.status === 'Chờ nhận') && (
-          <Btn icon={CalendarClock} onClick={() => m.sheet({ icon: CalendarClock, title: `Gia hạn ${x.id}`, body: <LsxExtendForm x={x} /> })}>Gia hạn</Btn>
+          <Btn icon={CalendarClock} onClick={() => m.sheet({ icon: CalendarClock, title: `Gia hạn ${x.id}`, body: <LsxExtendForm x={x} /> })}>
+            {x.extRequest ? `Duyệt gia hạn +${x.extRequest.days} ngày` : 'Gia hạn'}</Btn>
+        )}
+        {m.role === 'sanxuat' && (x.status === 'Đang SX' || x.status === 'Chờ nhận') && !x.extRequest && (
+          <Btn icon={CalendarClock} onClick={() => m.sheet({ icon: CalendarClock, title: `Xin gia hạn ${x.id}`, body: <LsxExtendForm x={x} ask /> })}>Xin gia hạn</Btn>
         )}
       </div>
       {(rcs.length > 0 || pcs.length > 0) && (

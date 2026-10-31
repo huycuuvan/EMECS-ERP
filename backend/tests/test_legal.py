@@ -103,3 +103,47 @@ def test_company_files_in_pack(c):
         assert c.delete(f"/api/settings/legal-files/{x['id']}").status_code == 200
     assert c.get("/api/settings/legal-files").json() == []
     assert len(zipfile.ZipFile(io.BytesIO(c.get(f"/api/contracts/{hd['id']}/legal.zip").content)).namelist()) == 3
+
+
+def _png(w: int = 8, h: int = 8) -> bytes:
+    """Ảnh PNG đỏ nhỏ (không cần Pillow)."""
+    import struct
+    import zlib
+
+    def chunk(t: bytes, d: bytes) -> bytes:
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    raw = b"".join(b"\x00" + b"\xdc\x14\x1e" * w for _ in range(h))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+
+def _header_images(data: bytes) -> list[int]:
+    """Số ảnh trong header từng section của file Word."""
+    d = Document(io.BytesIO(data))
+    return [len(s.header._element.xpath(".//pic:pic")) for s in d.sections]
+
+
+def test_company_logo_in_word_header(c):
+    """Anh Thắng 31/10: logo công ty tải 1 lần ở Thông tin công ty → in đầu trang hợp đồng + biên bản + chứng chỉ."""
+    hd = _contract(c)
+    url = f"/api/contracts/{hd['id']}"
+    assert _header_images(c.get(f"{url}/document.docx").content) == [0]  # chưa có logo
+    png = io.BytesIO(_png())
+    login(c, "kt")
+    assert c.post("/api/settings/company-logo", files={"file": ("logo.png", png.getvalue(), "image/png")}).status_code == 403
+    login(c, "ql")
+    assert c.post("/api/settings/company-logo", files={"file": ("logo.gif", b"GIF89a", "image/gif")}).status_code == 400
+    s = c.post("/api/settings/company-logo", files={"file": ("logo.png", png.getvalue(), "image/png")}).json()
+    assert s["logo"].startswith("/uploads/logo_")
+    assert c.get(s["logo"]).status_code == 200
+    assert _header_images(c.get(f"{url}/document.docx").content) == [1]
+    for key in ("bien-ban-giao-nhan", "chung-chi-xuat-xuong"):
+        assert all(n == 1 for n in _header_images(c.get(f"{url}/legal/{key}.docx").content)), key
+    z = zipfile.ZipFile(io.BytesIO(c.get(f"{url}/legal.zip").content))
+    for n in z.namelist():
+        if n.endswith(".docx"):
+            assert all(k == 1 for k in _header_images(z.read(n))), n
+    # lưu lại thông tin công ty không làm mất logo; xóa logo → file Word không còn logo
+    assert c.put("/api/settings/seller", json={**s, "name": "EMECS"}).json()["logo"]
+    assert c.delete("/api/settings/company-logo").json()["logo"] is None
+    assert _header_images(c.get(f"{url}/document.docx").content) == [0]

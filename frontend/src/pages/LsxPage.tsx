@@ -14,7 +14,7 @@ import RecordLink from '@/peek/RecordLink'
 import { C } from '@/theme'
 import { LsxAdminActions } from './lsx/LsxEditModals'
 import { useLsxActions } from './lsx/LsxModals'
-import { isLate, LsxDueCell, LsxMiniProgress, LsxTimeline, useLsxPerms, waitLabel } from './lsx/lsxUtil'
+import { canAskExt, isLate, isSoon, LsxDueCell, LsxMiniProgress, LsxTimeline, useLsxPerms, waitLabel } from './lsx/lsxUtil'
 
 const sub = { color: C.ash, fontSize: 11, marginTop: 2 }
 
@@ -104,7 +104,12 @@ export default function LsxPage() {
             <Button size="small" onClick={stop(() => act.reject(x))}>Từ chối</Button>
           </>}
           {x.status === 'Đang SX' && canSx && <Button size="small" onClick={stop(() => act.progress(x))}>Nhập sản lượng ngày</Button>}
-          {isLate(x) && canQl && <Button size="small" danger onClick={stop(() => act.extend(x))}>Gia hạn (QL)</Button>}
+          {canSx && !canQl && canAskExt(x) && (isLate(x) || isSoon(x)) && <Button size="small" danger={isLate(x)} onClick={stop(() => act.extRequest(x))}>Xin gia hạn</Button>}
+          {canQl && x.extRequest && <>
+            <Button size="small" type="primary" onClick={stop(() => act.extend(x))}>Duyệt +{x.extRequest.days} ngày</Button>
+            <Button size="small" danger onClick={stop(() => act.extReject(x))}>Từ chối</Button>
+          </>}
+          {canQl && !x.extRequest && (isLate(x) || isSoon(x)) && <Button size="small" danger={isLate(x)} onClick={stop(() => act.extend(x))}>Gia hạn (QL)</Button>}
           {x.status === 'Từ chối' && <LsxAdminActions x={x} withEdit={false} />}
         </div>
       ),

@@ -106,7 +106,7 @@ def _orders(db: Session, f: Filters, _u: User) -> list[Row]:
     for o in db.scalars(q):
         items = "; ".join(f"{i.name} ({fmt_num(i.qty)} {i.unit}, {fmt_num(i.kg)} kg, {fmt_num(i.price)} ₫/kg)"
                           for i in o.items)
-        out.append((o.id, [o.id, o.code, o.customer, o.date, o.file or "", items, o.total_kg, o.value, o.status,
+        out.append((o.id, [o.id, o.name, o.code, o.customer, o.date, o.file or "", items, o.total_kg, o.value, o.status,
                            o.contract_id or "", o.note]))
     return out
 
@@ -230,7 +230,7 @@ def _movement(db: Session, f: Filters, _u: User) -> list[Row]:
 
 SHEETS: dict[str, Sheet] = {
     "orders": Sheet("Sổ đơn hàng khách", "don-hang", "don-hang", [
-        ("Mã đơn", "text"), ("Mã nội bộ", "text"), ("Khách hàng", "text"), ("Ngày chốt", "date"),
+        ("Mã đơn", "text"), ("Tên đơn hàng", "text"), ("Mã nội bộ", "text"), ("Khách hàng", "text"), ("Ngày chốt", "date"),
         ("File ký chốt", "text"), ("Hàng hóa", "text"), ("Khối lượng (kg)", "kg"), ("Giá trị", "money"),
         ("Trạng thái", "text"), ("Hợp đồng", "text"), ("Ghi chú", "text")], _orders),
     "contracts": Sheet("Sổ hợp đồng & tạm ứng", "hop-dong", "hop-dong", [

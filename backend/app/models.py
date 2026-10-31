@@ -50,6 +50,7 @@ class Order(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     customer: Mapped[str] = mapped_column(String(200))
     code: Mapped[str] = mapped_column(String(32))
+    name: Mapped[str] = mapped_column(String(255), default="", server_default="")  # tên đơn hàng (nhập tay, tùy chọn)
     date = mapped_column(UTCDateTime)
     file: Mapped[str | None] = mapped_column(String(255))
     total_kg: Mapped[float] = mapped_column(Float, default=0)
@@ -168,6 +169,11 @@ class Lsx(Base):
     ext_reason: Mapped[str | None] = mapped_column(Text)
     ext_approved_by: Mapped[str | None] = mapped_column(String(120))
     ext_at = mapped_column(UTCDateTime, nullable=True)
+    # xưởng xin gia hạn (lý do + số ngày) → chờ Quản lý duyệt / từ chối; duyệt xong ghi vào ext_* rồi xóa yêu cầu
+    ext_req_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ext_req_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ext_req_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    ext_req_at = mapped_column(UTCDateTime, nullable=True)
     logs: Mapped[list["LsxLog"]] = relationship(
         back_populates="lsx", cascade="all, delete-orphan", order_by="LsxLog.at")
     daily: Mapped[list["LsxDaily"]] = relationship(
@@ -461,3 +467,8 @@ class MaterialReceipt(Base):
     by: Mapped[str] = mapped_column(String(120), default="")
     kg_supplier: Mapped[float | None] = mapped_column(Float, nullable=True)  # KG theo bên cung cấp (phiếu / hóa đơn NCC)
     photo: Mapped[str | None] = mapped_column(Text, nullable=True)  # ảnh chứng từ
+    # kho nhập → Quản lý duyệt mới tính thống kê / kho ảo; đã duyệt thì không sửa, không xóa
+    status: Mapped[str] = mapped_column(String(20), default="Đã duyệt", server_default="Đã duyệt")  # Chờ duyệt | Đã duyệt | Từ chối (kho nhập: Chờ duyệt)
+    approved_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    approved_at = mapped_column(UTCDateTime, nullable=True)
+    reject_reason: Mapped[str | None] = mapped_column(Text, nullable=True)

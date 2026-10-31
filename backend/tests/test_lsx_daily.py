@@ -34,7 +34,7 @@ def test_daily_entries_sum_and_edit_time(c):
     today = datetime.now(VN).date()
     x = c.post(f"/api/lsx/{lid}/daily", json={"kg": 0, "note": "Nghỉ chờ vật tư"}).json()  # không làm → 0
     assert x["kgDone"] == 0 and x["today"]["kg"] == 0 and not x["today"]["edited"]
-    x = c.post(f"/api/lsx/{lid}/daily", json={"kg": 3000}).json()  # nhập lại cùng ngày = sửa, giữ số cũ + giờ sửa
+    x = c.post(f"/api/lsx/{lid}/daily", json={"kg": 3000, "mode": "set"}).json()  # sửa lại số ngày: giữ số cũ + giờ sửa
     assert x["kgDone"] == 3000 and x["today"]["edited"]
     row = x["daily"][0]
     assert row["day"] == today.isoformat() and row["prevKg"] == 0 and row["updatedAt"] and row["createdAt"]
@@ -46,11 +46,22 @@ def test_daily_entries_sum_and_edit_time(c):
     assert any(f"{lid}: xưởng sửa sản lượng" in t for t in titles) and any(f"{lid}: xưởng báo sản lượng" in t for t in titles)
 
 
+def test_daily_same_day_entries_add_up(c):
+    """Anh Thắng 31/10: nhập 2.000 rồi nhập tiếp 1.000 cùng ngày → lũy kế 3.000 (trước đây lần sau ghi đè còn 1.000)."""
+    lid = _new_lsx(c)
+    c.post(f"/api/lsx/{lid}/daily", json={"kg": 2000, "note": "ca sáng"})
+    x = c.post(f"/api/lsx/{lid}/daily", json={"kg": 1000, "note": "ca chiều"}).json()
+    assert x["kgDone"] == 3000 and x["today"]["kg"] == 3000 and x["today"]["edited"]
+    row = x["daily"][0]
+    assert row["prevKg"] == 2000 and row["note"] == "ca sáng; ca chiều" and row["cumKg"] == 3000
+    assert "thêm 1.000 kg" in x["log"][-1]["text"] and "lũy kế 3.000 kg" in x["log"][-1]["text"]
+
+
 def test_daily_completes_lsx(c):
     lid = _new_lsx(c, kg=5000)
     x = c.post(f"/api/lsx/{lid}/daily", json={"kg": 5000}).json()
     assert x["status"] == "Hoàn thành"
-    x = c.post(f"/api/lsx/{lid}/daily", json={"kg": 4000}).json()  # sửa giảm → quay lại Đang SX
+    x = c.post(f"/api/lsx/{lid}/daily", json={"kg": 4000, "mode": "set"}).json()  # sửa giảm → quay lại Đang SX
     assert x["status"] == "Đang SX" and x["kgDone"] == 4000
 
 
@@ -198,7 +209,9 @@ def test_kho_ao_records_all_deviations_including_prep(c):
     c.post(f"/api/weighings/{ws[r2['id']]}/fill", json={"grossKg": 9950, "tareKg": 8000})  # 1.950 (thiếu 2,5%) → tự đạt
     vk = {e["refId"]: e for e in c.get("/api/vloss").json()}
     a = vk[ws[r1["id"]]]
-    assert ws[r2["id"]] not in vk  # trong dung sai → không thống kê vào kho ảo
+    b = vk[ws[r2["id"]]]  # anh Thắng 31/10: trong dung sai cũng thống kê vào kho ảo (tự ghi, không cần duyệt)
+    assert b["status"] == "Trong dung sai" and b["kg"] == 50 and "= 50 kg hụt" in b["formula"]["text"]
+    assert a["status"] == "Đã ghi nhận" and a["approvedBy"] != b["approvedBy"]
     assert a["source"] == "Cân xuất (chuẩn bị hàng)" and a["kg"] == -500 and a["reason"] == "Dư bản mã"
     assert "= 500 kg dư" in a["formula"]["text"]
     assert c.get(f"/api/contracts/{hd['id']}").json()["stockKg"] == 0  # vẫn không thành tồn kho

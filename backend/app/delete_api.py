@@ -179,6 +179,8 @@ def delete_task(tid: str, body: SC.ReasonIn, db: Session = DB):
 @router.delete("/material-receipts/{mid}")
 def delete_material(mid: str, body: SC.ReasonIn, db: Session = DB):
     m = svc.get_or_404(db, MaterialReceipt, mid)
+    if m.status == "Đã duyệt":
+        raise HTTPException(400, f"Phiếu {mid} Quản lý đã duyệt — không xóa được")
     _drop_derived(db, "nl", mid)
     db.delete(m)
     return _done(db, "phiếu nhập nguyên liệu", mid, body.reason)
