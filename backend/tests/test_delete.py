@@ -6,7 +6,7 @@ R = {"reason": "Nhập nhầm khi test"}
 
 def _chain(c):
     """Đơn → HĐ → LSX (xưởng báo 1.000) → chuẩn bị hàng (phiếu cân + thẻ đi mạ) → tiền về."""
-    o = c.post("/api/orders", json={"customer": "Cty Xóa", "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Xóa", "items": [
         {"name": "Cột", "qty": 10, "unit": "Bộ", "kgPerUnit": 100, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 1000}).json()
@@ -60,7 +60,7 @@ def test_delete_galv_task_blocked_by_delivery(c):
 
 def test_delete_order_takes_contract_and_payments(c):
     """Xóa đơn (chưa có hàng đi) → xóa kèm hợp đồng + tiền về, không phải xóa từng cái."""
-    o = c.post("/api/orders", json={"customer": "Cty Xóa Đơn", "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Xóa Đơn", "items": [
         {"name": "Cột", "qty": 1, "unit": "Bộ", "kg": 100, "price": 1000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     login(c, "kt")

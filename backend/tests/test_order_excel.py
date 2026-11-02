@@ -55,7 +55,7 @@ def test_import_matches_customer_and_rejects_bad_files(c):
 
 
 def test_order_kg_per_unit_vat_and_export(c):
-    o = c.post("/api/orders", json={"customer": "Cty Test Excel", "vatPct": 10, "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Test Excel", "vatPct": 10, "items": [
         {"name": "Tiếp địa lặp lại", "qty": 790, "unit": "Bộ", "kgPerUnit": 20, "price": 27000, "note": "đợt 1"},
         {"name": "Thép tấm", "qty": 2, "unit": "tấm", "kg": 500, "price": 20000}]}).json()
     assert o["totalKg"] == 15800 + 500 and o["value"] == 426_600_000 + 10_000_000

@@ -67,6 +67,7 @@ def meta(db: Session = DB):
         or C.DRIVERS, "roles": C.ROLES, "permissions": C.PERMISSIONS,
         "reasonsCan": C.REASONS_CAN, "reasonsTuChoiSx": C.REASONS_TU_CHOI_SX,
         "reasonsTuChoiLx": C.REASONS_TU_CHOI_LX, "vlossResolutions": C.VLOSS_RESOLUTIONS,
+        "materialCategories": C.MATERIAL_CATEGORIES,
         "toleranceKg": C.TOLERANCE_KG, "pcTolerancePct": C.PC_TOLERANCE_PCT, "fillHours": C.FILL_HOURS, "contractDays": C.CONTRACT_DAYS,
         "pcFillHours": C.PC_FILL_HOURS,
     }
@@ -656,6 +657,12 @@ def resolve_vloss(vid: str, body: SC.ResolveVlossIn, db: Session = DB):
 def movement_log(contract_id: str | None = None, date_from: datetime | None = None, date_to: datetime | None = None,
                  db: Session = DB):
     return svc.movement_log(db, contract_id, date_from, date_to)
+
+
+@router.get("/reports/stock-snapshot", dependencies=[Depends(require_any(*R_REPORTS))])
+def stock_snapshot(contract_id: str | None = None, db: Session = DB):
+    """Hàng đang ở đâu lúc này: tồn kho chờ cân xuất · đang trên xe tới mạ · tồn tại mạ · trên xe đi giao khách."""
+    return svc.stock_snapshot(db, contract_id)
 
 
 @router.get("/reports/overdue-docs", dependencies=[Depends(require_any(*R_OVERDUE))])

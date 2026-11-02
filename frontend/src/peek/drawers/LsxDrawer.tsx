@@ -31,7 +31,7 @@ export default function LsxDrawer({ id }: { id: string }) {
   const late = isLate(x)
   const open = x.status !== 'Hoàn thành' && x.status !== 'Từ chối'
   const dl = daysLeft(eff)
-  const lateInfo = open ? (dl < 0 ? `TRỄ ${Math.abs(dl)} ngày` : `Còn ${dl} ngày`) : ''
+  const lateInfo = open ? (dl < 0 ? `TRỄ ${Math.abs(dl)} ngày` : dl === 0 ? 'Hạn hôm nay' : `Còn ${dl} ngày`) : ''
   const f = flowOf(x, receipts, weighings, tasks)
 
   const actions = (

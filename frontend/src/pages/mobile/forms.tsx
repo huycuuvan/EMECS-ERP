@@ -4,7 +4,7 @@ import { CalendarClock, PackageCheck, Save, SendHorizontal, XOctagon } from 'luc
 import { useMemo, useState } from 'react'
 import {
   useContract, useCreateReceipt, useFillWeighing, useLsxExtend, useLsxExtReject, useLsxExtRequest, useLsxList, useLsxDaily, useLsxReject, useReceipts,
-  useTaskFillDelivery, useTaskFillGalv, useTaskReject, useUpdateContract,
+  useMeta, useTaskFillDelivery, useTaskFillGalv, useTaskReject, useUpdateContract,
 } from '@/api/hooks'
 import type { Contract, Lsx, Task, Weighing } from '@/api/types'
 import { fmtD, fmtDT, fmtKg } from '@/lib/format'
@@ -398,38 +398,55 @@ export function MaterialForm() {
   const m = useMob()
   const { message } = App.useApp()
   const create = useCreateMaterial()
+  const { data: meta } = useMeta()
   const [supplier, setSupplier] = useState('')
+  const [category, setCategory] = useState('')
   const [spec, setSpec] = useState('')
+  const [qty, setQty] = useState('')
+  const [unit, setUnit] = useState('')
   const [kgSup, setKgSup] = useState('')
   const [kg, setKg] = useState('')
   const [photo, setPhoto] = useState<string | null>(null)
   const [note, setNote] = useState('')
   const d = kgSup !== '' && kg !== '' ? num(kg) - num(kgSup) : null
   const submit = async () => {
-    if (!supplier.trim()) { message.error('Nhập bên cung cấp.'); return }
-    if (!(num(kgSup) > 0) || !(num(kg) > 0)) { message.error('Nhập số kg theo bên cung cấp và số kg cân thực tế.'); return }
-    if (!photo) { message.error('Bắt buộc chụp ảnh chứng từ.'); return }
+    // anh Thắng 02/11: mọi trường bắt buộc (trừ ghi chú)
+    const miss = [!supplier.trim() && 'bên cung cấp', !category && 'loại hàng', !spec.trim() && 'quy cách / tên hàng',
+      !(num(qty) > 0) && 'số lượng', !unit.trim() && 'đơn vị tính', !(num(kgSup) > 0) && 'KG theo bên cung cấp',
+      !(num(kg) > 0) && 'KG cân thực tế', !photo && 'ảnh chứng từ'].filter(Boolean)
+    if (miss.length) { message.error(`Chưa nhập đủ: ${miss.join(', ')}.`); return }
     try {
-      await create.mutateAsync({ supplier: supplier.trim(), spec: spec.trim(), kgSupplier: num(kgSup), kg: num(kg), photo, note: note.trim() })
+      await create.mutateAsync({ supplier: supplier.trim(), category, spec: spec.trim(), qty: num(qty), unit: unit.trim(),
+        kgSupplier: num(kgSup), kg: num(kg), photo, note: note.trim() })
       m.pop()
     } catch { /* đã báo */ }
   }
   return (
     <div className="m-form flat">
-      <label className="f-lbl">Bên cung cấp</label>
+      <label className="f-lbl">Bên cung cấp <span className="red-txt">*</span></label>
       <input className="inp" value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="VD: Thép Minh Khang" />
-      <label className="f-lbl">Loại hàng (nếu có)</label>
-      <input className="inp" value={spec} onChange={(e) => setSpec(e.target.value)} placeholder="VD: Thép tấm 12 ly" />
-      <label className="f-lbl">KG theo bên cung cấp</label>
+      <label className="f-lbl">Loại hàng <span className="red-txt">*</span></label>
+      <select className="inp" value={category} onChange={(e) => setCategory(e.target.value)}>
+        <option value="">— Chọn loại hàng —</option>
+        {(meta?.materialCategories ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
+      </select>
+      <label className="f-lbl">Quy cách / tên hàng <span className="red-txt">*</span></label>
+      <input className="inp" value={spec} onChange={(e) => setSpec(e.target.value)} placeholder="VD: Thép V63×6, bulong M16×60" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div><label className="f-lbl">Số lượng <span className="red-txt">*</span></label><NumInput value={qty} onChange={setQty} /></div>
+        <div><label className="f-lbl">Đơn vị tính <span className="red-txt">*</span></label>
+          <input className="inp" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="tấm, cây, bình…" /></div>
+      </div>
+      <label className="f-lbl">KG theo bên cung cấp <span className="red-txt">*</span></label>
       <NumInput big value={kgSup} onChange={setKgSup} />
-      <label className="f-lbl">KG cân thực tế tại xưởng</label>
+      <label className="f-lbl">KG cân thực tế tại xưởng <span className="red-txt">*</span></label>
       <NumInput big value={kg} onChange={setKg} bad={d != null && Math.abs(d) > 0.5} />
       {d != null && <div className={'f-hint ' + (Math.abs(d) > 0.5 ? 'red-txt' : 'moss-txt')} style={{ fontSize: 15 }}>
         {Math.abs(d) <= 0.5 ? 'Khớp với bên cung cấp ✓' : `Chênh ${signed(d)} kg (thực tế − NCC) — sẽ báo Quản lý`}</div>}
       <PhotoPicker label="Ảnh chứng từ (bắt buộc)" value={photo} onChange={setPhoto} demo={{ label: 'Phiếu nhập NVL', kg: num(kg) || num(kgSup) }} />
-      <label className="f-lbl">Ghi chú</label>
+      <label className="f-lbl">Ghi chú (không bắt buộc)</label>
       <input className="inp" value={note} onChange={(e) => setNote(e.target.value)} placeholder="VD: số phiếu NCC, xe giao" />
-      <div className="btn-row"><Btn variant="primary" icon={SendHorizontal} loading={create.isPending} onClick={submit}>Lưu & gửi Quản lý</Btn></div>
+      <div className="btn-row"><Btn variant="primary" icon={SendHorizontal} loading={create.isPending} onClick={submit}>Lưu & gửi Quản lý duyệt</Btn></div>
     </div>
   )
 }

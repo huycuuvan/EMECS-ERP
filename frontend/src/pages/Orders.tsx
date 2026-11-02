@@ -49,12 +49,15 @@ export default function Orders() {
 
   const columns: TableColumnsType<Order> = [
     {
-      title: 'Mã · tên đơn', key: 'id', width: 190,
-      render: (_, o) => <>
-        <div className="mono" style={{ fontWeight: 700 }}>{o.id}</div>
-        {o.name && <div style={{ fontWeight: 600, fontSize: 12.5, lineHeight: 1.35, marginTop: 2 }}>{o.name}</div>}
-        {o.code && <div className="sub-soft">{o.code}</div>}
-      </>,
+      title: 'Mã đơn', key: 'id', width: 130,
+      render: (_, o) => <><div className="mono" style={{ fontWeight: 700 }}>{o.id}</div>{o.code && <div className="sub-soft">{o.code}</div>}</>,
+    },
+    {
+      // anh Thắng 02/11: cột riêng + bắt buộc nhập — cùng 1 khách có nhiều đơn, nhìn tên mới phân biệt được
+      title: 'Tên đơn hàng', key: 'name', width: 220, sorter: (a, b) => (a.name || '').localeCompare(b.name || ''),
+      render: (_, o) => o.name
+        ? <span style={{ fontWeight: 600 }}>{o.name}</span>
+        : <span className="text-signal" style={{ fontSize: 12, fontWeight: 600 }}>Chưa đặt tên — bấm Sửa để nhập</span>,
     },
     { title: 'Khách hàng', key: 'customer', render: (_, o) => <>{o.customer}<CustomerTags name={o.customer} customerId={o.customerId} /></> },
     {

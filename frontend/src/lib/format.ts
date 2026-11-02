@@ -32,6 +32,8 @@ export const relTime = (iso?: string | null) => {
   if (h < 24) return `${h} giờ trước`
   return `${Math.round(h / 24)} ngày trước`
 }
-export const daysLeft = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000)
+const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+/** Số NGÀY LỊCH còn lại tới hạn: qua 0h là trừ 1 ngày, không đợi đủ 24 giờ (anh Thắng 02/11). 0 = hạn hôm nay, âm = đã trễ. */
+export const daysLeft = (iso: string) => Math.round((dayStart(new Date(iso)) - dayStart(new Date())) / 86400000)
 export const hoursOver = (iso: string) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 3600000))
 export const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0)

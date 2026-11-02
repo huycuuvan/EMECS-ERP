@@ -1,11 +1,13 @@
 /* Kho & Trạm cân → Nguyên liệu mua vào (M04): kho nhập phiếu nguyên liệu (thép tấm, thép hình…);
-   thống kê theo tháng, nhà cung cấp, mác thép và so với thành phẩm SX bàn giao kho trong kỳ.
+   thống kê theo LOẠI HÀNG (danh mục cố định — anh Thắng 02/11, thay mác thép), tháng, nhà cung cấp và so với thành phẩm
+   SX bàn giao kho trong kỳ.
    31/10 (anh Thắng): phiếu kho nhập gửi Quản lý duyệt — chỉ phiếu đã duyệt mới vào thống kê / kho ảo; đã duyệt thì
    không sửa, không xóa; bị từ chối thì kho sửa lại (tự gửi duyệt lại) hoặc xóa. */
 import { Button, DatePicker, Input, Segmented, Select, Table, type TableColumnsType } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { Info, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useMeta } from '@/api/hooks'
 import { useMaterials, useMaterialStats } from '@/api/hooksMaster'
 import type { MaterialReceipt, StatGroup } from '@/api/typesMaster'
 import { DeleteButton } from '@/components/DeleteRecord'
@@ -46,8 +48,37 @@ function MonthBars({ data }: { data: StatGroup[] }) {
   )
 }
 
+/** Bảng tổng hợp theo loại hàng (đủ 10 loại trong danh mục, loại chưa nhập để trống). */
+function CategoryTable({ groups, categories, active, onPick }: { groups: StatGroup[]; categories: string[]; active?: string; onPick: (k: string) => void }) {
+  const by = Object.fromEntries(groups.map((g) => [g.key, g]))
+  const keys = [...categories, ...groups.map((g) => g.key).filter((k) => !categories.includes(k))]
+  const total = groups.reduce((s, g) => s + g.kg, 0)
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table className="pk-items" style={{ minWidth: 560 }}>
+        <thead><tr><th>Loại hàng</th><th>Số lượng</th><th className="r">Khối lượng</th><th className="r">Tỷ trọng</th><th className="r">Số phiếu</th></tr></thead>
+        <tbody>
+          {keys.map((k) => {
+            const g = by[k]
+            return (
+              <tr key={k} onClick={g ? () => onPick(k) : undefined} style={{ cursor: g ? 'pointer' : undefined, background: active === k ? 'var(--amber-soft)' : undefined, color: g ? undefined : 'var(--ash)' }}>
+                <td><b style={{ fontWeight: g ? 700 : 400 }}>{k}</b></td>
+                <td className="num">{g?.qty && Object.keys(g.qty).length ? Object.entries(g.qty).map(([u, q]) => `${fmtNum(q)} ${u}`).join(' · ') : '—'}</td>
+                <td className="r num">{g ? <b>{fmtKg(g.kg)}</b> : '—'}</td>
+                <td className="r num">{g && total ? `${Math.round((g.kg / total) * 100)}%` : '—'}</td>
+                <td className="r num">{g?.count ?? 0}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export default function Materials() {
   const { can } = useAuth()
+  const { data: meta } = useMeta()
   const canEdit = can('nguyen-lieu', 'edit')
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(PRESETS[0].value)
   const period = useMemo(() => range ? { from: range[0].format('YYYY-MM-DD'), to: range[1].format('YYYY-MM-DD') } : undefined, [range])
@@ -55,7 +86,7 @@ export default function Materials() {
   const { data: stats } = useMaterialStats(period)
   const [q, setQ] = useState('')
   const [sup, setSup] = useState<string>()
-  const [grade, setGrade] = useState<string>()
+  const [cat, setCat] = useState<string>()
   const [st, setSt] = useState<string>('')
   const [editing, setEditing] = useState<MaterialReceipt | 'new' | null>(null)
 
@@ -63,12 +94,12 @@ export default function Materials() {
     const s = q.trim().toLowerCase()
     return rows.filter((m) => {
       if (sup && m.supplier !== sup) return false
-      if (grade && m.steelGrade !== grade) return false
+      if (cat && (m.category || 'Chưa phân loại') !== cat) return false
       if (st && m.status !== st) return false
-      if (s && !(m.id + ' ' + m.supplier + ' ' + m.spec + ' ' + m.steelGrade + ' ' + m.note).toLowerCase().includes(s)) return false
+      if (s && !(m.id + ' ' + m.supplier + ' ' + m.category + ' ' + m.spec + ' ' + m.note).toLowerCase().includes(s)) return false
       return true
     })
-  }, [rows, q, sup, grade, st])
+  }, [rows, q, sup, cat, st])
   const shownKg = shown.reduce((s, m) => s + m.kg, 0)
   const nWait = rows.filter((m) => m.status === 'Chờ duyệt').length
   const locked = (m: MaterialReceipt) => m.status === 'Đã duyệt'  // đã duyệt: không sửa, không xóa
@@ -77,7 +108,13 @@ export default function Materials() {
     { title: 'Mã phiếu', key: 'id', width: 110, render: (_, m) => <span className="mono" style={{ fontWeight: 700 }}>{m.id}</span> },
     { title: 'Ngày nhập', key: 'date', width: 110, sorter: (a, b) => a.date.localeCompare(b.date), render: (_, m) => <span className="num">{fmtD(m.date)}</span> },
     { title: 'Nhà cung cấp', key: 'sup', render: (_, m) => m.supplier },
-    { title: 'Loại hàng', key: 'spec', render: (_, m) => <>{[m.steelGrade, m.spec].filter(Boolean).join(' · ') || '—'}{m.note && <div className="sub-soft">{m.note}</div>}</> },
+    {
+      title: 'Loại hàng', key: 'spec', render: (_, m) => <>
+        {m.category ? <b>{m.category}</b> : <span className="text-ash">Chưa phân loại</span>}
+        <div>{[m.spec, m.qty ? `${fmtNum(m.qty)} ${m.unit}` : ''].filter(Boolean).join(' · ') || '—'}</div>
+        {m.note && <div className="sub-soft">{m.note}</div>}
+      </>,
+    },
     { title: 'KG bên cung cấp', key: 'kgs', align: 'right', render: (_, m) => m.kgSupplier != null ? <span className="num">{fmtKg(m.kgSupplier)}</span> : <span className="text-ash">—</span> },
     { title: 'KG cân thực tế', key: 'kg', align: 'right', sorter: (a, b) => a.kg - b.kg, render: (_, m) => <b className="num">{fmtKg(m.kg)}</b> },
     { title: 'Chênh', key: 'd', align: 'right', render: (_, m) => m.delta == null ? <span className="text-ash">—</span>
@@ -101,7 +138,7 @@ export default function Materials() {
   const pct = stats?.producedPct
   return (
     <>
-      <PageHeader title="Nguyên liệu mua vào" desc="Kho nhập phiếu nguyên liệu (thép tấm, thép hình, thép ống…) — thống kê theo tháng, nhà cung cấp, mác thép"
+      <PageHeader title="Nguyên liệu mua vào" desc="Kho nhập phiếu nguyên liệu (sắt hình, sắt dẹt, bulong, hạt nhựa, khí, dây hàn…) → Quản lý duyệt — thống kê theo loại hàng, tháng, nhà cung cấp"
         extra={canEdit && <Button type="primary" icon={<Plus size={14} />} onClick={() => setEditing('new')}>Nhập nguyên liệu</Button>} />
 
       <div className="filter-bar">
@@ -115,20 +152,22 @@ export default function Materials() {
           sub={<>{stats?.count ?? 0} phiếu đã duyệt trong kỳ{nWait > 0 && <> · <a className="text-signal" style={{ fontWeight: 700 }} onClick={() => setSt('Chờ duyệt')}>{nWait} chờ Quản lý duyệt</a></>}</>} />
         <Kpi tone="steel" label="Nhà cung cấp chính" value={top(stats?.bySupplier) ? fmtT(top(stats?.bySupplier)!.kg) : '—'}
           sub={top(stats?.bySupplier)?.key ?? 'chưa có phiếu'} onClick={top(stats?.bySupplier) ? () => setSup(top(stats?.bySupplier)!.key) : undefined} />
-        <Kpi tone="amber" label="Mác thép nhiều nhất" value={top(stats?.byGrade)?.key ?? '—'}
-          sub={top(stats?.byGrade) ? `${fmtT(top(stats?.byGrade)!.kg)} · ${top(stats?.byGrade)!.count} phiếu` : ''}
-          onClick={top(stats?.byGrade) ? () => setGrade(top(stats?.byGrade)!.key) : undefined} />
+        <Kpi tone="amber" label="Loại hàng nhập nhiều nhất" value={top(stats?.byCategory)?.key ?? '—'}
+          sub={top(stats?.byCategory) ? `${fmtT(top(stats?.byCategory)!.kg)} · ${top(stats?.byCategory)!.count} phiếu` : ''}
+          onClick={top(stats?.byCategory) ? () => setCat(top(stats?.byCategory)!.key) : undefined} />
         <Kpi tone="moss" label="SX hoàn thành / nguyên liệu nhập" value={pct == null ? '—' : `${pct}%`}
           sub={`SX bàn giao kho ${fmtT(stats?.producedKg)} · nhập ${fmtT(stats?.totalKg)}`} />
       </KpiGrid>
+
+      <Panel title="Nhập theo loại hàng" sub="Đã duyệt trong kỳ — số lượng theo đơn vị tính, khối lượng, số phiếu. Bấm 1 loại để lọc danh sách phiếu bên dưới."
+        style={{ marginBottom: 16 }}>
+        <CategoryTable groups={stats?.byCategory ?? []} categories={meta?.materialCategories ?? []} active={cat} onPick={(k) => setCat(k === cat ? undefined : k)} />
+      </Panel>
 
       <Grid min={320}>
         <Panel title="Nhập theo tháng" sub="Tổng khối lượng nguyên liệu nhập mỗi tháng (tấn)"><MonthBars data={stats?.byMonth ?? []} /></Panel>
         <Panel title="Theo nhà cung cấp" sub="kg nhập trong kỳ">
           {stats?.bySupplier.length ? <HBar color="#4b5563" items={stats.bySupplier.map((g) => ({ label: `${g.key} (${g.count})`, value: g.kg }))} /> : <p className="caption">—</p>}
-        </Panel>
-        <Panel title="Theo mác thép" sub="kg nhập trong kỳ">
-          {stats?.byGrade.length ? <HBar color="#d11a24" items={stats.byGrade.map((g) => ({ label: `${g.key} (${g.count})`, value: g.kg }))} /> : <p className="caption">—</p>}
         </Panel>
         <Panel title="Nguyên liệu nhập vs SX hoàn thành" sub="SX hoàn thành = thành phẩm xưởng bàn giao kho (phiếu chuẩn bị hàng) trong kỳ">
           <HBar color="#1e6b3a" items={[
@@ -145,8 +184,8 @@ export default function Materials() {
             value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 220 }} />
           <Select allowClear placeholder="Tất cả nhà cung cấp" value={sup} onChange={setSup} style={{ minWidth: 220 }}
             options={(stats?.bySupplier ?? []).map((g) => ({ value: g.key, label: g.key }))} />
-          <Select allowClear placeholder="Tất cả mác thép" value={grade} onChange={setGrade} style={{ minWidth: 160 }}
-            options={(stats?.byGrade ?? []).map((g) => ({ value: g.key, label: g.key }))} />
+          <Select allowClear placeholder="Tất cả loại hàng" value={cat} onChange={setCat} style={{ minWidth: 180 }}
+            options={[...(meta?.materialCategories ?? []), 'Chưa phân loại'].map((g) => ({ value: g, label: g }))} />
           <Segmented value={st} onChange={(v) => setSt(String(v))} options={[
             { value: '', label: 'Tất cả' }, { value: 'Chờ duyệt', label: `Chờ duyệt${nWait ? ` (${nWait})` : ''}` },
             { value: 'Đã duyệt', label: 'Đã duyệt' }, { value: 'Từ chối', label: 'Từ chối' }]} />

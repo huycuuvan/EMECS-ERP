@@ -11,12 +11,12 @@ import {
 } from 'lucide-react'
 import { Fragment, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMovementLog, useResetDemo } from '@/api/hooks'
+import { useMovementLog, useResetDemo, useStockSnapshot, type StockSnapshot } from '@/api/hooks'
 import { useDashboardByTag, useRunEndOfDay } from '@/api/hooksMaster'
 import type { ContractAggLite, MovementRow } from '@/api/types'
 import { AdvChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtD, fmtDelta, fmtDT, fmtKg, fmtT, money, relTime } from '@/lib/format'
+import { fmtD, fmtDT, fmtKg, fmtT, money, relTime } from '@/lib/format'
 import { PaymentDecision } from '@/peek/drawers/contract/PaymentApprovals'
 import { PendingExtensionsPanel } from '@/peek/drawers/contract/Extensions'
 import MaterialDecision from './materials/MaterialDecision'
@@ -258,16 +258,18 @@ function Header({ tag, setTag }: { tag?: string; setTag: (v?: string) => void })
 }
 
 /* ---------------------------------------------------------------- nhật ký phiếu + tổng theo tầng */
-/** Khoảng giữa 2 tầng = hàng ĐANG Ở ĐÂU (tồn kho chờ cân / đang đi đường / tồn tại mạ), không gọi chung là "chênh". */
-const GAPS: { label: string; hint: string }[] = [
-  { label: 'Tồn kho chờ cân xuất', hint: 'đã giao kho, chưa cân xuất (hoặc phiếu cân chưa chốt)' },
-  { label: 'Đang đi đường tới mạ', hint: 'đã cân xuất, mạ chưa xác nhận (trên xe / chờ duyệt)' },
-  { label: 'Tồn tại mạ · đang giao', hint: 'mạ đã nhận, khách chưa ký nhận' },
+/** Khoảng giữa 2 tầng = hàng ĐANG Ở ĐÂU lúc này (không theo kỳ lọc): lấy số tồn thực tế, không lấy hiệu 2 tầng — phần lệch
+    cân đã vào kho ảo không còn là tồn (anh Thắng 02/11: tồn kho chờ cân = lệnh chuẩn bị hàng chưa cân). */
+const GAPS: { label: string; hint: string; key: keyof StockSnapshot }[] = [
+  { label: 'Tồn kho chờ cân xuất', hint: 'lệnh chuẩn bị hàng đã giao kho, chưa cân tại xưởng', key: 'stockKg' },
+  { label: 'Đang trên xe tới mạ', hint: 'đã cân tại xưởng, mạ chưa cân', key: 'inTransitToGalvKg' },
+  { label: 'Tồn tại mạ · đang giao', hint: 'mạ đã nhận, chưa lấy đi giao khách', key: 'atGalvKg' },
 ]
 
 function MovementSection() {
   const { f, setF, params } = useMovementFilter()
   const { data, isLoading } = useMovementLog(params)
+  const { data: snap } = useStockSnapshot(params.contractId)
   const rows = data ?? []
   const shown = f.kind ? rows.filter((r) => r.kind === f.kind) : rows
   // tổng theo tầng trong kỳ (theo thời gian + hợp đồng, không phụ thuộc lọc loại phiếu) — chỉ phiếu đã chốt
@@ -283,15 +285,13 @@ function MovementSection() {
       <PendingLines list={tot.pending[k]} />
     </div>
   )
-  const gap = (i: number, a: number, b: number) => {
-    const dd = a - b, off = Math.abs(dd) > 0.5
+  const gap = (i: number) => {
+    const v = snap ? snap[GAPS[i].key] : null
     return (
       <div title={GAPS[i].hint} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, fontSize: 10, color: 'var(--ash)', width: 92, flex: 'none', textAlign: 'center' }}>
         <ArrowRight size={13} />
         <span style={{ lineHeight: 1.25 }}>{GAPS[i].label}</span>
-        <span className="mono num" style={{ fontWeight: 700, fontSize: 11.5, color: !off ? 'var(--moss)' : dd > 0 ? 'var(--amber)' : 'var(--signal)' }}>
-          {!off ? '0 kg' : dd > 0 ? fmtKg(dd) : `lệch ${fmtDelta(-dd)}`}
-        </span>
+        <span className="mono num" style={{ fontWeight: 700, fontSize: 11.5, color: v && v > 0.5 ? 'var(--amber)' : 'var(--moss)' }}>{v == null ? '…' : fmtKg(v)}</span>
       </div>
     )
   }
@@ -302,15 +302,15 @@ function MovementSection() {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', padding: '12px 4px 2px', borderTop: '2px solid var(--rule)', marginTop: 8 }}>
         {tiers.map((t, i) => (
           <Fragment key={t.k}>
-            {i > 0 && gap(i - 1, tot[tiers[i - 1].k], tot[t.k])}
+            {i > 0 && gap(i - 1)}
             {cell(t.label, t.k)}
           </Fragment>
         ))}
       </div>
       <p className="caption" style={{ margin: '8px 0 0' }}>
         <Info size={12} style={{ verticalAlign: -2 }} /> Tổng theo tầng trong kỳ lọc, <b>chỉ cộng phiếu đã chốt</b> (đạt / Quản lý đã duyệt).
-        Phiếu chờ cân, đang trên xe, chờ Quản lý duyệt, Quản lý từ chối… ghi riêng dưới từng ô. Giữa các ô là hàng đang ở đâu:
-        tồn kho chờ cân xuất → đang đi đường tới mạ → tồn tại mạ / đang giao khách; số <b className="text-signal">đỏ</b> = tầng sau nhiều hơn tầng trước — bấm phiếu để truy nguyên.
+        Phiếu chờ cân, đang trên xe, chờ Quản lý duyệt, Quản lý từ chối… ghi riêng dưới từng ô. Giữa các ô là hàng đang ở đâu
+        <b> lúc này</b>: tồn kho chờ cân xuất → đang trên xe tới mạ (đã cân xưởng) → tồn tại mạ; phần lệch cân đã vào kho ảo không tính là tồn.
       </p>
     </Panel>
   )

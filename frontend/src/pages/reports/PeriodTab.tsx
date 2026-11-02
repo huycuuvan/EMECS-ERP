@@ -5,7 +5,7 @@ import { Button, Modal, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { Archive } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
-import { useMismatches, useMovementLog, useTasks, useVlossList } from '@/api/hooks'
+import { useMismatches, useMovementLog, useStockSnapshot, useTasks, useVlossList } from '@/api/hooks'
 import { MV_OK, type Task } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { fmtKg } from '@/lib/format'
@@ -31,6 +31,7 @@ export default function PeriodTab() {
   const { data: periodRows, isLoading } = useMovementLog(params)
   const { data: chartRows } = useMovementLog({ contractId: params.contractId })
   const { data: tasks } = useTasks()
+  const { data: snap } = useStockSnapshot(params.contractId)
   const { data: vloss } = useVlossList()
   const { data: mismatches } = useMismatches()
   const [popup, setPopup] = useState<'truck' | 'loss' | null>(null)
@@ -39,15 +40,13 @@ export default function PeriodTab() {
   const shown = f.kind ? all.filter((r) => r.kind === f.kind) : all
   // 5 ô tổng trong kỳ (không áp bộ lọc loại phiếu để đối ứng đủ tầng)
   const t = tierTotals(all)
-  const pendingKg = (k: Tier, state?: string) => t.pending[k].filter((p) => !state || p.state === state).reduce((s, p) => s + p.kg, 0)
 
   // ---- bóc tách chênh CÂN XUẤT ↔ ĐẾN MẠ ----
-  const { truckList, lossList, onTruck, vaultKg, picked, onTruckGiao } = useMemo(() => {
+  const { truckList, lossList, onTruck, vaultKg } = useMemo(() => {
     // so sánh theo thời điểm (chuỗi ISO có thể khác số chữ số ms) → dùng Date
     const inKyD = (d: string | null) => !!d && (!params.from || new Date(d) >= new Date(params.from)) && (!params.to || new Date(d) <= new Date(params.to))
     const inKy = (x: Task) => x.status !== 'Từ chối' && (!params.contractId || x.contractId === params.contractId) && inKyD(x.departedAt || x.assignedAt)
     const diMa = (tasks ?? []).filter((x) => x.type === 'di_ma' && inKy(x))
-    const giao = (tasks ?? []).filter((x) => x.type === 'giao_khach' && inKy(x))
     // phiếu cân chưa chốt (chờ QL duyệt / chờ cân) không cộng vào "Cân xuất" → chuyến xe của nó cũng không tính trên xe
     const openPc = new Set((periodRows ?? []).filter((r) => r.type === 'pc' && r.state !== MV_OK).map((r) => r.id))
     const truckList = diMa.filter((x) => x.kgAtGalv == null && !(x.refId && openPc.has(x.refId)))
@@ -57,16 +56,14 @@ export default function PeriodTab() {
       truckList, lossList,
       onTruck: truckList.reduce((s, x) => s + (Number(x.kgRequired) || 0), 0),
       vaultKg: vaultList.reduce((s, e) => s + (Number(e.kg) || 0), 0),
-      // lấy ra từ mạ (đã ký với mạ) + chuyến giao khách đang chạy chưa điền phiếu
-      picked: giao.reduce((s, x) => s + (Number(x.kgPicked) || 0), 0),
-      onTruckGiao: giao.filter((x) => x.kgPicked == null && x.status === 'Đang chạy').reduce((s, x) => s + (Number(x.kgRequired) || 0), 0),
     }
   }, [tasks, vloss, params, periodRows])
   // phần rơi rớt CHƯA được QL duyệt = cân xuất − mạ đã chốt − trên xe − phiếu mạ đang chờ duyệt / bị từ chối − kho ảo
   const maOpen = t.pending.ma.filter((p) => p.state !== 'Đang trên xe' && p.state !== 'Chưa xuất phát').reduce((s, p) => s + p.kg, 0)
   const loss = t.pc - t.ma - onTruck - maOpen - vaultKg
-  const stock = t.ptn - t.pc  // đã giao kho, chưa cân xuất (kể cả phiếu cân chưa chốt)
-  const atGalv = t.ma - picked - onTruckGiao  // mạ đã nhận (đã chốt), chưa lấy đi giao
+  // tồn hiện tại (không theo kỳ): tồn kho = lệnh chuẩn bị hàng chưa cân (lệch cân đã vào kho ảo không tính) — anh Thắng 02/11
+  const stock = snap?.stockKg ?? 0
+  const atGalv = snap?.atGalvKg ?? 0
   const pend = (k: Tier) => t.pending[k].length ? <PendingLines list={t.pending[k]} /> : undefined
 
   // ---- biểu đồ 4 tuần (theo hợp đồng, không theo kỳ) ----
@@ -99,16 +96,16 @@ export default function PeriodTab() {
         </div>
         <div className="stat5 stat5b">
           <div className="c1">
-            <StatCell dashed label="Tồn kho chờ cân xuất" value={fmtKg(Math.max(0, stock))} color="var(--steel)"
-              cap={pendingKg('pc') ? `đã giao kho, chưa cân xuất · gồm ${fmtKg(pendingKg('pc'))} phiếu cân chưa chốt` : 'đã giao kho, chưa cân xuất'} />
+            <StatCell dashed label="Tồn kho chờ cân xuất" value={fmtKg(stock)} color="var(--steel)"
+              cap="lệnh chuẩn bị hàng đã giao kho, chưa cân tại xưởng (hiện tại)" />
           </div>
           <div className="c2">
-            <StatCell dashed label="Đang đi đường tới mạ" value={fmtKg(onTruck)} color="#8a6100" onClick={() => setPopup('truck')} title="Bấm xem danh sách chuyến xe"
+            <StatCell dashed label="Đang trên xe tới mạ" value={fmtKg(onTruck)} color="#8a6100" onClick={() => setPopup('truck')} title="Bấm xem danh sách chuyến xe"
               cap={`${truckList.length} chuyến đã cân xuất, mạ chưa xác nhận — bấm xem phiếu`} />
           </div>
           <div className="c3">
-            <StatCell dashed label="Tồn tại mạ · đang giao" value={fmtKg(Math.max(0, atGalv) + onTruckGiao)} color="var(--rust)"
-              cap={`tồn tại mạ ${fmtKg(Math.max(0, atGalv))} · trên xe đi giao khách ${fmtKg(onTruckGiao)}`} />
+            <StatCell dashed label="Tồn tại mạ · đang giao" value={fmtKg(atGalv)} color="var(--rust)"
+              cap={`mạ đã nhận, chưa lấy đi giao (hiện tại)${snap?.onTruckToCustomerKg ? ` · gồm ${fmtKg(snap.onTruckToCustomerKg)} đang trên xe đi giao` : ''}`} />
           </div>
         </div>
 

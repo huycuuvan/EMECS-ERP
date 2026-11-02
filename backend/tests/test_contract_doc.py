@@ -15,7 +15,7 @@ def _contract(c):
         "name": "CÔNG TY CP KHÁCH MẪU", "address": "Số 2 Đường B, Nam Định", "phone": "0228.000000",
         "taxCode": "0600000000", "bankAccount": "999", "bankName": "Ngân hàng Q - CN Nam Định",
         "representative": "Bà Trần Thị C", "representativeTitle": "Giám đốc", "segment": "Thân thiết"}).json()
-    o = c.post("/api/orders", json={"customer": cu["name"], "customerId": cu["id"], "vatPct": 10, "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": cu["name"], "customerId": cu["id"], "vatPct": 10, "items": [
         {"name": "Xà đỡ thẳng XĐ35-2L", "qty": 15, "unit": "Bộ", "kgPerUnit": 46.5, "price": 28000},
         {"name": "Xà néo XN35-3L", "qty": 14, "unit": "Bộ", "kgPerUnit": 137.4, "price": 28000}]}).json()
     return o, c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-06-05", "deliverBy": "2099-06-30"}).json()

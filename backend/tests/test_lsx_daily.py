@@ -10,7 +10,7 @@ VN = timezone(timedelta(hours=7))
 
 
 def _new_lsx(c, kg=10_000):
-    hd = c.post("/api/orders", json={"customer": "Cty Test SX", "items": [
+    hd = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Test SX", "items": [
         {"name": "Cột", "qty": 10, "unit": "Bộ", "kgPerUnit": kg / 10, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{hd['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": kg, "leadDays": 7}).json()  # không cần số lượng SP
@@ -110,7 +110,7 @@ def test_receipt_kg_only_and_task_auto_kg_arrival_delivery(c):
 
 
 def test_receipt_items_sum_to_kg(c):
-    o = c.post("/api/orders", json={"customer": "Cty Test CBH", "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Test CBH", "items": [
         {"name": "Cột", "qty": 40, "unit": "Bộ", "kgPerUnit": 250, "price": 20000},
         {"name": "Bản mã", "qty": 200, "unit": "Bộ", "kgPerUnit": 10, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
@@ -126,7 +126,7 @@ def test_receipt_items_sum_to_kg(c):
 
 
 def test_prepare_goods_to_warehouse_weigh_5pct_and_billing(c):
-    o = c.post("/api/orders", json={"customer": "Cty Test Cân", "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Test Cân", "items": [
         {"name": "Cột", "qty": 40, "unit": "Bộ", "kgPerUnit": 250, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 10000}).json()
@@ -161,7 +161,7 @@ def test_prepare_goods_to_warehouse_weigh_5pct_and_billing(c):
 
 
 def test_prepare_goods_assigns_driver_task(c):
-    o = c.post("/api/orders", json={"customer": "Cty Test Tài xế", "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Test Tài xế", "items": [
         {"name": "Cột", "qty": 10, "unit": "Bộ", "kgPerUnit": 100, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 1000}).json()
@@ -180,7 +180,7 @@ def test_prepare_goods_assigns_driver_task(c):
 
 
 def test_prepare_goods_deviation_not_tracked_as_stock(c):
-    o = c.post("/api/orders", json={"customer": "Cty Test Tồn", "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Test Tồn", "items": [
         {"name": "Cột", "qty": 70, "unit": "Bộ", "kgPerUnit": 100, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 7000}).json()
@@ -195,7 +195,7 @@ def test_prepare_goods_deviation_not_tracked_as_stock(c):
 
 
 def test_kho_ao_records_all_deviations_including_prep(c):
-    o = c.post("/api/orders", json={"customer": "Cty Test Kho ảo", "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Test Kho ảo", "items": [
         {"name": "Cột", "qty": 100, "unit": "Bộ", "kgPerUnit": 100, "price": 20000}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     x = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 10000}).json()
@@ -272,7 +272,7 @@ def test_receipt_cannot_exceed_reported_output(c):
 
 
 def test_lsx_cannot_exceed_contract_kg(c):
-    o = c.post("/api/orders", json={"customer": "Cty LSX vượt", "items": [{"name": "Cột", "qty": 10, "unit": "Bộ", "kg": 1000, "price": 1}]}).json()
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty LSX vượt", "items": [{"name": "Cột", "qty": 10, "unit": "Bộ", "kg": 1000, "price": 1}]}).json()
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()
     assert c.post("/api/lsx", json={"contractId": hd["id"], "kg": 800}).status_code == 200
     r = c.post("/api/lsx", json={"contractId": hd["id"], "kg": 300})
@@ -281,7 +281,7 @@ def test_lsx_cannot_exceed_contract_kg(c):
 
 def test_no_default_code_and_no_reprepare_after_short_weighing(c):
     """Không còn mã nội bộ mặc định "MOI"; cân thiếu ở chuẩn bị hàng không được chuẩn bị bù."""
-    o = c.post("/api/orders", json={"customer": "Cty Công nợ", "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Công nợ", "items": [
         {"name": "Xà", "qty": 175, "unit": "Bộ", "kgPerUnit": 40, "price": 26000}]}).json()
     assert o["code"] == ""
     hd = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01", "deliverBy": "2099-02-01"}).json()

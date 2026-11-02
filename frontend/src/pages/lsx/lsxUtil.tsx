@@ -9,7 +9,8 @@ import { C } from '@/theme'
 
 /** Hạn hiệu lực = hạn gia hạn (nếu có) hoặc hạn gốc. */
 export const effDeadline = (x: Lsx) => x.extension?.to ?? x.deadline
-export const isLate = (x: Lsx) => x.status !== 'Hoàn thành' && x.status !== 'Từ chối' && new Date(effDeadline(x)) < new Date()
+/** Trễ = đã qua NGÀY hạn (tính theo ngày lịch, khớp số "còn n ngày"). */
+export const isLate = (x: Lsx) => x.status !== 'Hoàn thành' && x.status !== 'Từ chối' && daysLeft(effDeadline(x)) < 0
 /** Sắp hết hạn: lệnh đang mở, còn ≤ 2 ngày (chưa trễ). */
 export const isSoon = (x: Lsx) => x.status !== 'Hoàn thành' && x.status !== 'Từ chối' && !isLate(x) && daysLeft(effDeadline(x)) <= 2
 /** Xưởng xin gia hạn được khi lệnh đang mở và chưa có yêu cầu chờ duyệt. */
@@ -29,7 +30,7 @@ export function LsxDueChip({ x }: { x: Lsx }) {
   const dl = daysLeft(effDeadline(x))
   if (isLate(x))
     return <Tag variant="filled" className="chip-overdue" style={{ ...chipBase, background: C.signalSoft, color: C.signal }}><AlarmClock size={11} />TRỄ {Math.abs(dl)} ngày</Tag>
-  return <Tag variant="filled" style={{ ...chipBase, background: dl <= 2 ? C.amberSoft : C.paper2, color: dl <= 2 ? C.amber : C.ash }}>Còn {dl} ngày</Tag>
+  return <Tag variant="filled" style={{ ...chipBase, background: dl <= 2 ? C.amberSoft : C.paper2, color: dl <= 2 ? C.amber : C.ash }}>{dl === 0 ? 'Hạn hôm nay' : `Còn ${dl} ngày`}</Tag>
 }
 
 /** Ô "Hạn" của bảng: ngày gốc + "→ gia hạn dd/mm" (tooltip lý do) + chip. */

@@ -399,7 +399,8 @@ def _seed_master(db: Session) -> None:
     galv = Galvanizer(name="Mạ kẽm Việt Đức", note="Xưởng mạ kẽm nhúng nóng — đối tác gửi mạ chính", active=True)
     db.add(galv)
     db.add_all(MaterialReceipt(id=f"NL-{i:04d}", date=ago(d), supplier=sup, steel_grade=g, spec=sp, qty=q, unit=u,
-                               kg=kg, note=n, by=KHO)
+                               kg=kg, note=n, by=KHO,
+                               category="Sắt dẹt" if "tấm" in sp else "Sắt hình" if "hình" in sp else "Khác")
                for i, (d, sup, g, sp, q, u, kg, n) in enumerate(MATERIALS, 1))
     db.add(Sequence(key="nl", value=len(MATERIALS)))
     db.flush()

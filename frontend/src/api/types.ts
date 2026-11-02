@@ -203,6 +203,8 @@ export interface Meta {
   drivers: string[]; roles: { id: RoleId; label: string }[]
   permissions: Partial<Record<RoleId, Record<string, AccessLevel>>>
   reasonsCan: string[]; reasonsTuChoiSx: string[]; reasonsTuChoiLx: string[]; vlossResolutions: string[]
+  /** loại hàng nguyên liệu mua vào (danh mục cố định) */
+  materialCategories?: string[]
   toleranceKg: number; pcTolerancePct?: number; fillHours: number; contractDays: number
   /** phiếu cân chưa có số/ảnh sau N giờ → quá hạn */
   pcFillHours: number

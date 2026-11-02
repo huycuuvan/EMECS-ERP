@@ -66,6 +66,11 @@ REASONS_TU_CHOI_LX = [
     "Xe đang bảo dưỡng", "Trùng chuyến khác", "Quá tải trọng cho phép",
     "Nghỉ phép / sức khỏe", "Khác (ghi rõ)",
 ]
+# loại hàng nguyên liệu mua vào (anh Thắng 02/11) — cố định để tổng hợp số lượng nhập theo từng hạng mục vật tư
+MATERIAL_CATEGORIES = [
+    "Sắt hình", "Sắt dẹt", "Bulong điện phân", "Bulong nhúng nóng", "Hạt nhựa", "Hạt màu",
+    "Khí hàn", "Khí oxy", "Dây hàn", "Khác",
+]
 VLOSS_RESOLUTIONS = [
     "Thanh lý phế liệu bavia", "Bồi thường từ xưởng mạ", "Trừ lương / quy trách nhiệm",
     "Chấp nhận chi phí", "Khác (ghi rõ)",

@@ -55,6 +55,9 @@ export const useTask = (id?: ID | null) => useQuery({ queryKey: qk.task(id!), qu
 export const useMismatches = (p?: { contractId?: ID; status?: string }) => useQuery({ queryKey: qk.mismatches(p), queryFn: () => get<Mismatch[]>('/mismatches', { contract_id: p?.contractId, status: p?.status }) })
 export const useMismatch = (id?: ID | null) => useQuery({ queryKey: qk.mismatch(id!), queryFn: () => get<Mismatch>(`/mismatches/${id}`), enabled: !!id })
 
+/** Hàng đang ở đâu lúc này (không theo kỳ): tồn kho chờ cân xuất · đang trên xe tới mạ · tồn tại mạ · trên xe đi giao. */
+export interface StockSnapshot { stockKg: number; inTransitToGalvKg: number; atGalvKg: number; onTruckToCustomerKg: number }
+export const useStockSnapshot = (contractId?: ID) => useQuery({ queryKey: ['reports', 'stock-snapshot', contractId ?? ''], queryFn: () => get<StockSnapshot>('/reports/stock-snapshot', { contract_id: contractId }) })
 export const useVlossList = () => useQuery({ queryKey: qk.vloss, queryFn: () => get<VLoss[]>('/vloss') })
 export const useVloss = (id?: ID | null) => useQuery({ queryKey: qk.vlossOne(id!), queryFn: () => get<VLoss>(`/vloss/${id}`), enabled: !!id })
 export const usePendingDeltas = () => useQuery({ queryKey: qk.pendingDeltas, queryFn: () => get<PendingDelta[]>('/vloss/pending-deltas') })

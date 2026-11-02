@@ -68,8 +68,8 @@ def _hours_over(d: datetime) -> int:
 
 
 def _days_left(d: datetime) -> int:
-    import math
-    return math.ceil((d - utcnow()).total_seconds() / 86400)
+    """Số NGÀY LỊCH còn lại tới hạn (giờ VN): qua 0h là trừ 1 ngày, không đợi đủ 24 giờ (anh Thắng 02/11)."""
+    return (d.astimezone(VN_TZ).date() - utcnow().astimezone(VN_TZ).date()).days
 
 
 # ---------------------------------------------------------------- tổng hợp theo hợp đồng
@@ -96,11 +96,20 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
     pending_kg = _sum([r for r in rcs if r.id not in weighed_rc], lambda x: x.kg)
     weighed_kg = _sum([p for p in pcs if p.kg_actual is not None], lambda p: p.kg_actual)
     sent_galv_kg = _sum([t for t in di_ma if t.kg_at_galv is not None], lambda t: t.kg_at_galv)
-    in_transit_kg = _sum([t for t in di_ma if t.kg_at_galv is None and t.status != "Từ chối"], lambda t: t.kg_required)
+    # đang trên xe tới mạ = ĐÃ cân tại xưởng, mạ CHƯA cân (anh Thắng 02/11: lệnh chuẩn bị hàng mới giao, xe chưa đóng
+    # hàng / chưa cân thì chưa tính trên xe)
+    unweighed = {p.id for p in pcs if p.kg_actual is None}
+    in_transit_kg = _sum([t for t in di_ma if t.kg_at_galv is None and t.status != "Từ chối" and t.ref_id not in unweighed],
+                         lambda t: t.kg_required)
     picked_kg = _sum([t for t in giao if t.kg_picked is not None], lambda t: t.kg_picked)
     delivered_kg = _sum([t for t in giao if t.kg_delivered is not None], lambda t: t.kg_delivered)
     at_galv_kg = sent_galv_kg - picked_kg
-    stock_kg = pending_kg
+    # tồn kho chờ cân xuất = lệnh chuẩn bị hàng chưa cân; phiếu cân lập thẳng từ lệnh SX (không gắn phiếu chuẩn bị) đã cân
+    # thì trừ vào phần chuẩn bị hàng chưa gắn phiếu cân (lệch cân đã vào kho ảo, không còn là tồn)
+    linked = {p.receipt_id for p in pcs if p.receipt_id}
+    unlinked_kg = _sum([r for r in rcs if r.id not in linked], lambda x: x.kg)
+    legacy_kg = _sum([p for p in pcs if not p.receipt_id and p.kg_actual is not None], lambda p: p.kg_expected)
+    stock_kg = _sum([r for r in rcs if r.id in linked and r.id not in weighed_rc], lambda x: x.kg) + max(0.0, unlinked_kg - legacy_kg)
     bill_kg, bill_pending = billed_kg(db, cid)
     # công nợ theo KG KHÁCH KÝ NHẬN (thẻ giao khách đã xong / Quản lý đã duyệt) × đơn giá, KHÔNG tính VAT
     bill = billing(db, c)
@@ -223,6 +232,21 @@ def _task_state(t: Task) -> str:
     return "Chưa xuất phát"
 
 
+def stock_snapshot(db: Session, cid: str | None = None) -> dict:
+    """Hàng ĐANG Ở ĐÂU lúc này (không theo kỳ lọc) — khoảng giữa các tầng: tồn kho chờ cân xuất (lệnh chuẩn bị hàng
+    chưa cân; phần lệch cân đã vào kho ảo không tính), đang trên xe tới mạ (đã cân xưởng, mạ chưa cân), tồn tại mạ."""
+    ids = [cid] if cid else list(db.scalars(select(Contract.id)))
+    out = {"stockKg": 0.0, "inTransitToGalvKg": 0.0, "atGalvKg": 0.0, "onTruckToCustomerKg": 0.0}
+    for i in ids:
+        g = contract_agg(db, i, detail=False)
+        out["stockKg"] += g["stockKg"]
+        out["inTransitToGalvKg"] += g["inTransitToGalvKg"]
+        out["atGalvKg"] += max(0.0, g["atGalvKg"])
+    out["onTruckToCustomerKg"] = _sum([t for t in db.scalars(select(Task).where(Task.type == "giao_khach", Task.status == "Đang chạy"))
+                                       if t.kg_picked is None and (not cid or t.contract_id == cid)], lambda t: t.kg_required)
+    return out
+
+
 def movement_log(db: Session, cid: str | None, frm: datetime | None, to: datetime | None) -> list[dict]:
     """Nhật ký mọi phiếu theo 4 tầng. state: "Đã chốt" mới cộng vào tổng tầng; còn lại (chờ cân, đang trên xe, chờ
     Quản lý duyệt, QL từ chối…) hiện riêng dưới ô tầng đó với kg tạm (kgPlan) — anh Thắng 31/10."""
@@ -237,9 +261,16 @@ def movement_log(db: Session, cid: str | None, frm: datetime | None, to: datetim
                     "kg": p.kg_actual, "kgPlan": p.kg_actual if p.kg_actual is not None else p.kg_expected,
                     "state": _pc_state(p), "who": p.by,
                     "desc": f"Cân trạm {fmt_kg(p.kg_actual)}" if p.kg_actual is not None else "Cân trạm chưa cân"})
+    unweighed = set(db.scalars(select(Weighing.id).where(Weighing.kg_actual.is_(None))))
     for t in db.scalars(q(Task)):
         d = t.filled_at or t.departed_at or t.assigned_at
         st = _task_state(t)
+        if t.type == "di_ma" and t.kg_at_galv is None and t.ref_id in unweighed:
+            # xe chưa đóng hàng / kho chưa cân tại xưởng → chưa có số liệu chặng mạ
+            out.append({"kind": "Nhập xưởng mạ", "type": "vc", "id": t.id, "contractId": t.contract_id, "date": d,
+                        "kg": None, "kgPlan": None, "state": "Chờ cân tại xưởng", "who": t.driver,
+                        "desc": f"Chờ kho cân tại xưởng ({t.ref_id}) — chưa có hàng trên xe"})
+            continue
         if t.type == "di_ma":
             out.append({"kind": "Nhập xưởng mạ", "type": "vc", "id": t.id, "contractId": t.contract_id, "date": d,
                         "kg": t.kg_at_galv, "kgPlan": t.kg_at_galv if t.kg_at_galv is not None else t.kg_required,
@@ -278,7 +309,8 @@ def _deadline(by, done: bool, what: str) -> dict:
     if dl < 0:
         return {"state": "overdue", "label": f"QUÁ {what.upper()} {abs(dl)} ngày ({fmt_d(by)})", "days": dl}
     if dl <= COMPLETE_WARN_DAYS:
-        return {"state": "soon", "label": f"Còn {dl} ngày tới {what} ({fmt_d(by)})", "days": dl}
+        return {"state": "soon", "label": (f"Hôm nay là {what} ({fmt_d(by)})" if dl == 0
+                                           else f"Còn {dl} ngày tới {what} ({fmt_d(by)})"), "days": dl}
     return {"state": "fine", "label": f"{what.capitalize()} {fmt_d(by)} · còn {dl} ngày", "days": dl}
 
 
@@ -441,6 +473,8 @@ def _set_items(o: Order, items: list[dict]) -> None:
 
 def create_order(db: Session, customer: str, items: list[dict], file: str | None, note: str, code: str | None,
                  customer_id: int | None = None, vat_pct: float = 10, name: str | None = None) -> Order:
+    if not (name or "").strip():  # anh Thắng 02/11: bắt buộc — cùng 1 khách có nhiều đơn, nhìn tên mới phân biệt được
+        raise HTTPException(400, "Chưa nhập tên đơn hàng")
     cu = ensure_customer(db, customer, customer_id)
     customer = cu.name
     o = Order(id=next_id(db, "DH", "dh", month_code=True), customer=customer, code=(code or "").strip(), name=(name or "").strip(), date=utcnow(),
@@ -463,6 +497,8 @@ def update_order(db: Session, oid: str, data: dict) -> Order:
         if data.get(k) is not None:
             setattr(o, k, data[k])
     if data.get("name") is not None:
+        if not data["name"].strip():
+            raise HTTPException(400, "Tên đơn hàng không được để trống")
         o.name = data["name"].strip()
     if data.get("items"):
         _set_items(o, data["items"])
@@ -1377,12 +1413,12 @@ def vloss_detail(db: Session, e: VLoss) -> dict:
         t = db.get(Task, e.ref_id)
         if t:
             if t.type == "di_ma":
-                a = (f"Cân xuất công ty ({t.ref_id})" if t.ref_id else "KG giao chở đi mạ", t.kg_required)
-                b = ("Xưởng mạ cân nhận", t.kg_at_galv)
+                a = (f"Cân tại xưởng ({t.ref_id})" if t.ref_id else "KG giao chở đi mạ", t.kg_required)
+                b = ("Cân tại mạ", t.kg_at_galv)
             elif t.kg_delivered is not None and t.kg_picked is not None and abs(t.kg_delivered - t.kg_picked) > 0.5:
-                a, b = ("Lấy từ xưởng mạ (ký với mạ)", t.kg_picked), ("Khách ký nhận", t.kg_delivered)
+                a, b = ("Cân tại mạ (lấy hàng)", t.kg_picked), ("Cân giao khách", t.kg_delivered)
             else:
-                a, b = ("KG theo chứng từ (mạ cân nhận)", t.kg_required), ("Lấy từ xưởng mạ (ký với mạ)", t.kg_picked)
+                a, b = ("KG giao lấy tại mạ", t.kg_required), ("Cân tại mạ (lấy hàng)", t.kg_picked)
             if t.reason:
                 reason = t.reason + (f" — {t.reason_note}" if t.reason_note else "")
             elif t.mismatch_id and (m := db.get(Mismatch, t.mismatch_id)):
@@ -1397,7 +1433,7 @@ def vloss_detail(db: Session, e: VLoss) -> dict:
         p = db.get(Weighing, e.ref_id)
         if p:
             a, b = (("KG Quản lý giao (chuẩn bị hàng)" if p.receipt_id else "KG theo lệnh xuất"), p.kg_expected), \
-                ("Cân thực (hàng)" if p.receipt_id else "Cân thực tại trạm", p.kg_actual)
+                ("Cân tại xưởng", p.kg_actual)
             if p.reason:
                 reason = p.reason + (f" — {p.reason_note}" if p.reason_note else "")
             elif p.mismatch_id and (m := db.get(Mismatch, p.mismatch_id)):

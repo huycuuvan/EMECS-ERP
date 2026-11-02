@@ -116,7 +116,8 @@ export default function OrderFormModal({ order, onClose, onSaved }: { order?: Or
               : undefined}>
             <Select showSearch options={[...customers.map((c) => ({ value: c, label: c })), { value: NEW, label: '— Khách mới (nhập tên) —' }]} />
           </Form.Item>
-          <Form.Item name="name" label="Tên đơn hàng (tùy chọn)" rules={[{ max: 255, message: 'Tối đa 255 ký tự' }]}>
+          <Form.Item name="name" label={<>Tên đơn hàng&nbsp;<span className="text-signal">*</span></>}
+            rules={[{ required: true, whitespace: true, message: 'Nhập tên đơn hàng — để phân biệt các đơn của cùng 1 khách' }, { max: 255, message: 'Tối đa 255 ký tự' }]}>
             <Input placeholder="VD: Cột điện 110kV — TBA Bắc Ninh 3" />
           </Form.Item>
           {order && <Form.Item name="code" label="Mã nội bộ"><Input /></Form.Item>}

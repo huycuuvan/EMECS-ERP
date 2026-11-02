@@ -73,11 +73,11 @@ def test_customer_and_tag_crud(c):
     assert t["name"] == "Khách VIP"
 
     # đơn hàng: chọn khách có sẵn theo id; gõ tên khách mới → tự tạo khách
-    o = c.post("/api/orders", json={"customer": "x", "customerId": cu["id"], "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "x", "customerId": cu["id"], "items": [
         {"name": "Dầm", "qty": 1, "kg": 1000, "price": 50000}]}).json()
     assert o["customer"] == "Cty Thép Mới" and o["customerId"] == cu["id"]
     assert o["id"] in {x["id"] for x in c.get("/api/orders", params={"tag": loyal}).json()}
-    o2 = c.post("/api/orders", json={"customer": "  Cty Khách Lạ  ", "items": [
+    o2 = c.post("/api/orders", json={"name": "Đơn test", "customer": "  Cty Khách Lạ  ", "items": [
         {"name": "Xà gồ", "qty": 1, "kg": 500, "price": 48000}]}).json()
     new = next(x for x in c.get("/api/customers", params={"q": "khách lạ"}).json())
     assert o2["customerId"] == new["id"] and new["name"] == "Cty Khách Lạ"
@@ -167,13 +167,20 @@ def test_material_receipts_and_stats(c):
     assert len(rows) == 6 and rows[0]["id"] == "NL-0006"
     s = c.get("/api/reports/material-stats").json()
     assert s["totalKg"] == 133107 and s["count"] == 6
-    assert s["byGrade"][0] == {"key": "SS400", "kg": 91731, "count": 4}
+    assert {k: v for k, v in s["byGrade"][0].items() if k != "qty"} == {"key": "SS400", "kg": 91731, "count": 4}
     assert s["bySupplier"][0]["key"] == "Cty TNHH Thép Minh Khang"
+    assert s["byCategory"][0] == {"key": "Sắt dẹt", "kg": 85251, "count": 3, "qty": {"tấm": 90}}
     login(c, "kho")
-    m = c.post("/api/material-receipts", json={"supplier": "Cty CP Thép Á Châu", "steelGrade": "ss400",
+    # anh Thắng 02/11: mọi trường bắt buộc (trừ ghi chú), loại hàng trong danh mục cố định
+    r = c.post("/api/material-receipts", json={"supplier": "Cty CP Thép Á Châu", "spec": "Thép tấm 8ly", "kg": 5652})
+    assert r.status_code == 400 and r.json()["detail"] == \
+        "Chưa nhập đủ: loại hàng (chọn trong danh mục), số lượng, đơn vị tính, KG theo bên cung cấp, ảnh chứng từ"
+    assert c.post("/api/material-receipts", json={"supplier": "X", "category": "Thép tấm", "spec": "a", "qty": 1, "unit": "tấm",
+                                                  "kg": 1, "kgSupplier": 1, "photo": "/uploads/x.png"}).status_code == 400
+    m = c.post("/api/material-receipts", json={"supplier": "Cty CP Thép Á Châu", "category": "Sắt dẹt",
                                                "spec": "Thép tấm 8×1500×6000", "qty": 10, "unit": "tấm",
-                                               "kg": 5652}).json()
-    assert m["id"] == "NL-0007" and m["steelGrade"] == "SS400" and m["by"] == "Ngô Minh Kho"
+                                               "kg": 5652, "kgSupplier": 5652, "photo": "/uploads/x.png"}).json()
+    assert m["id"] == "NL-0007" and m["category"] == "Sắt dẹt" and m["by"] == "Ngô Minh Kho"
     assert m["status"] == "Chờ duyệt"  # anh Thắng 31/10: kho nhập → Quản lý duyệt mới tính
     m = c.patch(f"/api/material-receipts/{m['id']}", json={"kg": 5700, "note": "Cân lại"}).json()
     assert m["kg"] == 5700 and m["note"] == "Cân lại"
@@ -189,7 +196,7 @@ def test_material_receipts_and_stats(c):
     assert r.status_code == 400 and "đã duyệt" in r.json()["detail"]
     s2 = c.get("/api/reports/material-stats").json()
     assert s2["totalKg"] == 133107 + 5700
-    assert next(g for g in s2["byGrade"] if g["key"] == "SS400")["count"] == 5
+    assert next(g for g in s2["byCategory"] if g["key"] == "Sắt dẹt")["qty"] == {"tấm": 100}
     assert c.get("/api/reports/material-stats", params={"from": "2099-01-01"}).json()["totalKg"] == 0
     # SX hoàn thành (PTN) trong kỳ lọc theo ngày
     assert s2["producedKg"] == 143200 and s2["producedPct"] == round(143200 / (133107 + 5700) * 100)
@@ -272,8 +279,8 @@ def test_customer_profile_fields_and_segment_filter(c):
 
 def test_material_receipt_supplier_vs_actual_notifies_manager(c):
     login(c, "kho")
-    m = c.post("/api/material-receipts", json={"supplier": "Thép Minh Khang", "spec": "Thép tấm 12ly",
-                                               "kgSupplier": 10000, "kg": 9950, "photo": "/uploads/x.png"}).json()
+    m = c.post("/api/material-receipts", json={"supplier": "Thép Minh Khang", "category": "Sắt dẹt", "spec": "Thép tấm 12ly",
+                                               "qty": 5, "unit": "tấm", "kgSupplier": 10000, "kg": 9950, "photo": "/uploads/x.png"}).json()
     assert m["kgSupplier"] == 10000 and m["kg"] == 9950 and m["delta"] == -50 and m["photo"]
     login(c, "ql")
     n = c.get("/api/notifications").json()[0]

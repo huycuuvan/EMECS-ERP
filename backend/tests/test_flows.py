@@ -45,7 +45,7 @@ def test_seed_dashboard_matches_demo(c):
 
 
 def test_order_to_contract(c):
-    o = c.post("/api/orders", json={"customer": "Cty Test", "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Test", "items": [
         {"name": "Dầm I-300", "qty": 10, "unit": "cấu kiện", "kg": 5000, "price": 50000}]}).json()
     assert o["status"] == "Chốt đơn" and o["value"] == 250_000_000
     assert c.post(f"/api/orders/{o['id']}/send-to-kt", json={}).status_code == 400  # thiếu ngày hoàn thành
@@ -219,7 +219,7 @@ def test_uploaded_photo_requires_signed_link(c):
 
 def test_completion_date_is_single_contract_deadline(c):
     """Bỏ hạn gửi 05 ngày: hạn hợp đồng = ngày hoàn thành QL nhập; chỉ Quản lý được đổi ngày này."""
-    o = c.post("/api/orders", json={"customer": "Cty Hạn", "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Hạn", "items": [
         {"name": "Dầm", "qty": 1, "unit": "bộ", "kg": 1000, "price": 20000}]}).json()
     ct = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-20T12:00:00Z"}).json()
     row = next(x for x in c.get("/api/contracts").json() if x["id"] == ct["id"])
@@ -240,7 +240,7 @@ def test_attach_signed_documents(c):
     assert url.startswith("/uploads/") and "Hop-dong-ky-chot-Don-01.pdf?" in url
     assert c.get(url).content == pdf
     assert c.post("/api/uploads/doc", files={"file": ("x.exe", b"MZ", "application/octet-stream")}).status_code == 400
-    o = c.post("/api/orders", json={"customer": "Cty File", "file": url, "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty File", "file": url, "items": [
         {"name": "Dầm", "qty": 1, "unit": "bộ", "kg": 100, "price": 1000}]}).json()
     assert o["file"].startswith("/uploads/") and "?exp=" in o["file"]  # lưu đường dẫn gốc, trả link ký
     ct = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-20T12:00:00Z"}).json()
@@ -284,7 +284,7 @@ def test_two_deadlines_contract_return_and_delivery(c):
         db.get(Contract, "HD-2609-06").status = "Đã nhận về"  # khách ký trả hồ sơ → xong hạn (không cần bấm Hoàn thành)
         db.commit()
     assert {x["id"]: x for x in c.get("/api/contracts").json()}["HD-2609-06"]["deliver"]["state"] == "ok"
-    o = c.post("/api/orders", json={"customer": "Cty 2 mốc", "items": [{"name": "Dầm", "qty": 1, "unit": "bộ", "kg": 10, "price": 1}]}).json()
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty 2 mốc", "items": [{"name": "Dầm", "qty": 1, "unit": "bộ", "kg": 10, "price": 1}]}).json()
     ct = c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-05", "deliverBy": "2099-02-20"}).json()
     assert ct["completeBy"].startswith("2099-01-05") and ct["deliverBy"].startswith("2099-02-20")
     login(c, "kt")

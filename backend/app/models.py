@@ -458,7 +458,8 @@ class MaterialReceipt(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True)  # NL-0001
     date = mapped_column(UTCDateTime, index=True)
     supplier: Mapped[str] = mapped_column(String(200))
-    steel_grade: Mapped[str] = mapped_column(String(40), default="")  # mác thép: SS400, Q345B…
+    steel_grade: Mapped[str] = mapped_column(String(40), default="")  # mác thép (bỏ khỏi form 02/11, giữ cho phiếu cũ)
+    category: Mapped[str] = mapped_column(String(60), default="", server_default="", index=True)  # loại hàng (config.MATERIAL_CATEGORIES)
     spec: Mapped[str] = mapped_column(String(200), default="")  # quy cách
     qty: Mapped[float] = mapped_column(Float, default=0)
     unit: Mapped[str] = mapped_column(String(32), default="tấm")

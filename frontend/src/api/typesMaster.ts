@@ -25,6 +25,8 @@ export type GalvanizerInput = Partial<Omit<Galvanizer, 'id'>>
 
 export interface MaterialReceipt {
   id: string; date: string; supplier: string; steelGrade: string; spec: string; qty: number; unit: string
+  /** loại hàng (danh mục cố định, meta.materialCategories); phiếu cũ có thể trống */
+  category: string
   /** KG cân thực tế tại xưởng */ kg: number
   note: string; by: string
   /** KG theo bên cung cấp; delta = thực tế − NCC; photo = ảnh chứng từ */
@@ -35,9 +37,10 @@ export interface MaterialReceipt {
 export type MaterialStatus = 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'
 export type MaterialInput = Partial<Omit<MaterialReceipt, 'id' | 'by' | 'delta' | 'status' | 'approvedBy' | 'approvedAt' | 'rejectReason'>>
 
-export interface StatGroup { key: string; kg: number; count: number }
+/** qty: số lượng cộng theo từng đơn vị tính ({tấm: 90, cây: 200}) */
+export interface StatGroup { key: string; kg: number; count: number; qty?: Record<string, number> }
 export interface MaterialStats {
-  totalKg: number; count: number; byMonth: StatGroup[]; bySupplier: StatGroup[]; byGrade: StatGroup[]
+  totalKg: number; count: number; byMonth: StatGroup[]; bySupplier: StatGroup[]; byGrade: StatGroup[]; byCategory: StatGroup[]
   /** thành phẩm xưởng bàn giao kho (PTN) trong kỳ */
   producedKg: number; producedPct: number | null
 }

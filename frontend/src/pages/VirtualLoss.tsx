@@ -23,10 +23,16 @@ const SOURCES = [NVL, PREP, 'Cân tại xưởng mạ', 'Giao khách', 'Trạm c
 /** chữ cho dấu chênh: nhập NVL → thiếu / thừa; còn lại → hụt / dư */
 const word = (d: number, nl?: boolean) => (d > 0 ? (nl ? 'thiếu' : 'hụt') : d < 0 ? (nl ? 'thừa' : 'dư') : '')
 const sumKg = (arr: VLoss[]) => arr.reduce((s, e) => s + Math.abs(Number(e.kg) || 0), 0)
+/** Chênh BÙ TRỪ của 1 nhóm (Σ số gốc − Σ số sau): thừa / thiếu cancel nhau — anh Thắng 02/11 (NVL thừa 10 + 5, thiếu 1 → thừa 14). */
+const netKg = (arr: VLoss[]) => arr.reduce((s, e) => s + (Number(e.kg) || 0), 0)
+const NetValue = ({ arr, nl }: { arr: VLoss[]; nl?: boolean }) => {
+  const n = netKg(arr)
+  return <>{fmtKg(Math.abs(n))}{Math.abs(n) > 0.0005 && <span style={{ fontSize: 13, fontWeight: 600 }}> {word(n, nl)}</span>}</>
+}
 /** Công thức trên thẻ: Σ số gốc − Σ số cân sau = chênh (cộng từ công thức từng khoản). */
 function CardFormula({ arr, a, b, nl }: { arr: VLoss[]; a: string; b: string; nl?: boolean }) {
   const fs = arr.map((e) => e.formula).filter((f): f is NonNullable<VLoss['formula']> => !!f)
-  if (!fs.length) return <>{arr.length} khoản</>
+  if (!fs.length) return <>Công thức: {a} − {b} · chưa có khoản nào</>
   const sa = fs.reduce((s, f) => s + f.a, 0), sb = fs.reduce((s, f) => s + f.b, 0), d = sa - sb
   return (
     <span style={{ display: 'block', lineHeight: 1.45 }}>
@@ -86,12 +92,14 @@ export default function VirtualLoss() {
         </>} />
 
       <KpiGrid>
-        <Kpi tone="amber" label="Tổng lệch lũy kế" value={fmtKg(sumKg(all))} sub={<CardFormula arr={all} a="Σ số gốc" b="Σ số cân sau" />} onClick={() => { setSrc(undefined); setSt(undefined) }} />
-        <Kpi tone="steel" label="Trong tháng này" value={fmtKg(sumKg(month))} sub={<CardFormula arr={month} a="Σ số gốc" b="Σ số cân sau" />} />
-        <Kpi tone="amber" label="Nhập nguyên liệu" value={fmtKg(sumKg(bySrc(NVL)))} sub={<CardFormula arr={bySrc(NVL)} a="NCC" b="Cân thực tế" nl />} onClick={() => setSrc(NVL)} />
-        <Kpi tone="steel" label="Chuẩn bị hàng (cân xuất)" value={fmtKg(sumKg(bySrc(PREP)))} sub={<CardFormula arr={bySrc(PREP)} a="QL giao" b="Cân thực" />} onClick={() => setSrc(PREP)} />
-        <Kpi tone="rust" label="Cân tại xưởng mạ" value={fmtKg(sumKg(bySrc('Cân tại xưởng mạ')))} sub={<CardFormula arr={bySrc('Cân tại xưởng mạ')} a="Cân xuất" b="Mạ cân nhận" />} onClick={() => setSrc('Cân tại xưởng mạ')} />
-        <Kpi tone="moss" label="Giao khách" value={fmtKg(sumKg(bySrc('Giao khách')))} sub={<CardFormula arr={bySrc('Giao khách')} a="Lấy từ mạ" b="Khách ký nhận" />} onClick={() => setSrc('Giao khách')} />
+        <Kpi tone="amber" label="Tổng lệch lũy kế (mọi nguồn)" value={fmtKg(sumKg(all))} onClick={() => { setSrc(undefined); setSt(undefined) }}
+          sub={<span>Cộng <b>độ lớn</b> tất cả {all.length} khoản chênh từ trước tới nay (cả thừa lẫn thiếu, không bù trừ) — để biết tổng khối lượng bị lệch.</span>} />
+        <Kpi tone="steel" label={`Phát sinh tháng ${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`} value={fmtKg(sumKg(month))}
+          sub={<span>Giống ô bên trái nhưng chỉ tính các khoản ghi nhận trong tháng hiện tại ({month.length} khoản).</span>} />
+        <Kpi tone="amber" label="Nhập nguyên liệu" value={<NetValue arr={bySrc(NVL)} nl />} sub={<CardFormula arr={bySrc(NVL)} a="KG bên cung cấp" b="Cân thực tế" nl />} onClick={() => setSrc(NVL)} />
+        <Kpi tone="steel" label="Chuẩn bị hàng (cân xuất)" value={<NetValue arr={bySrc(PREP)} />} sub={<CardFormula arr={bySrc(PREP)} a="QL giao" b="Cân tại xưởng" />} onClick={() => setSrc(PREP)} />
+        <Kpi tone="rust" label="Cân tại xưởng mạ" value={<NetValue arr={bySrc('Cân tại xưởng mạ')} />} sub={<CardFormula arr={bySrc('Cân tại xưởng mạ')} a="Cân tại xưởng" b="Cân tại mạ" />} onClick={() => setSrc('Cân tại xưởng mạ')} />
+        <Kpi tone="moss" label="Giao khách" value={<NetValue arr={bySrc('Giao khách')} />} sub={<CardFormula arr={bySrc('Giao khách')} a="Cân tại mạ (lấy hàng)" b="Cân giao khách" />} onClick={() => setSrc('Giao khách')} />
       </KpiGrid>
 
       <div style={panel}>

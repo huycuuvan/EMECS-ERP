@@ -20,7 +20,7 @@ def _contract(c):
     c.put("/api/settings/seller", json={**c.get("/api/settings/seller").json(), "name": "CÔNG TY TNHH EMECS VIỆT NAM",
                                        "representative": "Trần Ngọc Anh", "title": "Giám đốc", "representativeHonorific": "Bà",
                                        "workshopRep": "Lê Văn Dũng", "workshopTitle": "QLSX", "workshopHonorific": "Ông"})
-    o = c.post("/api/orders", json={"customer": "Cty Hồ Sơ", "items": [
+    o = c.post("/api/orders", json={"name": "Đơn test", "customer": "Cty Hồ Sơ", "items": [
         {"name": "Xà đỡ X-TU", "qty": 6, "unit": "Bộ", "kgPerUnit": 50, "price": 20000},
         {"name": "Tiếp địa RC-2", "qty": 269, "unit": "Bộ", "kgPerUnit": 10, "price": 20000}]}).json()
     return c.post(f"/api/orders/{o['id']}/send-to-kt", json={"completeBy": "2099-01-01"}).json()

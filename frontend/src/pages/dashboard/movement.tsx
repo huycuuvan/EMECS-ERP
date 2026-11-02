@@ -66,7 +66,7 @@ export function tierTotals(rows: MovementRow[]) {
     const k = TIER_OF[r.kind]
     if (!k) return
     if (!r.state || r.state === MV_OK) { t[k] += Number(r.kg) || 0; return }
-    if (r.state === 'Lái xe từ chối') return
+    if (r.state === 'Lái xe từ chối' || r.state === 'Chờ cân tại xưởng') return  // chưa có hàng trên xe → chưa có số liệu
     let g = pending[k].find((p) => p.state === r.state)
     if (!g) pending[k].push(g = { state: r.state, kg: 0, n: 0 })
     g.kg += Number(r.kg ?? r.kgPlan) || 0
@@ -76,6 +76,7 @@ export function tierTotals(rows: MovementRow[]) {
 }
 
 export const stateTone = (s: string): ChipTone =>
+  s === 'Chờ cân tại xưởng' ? 'fine' :
   s === MV_OK ? 'ok' : /từ chối/i.test(s) ? 'over' : s === 'Chờ QL duyệt' || s === 'Đang trên xe' ? 'soon' : 'fine'
 
 /** Các dòng "Chờ QL duyệt 9.900 kg (1)" dưới ô tầng. */

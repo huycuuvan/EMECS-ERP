@@ -438,12 +438,14 @@ def delete_galvanizer(gid: int, db: Session = DB):
 
 # ================================================================ nguyên liệu mua vào
 class MaterialIn(In):
+    """Anh Thắng 02/11: mọi trường bắt buộc (trừ ghi chú) để thống kê đủ; loại hàng chọn trong danh mục cố định."""
     date: datetime | None = None
     supplier: str = Field(min_length=1, max_length=200)
+    category: str = ""  # bắt buộc, trong config.MATERIAL_CATEGORIES — kiểm ở create_material để báo lỗi tiếng Việt
     steel_grade: str = ""
     spec: str = ""
     qty: float = Field(default=0, ge=0)
-    unit: str = "tấm"
+    unit: str = ""
     kg: float = Field(gt=0)  # KG cân thực tế tại xưởng
     kg_supplier: float | None = Field(default=None, ge=0)  # KG theo bên cung cấp
     photo: str | None = None  # ảnh chứng từ
@@ -453,6 +455,7 @@ class MaterialIn(In):
 class MaterialPatch(In):
     date: datetime | None = None
     supplier: str | None = Field(default=None, min_length=1, max_length=200)
+    category: str | None = None
     steel_grade: str | None = None
     spec: str | None = None
     qty: float | None = Field(default=None, ge=0)
@@ -465,7 +468,8 @@ class MaterialPatch(In):
 
 def material_out(m: MaterialReceipt) -> dict:
     from .files import sign_photo
-    return {"id": m.id, "date": iso(m.date), "supplier": m.supplier, "steelGrade": m.steel_grade, "spec": m.spec,
+    return {"id": m.id, "date": iso(m.date), "supplier": m.supplier, "category": m.category or "",
+            "steelGrade": m.steel_grade, "spec": m.spec,
             "qty": m.qty, "unit": m.unit, "kg": m.kg, "note": m.note, "by": m.by, "kgSupplier": m.kg_supplier,
             "delta": (m.kg - m.kg_supplier) if m.kg_supplier is not None else None,  # thực tế − NCC
             "photo": sign_photo(m.photo) if m.photo else None,
@@ -518,9 +522,33 @@ def list_materials(frm: datetime | None = Query(None, alias="from"), to: datetim
     return [material_out(m) for m in _materials(db, frm, to)]
 
 
+def _check_material(category: str | None, spec: str | None, qty: float | None, unit: str | None,
+                    kg_supplier: float | None, photo: str | None, partial: bool = False) -> None:
+    """Thiếu trường nào báo trường đó (patch: chỉ kiểm trường gửi lên)."""
+    from .config import MATERIAL_CATEGORIES
+    miss = []
+    if not partial or category is not None:
+        if (category or "").strip() not in MATERIAL_CATEGORIES:
+            miss.append("loại hàng (chọn trong danh mục)")
+    if (not partial or spec is not None) and not (spec or "").strip():
+        miss.append("quy cách / tên hàng")
+    if (not partial or qty is not None) and not (qty and qty > 0):
+        miss.append("số lượng")
+    if (not partial or unit is not None) and not (unit or "").strip():
+        miss.append("đơn vị tính")
+    if not partial and kg_supplier is None:
+        miss.append("KG theo bên cung cấp")
+    if not partial and not photo:
+        miss.append("ảnh chứng từ")
+    if miss:
+        raise HTTPException(400, "Chưa nhập đủ: " + ", ".join(miss))
+
+
 @router.post("/material-receipts", dependencies=NL_EDIT)
 def create_material(body: MaterialIn, db: Session = DB):
+    _check_material(body.category, body.spec, body.qty, body.unit, body.kg_supplier, body.photo)
     m = MaterialReceipt(id=svc.next_id(db, "NL", "nl"), date=body.date or utcnow(), supplier=_clean(body.supplier),
+                        category=body.category.strip(),
                         steel_grade=_clean(body.steel_grade).upper(), spec=_clean(body.spec), qty=body.qty,
                         unit=_clean(body.unit) or "tấm", kg=body.kg, note=body.note or "",
                         by=actor(PEOPLE["kho"]["name"]), kg_supplier=body.kg_supplier, photo=body.photo, status=NL_WAIT)
@@ -537,6 +565,9 @@ def update_material(mid: str, body: MaterialPatch, db: Session = DB):
     if m.status == NL_OK:
         raise HTTPException(400, f"Phiếu {mid} Quản lý đã duyệt — không sửa được")
     data = body.model_dump(exclude_none=True)
+    _check_material(data.get("category"), data.get("spec"), data.get("qty"), data.get("unit"), None, None, partial=True)
+    if "category" in data:
+        m.category = data["category"].strip()
     for f in ("supplier", "spec", "unit"):
         if f in data:
             setattr(m, f, _clean(data[f]))
@@ -591,9 +622,12 @@ def material_stats(frm: datetime | None = Query(None, alias="from"), to: datetim
         acc: dict[str, dict] = {}
         for m in rows:
             k = key(m) or "—"
-            g = acc.setdefault(k, {"key": k, "kg": 0.0, "count": 0})
+            g = acc.setdefault(k, {"key": k, "kg": 0.0, "count": 0, "qty": {}})
             g["kg"] += m.kg or 0
             g["count"] += 1
+            if m.qty:  # số lượng theo từng đơn vị tính (tấm, cây, bình, cuộn…)
+                u = m.unit or "—"
+                g["qty"][u] = g["qty"].get(u, 0) + m.qty
         return list(acc.values())
 
     by_month = sorted(group(lambda m: m.date.astimezone(VN_TZ).strftime("%Y-%m")), key=lambda g: g["key"])
@@ -605,6 +639,8 @@ def material_stats(frm: datetime | None = Query(None, alias="from"), to: datetim
         "byMonth": by_month,
         "bySupplier": sorted(group(lambda m: m.supplier), key=lambda g: -g["kg"]),
         "byGrade": sorted(group(lambda m: m.steel_grade), key=lambda g: -g["kg"]),
+        # anh Thắng 02/11: tổng hợp theo loại hàng (danh mục cố định); phiếu cũ chưa phân loại → "Chưa phân loại"
+        "byCategory": sorted(group(lambda m: m.category or "Chưa phân loại"), key=lambda g: -g["kg"]),
         # SX hoàn thành = thành phẩm xưởng bàn giao kho (phiếu chuẩn bị hàng PTN) trong kỳ
         "producedKg": produced,
         "producedPct": round(produced / total * 100) if total else None,
