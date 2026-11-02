@@ -73,12 +73,6 @@ def _days_left(d: datetime) -> int:
 
 
 # ---------------------------------------------------------------- tổng hợp theo hợp đồng
-def order_name(db: Session, c: Contract) -> str:
-    """Tên đơn hàng gốc (nhập tay ở đơn hàng) — hiện kèm hợp đồng."""
-    o = db.get(Order, c.order_id) if c.order_id else None
-    return (o.name or "") if o else ""
-
-
 def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
     c = get_or_404(db, Contract, cid)
     lsxs = db.scalars(select(Lsx).where(Lsx.contract_id == cid)).all()
@@ -137,7 +131,7 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
         "tasksGiao": [S.task(t, photo=False) for t in giao],
     } if detail else {}
     return {
-        "contract": {**S.contract(c), "orderName": order_name(db, c)}, **lists,
+        "contract": S.contract(c), **lists,
         "producedKg": produced_kg, "producedQty": produced_qty, "receivedKg": received_kg, "weighedKg": weighed_kg,
         "sentGalvKg": sent_galv_kg, "inTransitToGalvKg": in_transit_kg, "atGalvKg": at_galv_kg,
         "pickedKg": picked_kg, "deliveredKg": delivered_kg, "stockKg": stock_kg,
@@ -375,7 +369,8 @@ def contract_alerts(db: Session) -> list[dict]:
 
 
 def pending_payments(db: Session) -> list[dict]:
-    return [{**S.payment(p), "contractId": p.contract_id, "customer": p.contract.customer}
+    return [{**S.payment(p), "contractId": p.contract_id, "customer": p.contract.customer,
+             "orderName": S.order_name(p.contract)}
             for p in db.scalars(select(Payment).where(Payment.status == PAY_PENDING).order_by(Payment.date))]
 
 
@@ -614,7 +609,8 @@ def pending_extensions(db: Session) -> list[dict]:
     out = []
     for e in db.scalars(select(ContractExtension).where(ContractExtension.status == EXT_WAIT).order_by(ContractExtension.requested_at)):
         c = db.get(Contract, e.contract_id)
-        out.append({**S.extension(e), "customer": c.customer if c else "", "number": c.number if c else "",
+        out.append({**S.extension(e), "customer": c.customer if c else "", "orderName": S.order_name(c) if c else "",
+                    "number": c.number if c else "",
                     "completeBy": S.iso(c.complete_by) if c else None,
                     "complete": complete_info(c) if c else None})
     return out
@@ -1150,6 +1146,15 @@ def billing(db: Session, c: Contract) -> dict:
     value = sum(per.values())
     paid = _sum(approved(c.payments), lambda p: p.amount)
     return {"billedValues": per, "deliveredValue": value, "paidTotal": paid, "debt": value - paid}
+
+
+def contract_closed(db: Session, c: Contract, bill: dict | None = None) -> bool:
+    """HĐ đã xong hẳn → ẩn khỏi lọc mặc định "Đang thực hiện" (anh Thắng 02/11): Đã hoàn thành VÀ tiền về đủ —
+    tiền về đã duyệt ≥ giá trị hàng khách ký nhận + VAT (lệch làm tròn ≤ 1.000₫), không còn khoản chờ Quản lý duyệt."""
+    if c.status != CT_DONE or any(p.status == PAY_PENDING for p in c.payments):
+        return False
+    b = bill or billing(db, c)
+    return b["paidTotal"] >= b["deliveredValue"] * (1 + (c.vat_pct or 0) / 100) - 1000
 
 
 # ---------------------------------------------------------------- thẻ công việc lái xe

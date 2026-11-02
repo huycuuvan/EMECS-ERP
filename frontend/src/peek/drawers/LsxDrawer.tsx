@@ -5,7 +5,7 @@ import { CalendarDays, Factory, GitCompareArrows, Gauge, History, Info, Link2, T
 import { useContracts, useLsx, useReceipts, useTasks, useWeighings } from '@/api/hooks'
 import HistoryBlock from '@/components/HistoryBlock'
 import { Bar, Cell, CellGrid, Sec } from '@/components/ui'
-import { daysLeft, fmtD, fmtDT, fmtKg, fmtT, relTime } from '@/lib/format'
+import { daysLeft, fmtD, fmtDT, fmtKg, fmtT, relTime, custOrder } from '@/lib/format'
 import { LsxAdminActions } from '@/pages/lsx/LsxEditModals'
 import { useLsxActions } from '@/pages/lsx/LsxModals'
 import { canAskExt, effDeadline, isLate, LsxTimeline, pctOf, TodayOutput, useLsxPerms } from '@/pages/lsx/lsxUtil'
@@ -58,7 +58,7 @@ export default function LsxDrawer({ id }: { id: string }) {
       <Sec icon={<Info />}>Thông tin lệnh</Sec>
       <CellGrid>
         <Cell label="Tên lệnh" wide>{x.name}</Cell>
-        <Cell label="Hợp đồng"><RecordLink id={x.contractId} style={{ color: C.rust }} />{c && <div className="caption" style={{ fontWeight: 400 }}>{c.customer}</div>}</Cell>
+        <Cell label="Hợp đồng"><RecordLink id={x.contractId} style={{ color: C.rust }} />{c && <div className="caption" style={{ fontWeight: 400 }}>{custOrder(c)}</div>}</Cell>
         <Cell label="Phát lệnh bởi">{x.assignedBy}</Cell>
         <Cell label="Ngày phát lệnh">{fmtDT(x.assignedAt)}</Cell>
         <Cell label="Tiến độ yêu cầu">{x.leadDays} ngày</Cell>

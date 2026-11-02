@@ -7,7 +7,7 @@ import { useContracts, useReceipts, useWeighings } from '@/api/hooks'
 import type { Receipt } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader } from '@/components/ui'
-import { fmtDT, fmtKg, fmtT, relTime } from '@/lib/format'
+import { fmtDT, fmtKg, fmtT, relTime, custOrder } from '@/lib/format'
 import { useAuth } from '@/lib/auth'
 import { usePeek } from '@/peek/context'
 import RecordLink from '@/peek/RecordLink'
@@ -41,7 +41,7 @@ export default function Receipts() {
   const hdOptions = useMemo(() => {
     const seen = new Set<string>()
     all.forEach((r) => seen.add(r.contractId))
-    return [...seen].map((id) => ({ value: id, label: id + (cmap[id] ? ` — ${cmap[id].customer}` : '') }))
+    return [...seen].map((id) => ({ value: id, label: id + (cmap[id] ? ` — ${custOrder(cmap[id])}` : '') }))
   }, [all, cmap])
 
   const rows = useMemo(() => [...all].sort((a, b) => (b.date || '').localeCompare(a.date || '')).filter((r) => {

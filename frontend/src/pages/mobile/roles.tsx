@@ -15,7 +15,7 @@ import {
   useTaskDepart, useTasks, useWeighings,
 } from '@/api/hooks'
 import type { Lsx, Mismatch, OverdueDoc, Receipt, Task, Weighing } from '@/api/types'
-import { fmtD, fmtDT, fmtKg, fmtT, hoursOver, moneyShort, relTime } from '@/lib/format'
+import { fmtD, fmtDT, fmtKg, fmtT, hoursOver, moneyShort, relTime, custOrder } from '@/lib/format'
 import { TaskRoute } from './route'
 import { useSignFlow } from './sign'
 import AssignedGoods from '../weighings/AssignedGoods'
@@ -408,7 +408,7 @@ export function QlView({ tab, setTab, onRoleSheet }: RoleViewProps) {
     if (!dash) return []
     const out: MAlert[] = []
     // xin gia hạn soạn thảo HĐ: lên đầu danh sách để Quản lý thấy ngay (anh Thắng 31/10)
-    dash.pendingExtensions.forEach((e) => out.push({ ic: FileClock, t: `${e.contractId} xin gia hạn soạn thảo HĐ — chờ Quản lý duyệt`, s: `${e.customer} · ${e.requestedBy}: ${e.reason}`, red: true, open: ['hd', e.contractId] }))
+    dash.pendingExtensions.forEach((e) => out.push({ ic: FileClock, t: `${e.contractId} xin gia hạn soạn thảo HĐ — chờ Quản lý duyệt`, s: `${custOrder(e)} · ${e.requestedBy}: ${e.reason}`, red: true, open: ['hd', e.contractId] }))
     dash.overdueDocs.forEach((d) => out.push({ ic: AlarmClock, t: `${d.kind} ${d.id} QUÁ HẠN ${d.hoursOver}h`, s: `${d.person} (${d.dept}) còn thiếu: ${d.missing}`, red: true, open: [d.type, d.id] }))
     dash.pendingMismatches.forEach((mm) => out.push({ ic: FileWarning, t: `${mm.id} lệch ${signed(mm.delta)} kg chờ ký`, s: `${mm.source} · ${mm.refId} · ${mm.reason}`, red: true, open: ['sl', mm.id] }))
     // anh Thắng 31/10: bỏ cảnh báo hạn hợp đồng khỏi dashboard (xem ở màn Hợp đồng); thêm việc chờ Quản lý duyệt
@@ -520,7 +520,7 @@ function QlContracts({ dash }: { dash: Dash }) {
           <Card key={c.id} open={['hd', c.id]} overdue={dueBad || dlvBad}>
             {(dueBad || dlvBad) && <div className="overdue-banner"><Siren />{dueBad ? comp.label : dlv.label}</div>}
             <div className="mc-top"><span className="mc-id">{c.id}</span><span className="mc-status"><StatusChip status={c.status} /></span></div>
-            <Line vClass="left">{c.customer}</Line>
+            <Line vClass="left">{custOrder(c)}</Line>
             <Line k={`${fmtN(c.totalQty)} ${c.unit} · ${fmtT(c.totalKg)}`}>{moneyShort(c.value)}</Line>
             <Line k="Hạn soạn thảo HĐ" vClass={'sm ' + (dueBad ? 'red-txt' : dueWarn ? 'amber-txt' : '')}>{comp.label}</Line>
             <Line k="Hạn nhận đủ hồ sơ" vClass={'sm ' + (dlvBad ? 'red-txt' : dlvWarn ? 'amber-txt' : '')}>{dlv.label}</Line>
@@ -585,7 +585,7 @@ function QlReport({ dash, days, setDays }: { dash: Dash; days: number; setDays: 
                   : <span className="m-chip bad"><AlertTriangle />Lệch {signed(worst.delta)} kg</span>}
               </span>
             </div>
-            <Line k={c.customer} style={{ paddingTop: 0 }} />
+            <Line k={custOrder(c)} style={{ paddingTop: 0 }} />
             <PgRow label="Đã giao khách" done={g.deliveredKg} plan={c.totalKg} unit="kg" tone="success" />
             <Line k="Công nợ" vClass={'sm ' + (g.debt > 0 ? 'red-txt' : 'moss-txt')} style={{ marginTop: 6 }}>
               {g.debt > 0 ? `Khách nợ ${moneyShort(g.debt)}` : g.debt < 0 ? `Tiền trước hàng ${moneyShort(-g.debt)}` : 'Cân bằng'}

@@ -7,7 +7,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { useState } from 'react'
 import { useSendOrderToKT } from '@/api/hooks'
 import type { Order } from '@/api/types'
-import { fmtT, moneyShort } from '@/lib/format'
+import { fmtT, moneyShort, custOrder } from '@/lib/format'
 import { usePeek } from '@/peek/context'
 import { MODAL_Z } from '@/peek/drawers/contract/utils'
 
@@ -34,7 +34,7 @@ function SendKTModal({ order: o, onClose }: { order: Order; onClose: () => void 
   return (
     <Modal open zIndex={MODAL_Z} width={560} title={`Chuyển kế toán làm hợp đồng — ${o.id}`} okText="Chuyển kế toán" cancelText="Hủy"
       onOk={submit} onCancel={onClose} confirmLoading={send.isPending} destroyOnHidden>
-      <p>Chuyển đơn của <b>{o.customer}</b> ({fmtT(o.totalKg)} · {moneyShort(o.value)}) sang kế toán soạn hợp đồng?</p>
+      <p>Chuyển đơn của <b>{custOrder({ customer: o.customer, orderName: o.name })}</b> ({fmtT(o.totalKg)} · {moneyShort(o.value)}) sang kế toán soạn hợp đồng?</p>
       <Form form={form} layout="vertical" requiredMark={false}
         initialValues={{ completeBy: o.completeBy ? dayjs(o.completeBy) : dayjs().add(5, 'day'), deliverBy: o.deliverBy ? dayjs(o.deliverBy) : undefined }}>
         <Form.Item name="completeBy" label="Hạn soạn thảo hợp đồng (kế toán)" rules={[{ required: true, message: 'Chọn hạn soạn thảo hợp đồng' }]}

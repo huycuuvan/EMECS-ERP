@@ -3,7 +3,7 @@
 import { InputNumber } from 'antd'
 import { useContracts, useOrder, useReceipts } from '@/api/hooks'
 import type { ID, OrderItem } from '@/api/types'
-import { fmtKg, fmtNum } from '@/lib/format'
+import { fmtKg, fmtNum, custOrder } from '@/lib/format'
 import '@/pages/orders/orderForm.css'
 import { NUM } from '@/lib/numberInput'
 
@@ -32,7 +32,7 @@ export default function ContractGoods({ contractId, qtys, onQty }: {
   return (
     <div style={{ marginBottom: 14 }}>
       <div className="caption" style={{ marginBottom: 6 }}>
-        Hàng hóa hợp đồng <b className="mono">{c?.number || order.id}</b> · {order.customer} — đã chuẩn bị lũy kế{' '}
+        Hàng hóa hợp đồng <b className="mono">{c?.number || order.id}</b> · {custOrder({ customer: order.customer, orderName: order.name })} — đã chuẩn bị lũy kế{' '}
         <b>{fmtKg(received)}</b> / {fmtKg(order.totalKg)}{edit && ' · nhập số lượng chuẩn bị lần này, hệ thống tự cộng thành tổng KL'}
       </div>
       <div className="of-wrap">

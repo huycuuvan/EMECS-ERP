@@ -8,7 +8,7 @@ import {
   useContracts, useCreateLsx, useLsxAccept, useLsxDaily, useLsxExtend, useLsxExtReject, useLsxExtRequest, useLsxList, useLsxReject, useMeta,
 } from '@/api/hooks'
 import type { ID, Lsx } from '@/api/types'
-import { daysLeft, fmtD, fmtDT, fmtKg, fmtNum } from '@/lib/format'
+import { daysLeft, fmtD, fmtDT, fmtKg, fmtNum, custOrder } from '@/lib/format'
 import { numFormatter, numParser } from '@/peek/drawers/contract/utils'
 import { WarnBox } from './boxes'
 import { effDeadline } from './lsxUtil'
@@ -214,7 +214,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated?: 
               ? <span>Còn <b>{fmtNum(rem)} kg</b> của hợp đồng này chưa phát lệnh (không tính lệnh bị từ chối).</span>
               : <span className="text-signal" style={{ fontWeight: 600 }}>Hợp đồng đã phát lệnh đủ khối lượng — không còn phần để phát thêm.</span>) : undefined}>
             <Select placeholder="Chọn hợp đồng" onChange={sync}
-              options={signed.map((c) => ({ value: c.id, label: `${c.id} — ${c.customer} · ${c.status} · còn ${fmtNum(remainOf(c.id))} kg chưa phát lệnh` }))} />
+              options={signed.map((c) => ({ value: c.id, label: `${c.id} — ${custOrder(c)} · ${c.status} · còn ${fmtNum(remainOf(c.id))} kg chưa phát lệnh` }))} />
           </Form.Item>
           <Form.Item name="name" label="Tên lệnh" rules={[{ required: true, whitespace: true, message: 'Nhập tên lệnh sản xuất.' }]}>
             <Input />

@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { useContracts, useSeller } from '@/api/hooks'
 import { useGalvanizers } from '@/api/hooksMaster'
 import type { Task } from '@/api/types'
-import { fmtDT, hoursOver } from '@/lib/format'
+import { fmtDT, hoursOver, custOrder } from '@/lib/format'
 import { fmtN, isOverdueTask } from './core'
 import { DLink } from './kit'
 
@@ -70,7 +70,7 @@ export function TaskRoute({ t }: { t: Task }) {
         <div><span>Xe</span><b className="mono">{t.vehiclePlate || 'Chưa gán'}</b></div>
         <div><span>Khối lượng</span><b>{kgText(t, isMa)}</b></div>
         <div><span>Phiếu đi kèm</span><b>{t.refId ? <>{isMa ? 'Phiếu cân xuất ' : 'Thẻ đi mạ '}<DLink id={t.refId} /></> : 'Không gắn'}</b></div>
-        <div><span>Hợp đồng</span><b><DLink kind="hd" id={t.contractId} />{c && <small> · {c.customer}</small>}</b></div>
+        <div><span>Hợp đồng</span><b><DLink kind="hd" id={t.contractId} />{c && <small> · {custOrder(c)}</small>}</b></div>
       </div>
       {t.note && <div className="rt-note">Ghi chú: {t.note}</div>}
     </div>

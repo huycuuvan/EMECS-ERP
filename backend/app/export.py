@@ -17,7 +17,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import services as svc
+from . import serializers as S, services as svc
 from .config import PC_FILL_HOURS
 from .db import utcnow
 from .models import Contract, Lsx, Mismatch, Order, Receipt, Task, User, VLoss, Weighing
@@ -125,7 +125,7 @@ def _contracts(db: Session, f: Filters, _u: User) -> list[Row]:
             continue
         b = svc.billing(db, c)  # công nợ: kg khách ký nhận × đơn giá, không VAT
         dval, paid = b["deliveredValue"], b["paidTotal"]
-        out.append((c.id, [c.id, c.order_id, c.code, c.customer, c.total_qty, c.unit, c.total_kg, c.unit_price,
+        out.append((c.id, [c.id, c.order_id, S.order_name(c), c.code, c.customer, c.total_qty, c.unit, c.total_kg, c.unit_price,
                            c.value, c.sent_to_kt_at, c.complete_by, comp["label"], c.deliver_by, svc.deliver_info(c)["label"], c.sign_date or "Chưa nhận về", c.advance_pct,
                            c.advance_required, c.advance_received, adv["label"], delivered, len(giao[c.id]), dval,
                            paid, dval - paid, c.status, c.owner]))
@@ -133,7 +133,7 @@ def _contracts(db: Session, f: Filters, _u: User) -> list[Row]:
 
 
 def _lsx(db: Session, f: Filters, _u: User) -> list[Row]:
-    customers = {c.id: c.customer for c in db.scalars(select(Contract))}
+    customers = {c.id: " – ".join(filter(None, [c.customer, S.order_name(c)])) for c in db.scalars(select(Contract))}
     q = _eq(select(Lsx), Lsx.contract_id, f.contract_id)
     if f.status and f.status != "late":
         q = q.where(Lsx.status == f.status)
@@ -234,14 +234,14 @@ SHEETS: dict[str, Sheet] = {
         ("File ký chốt", "text"), ("Hàng hóa", "text"), ("Khối lượng (kg)", "kg"), ("Giá trị", "money"),
         ("Trạng thái", "text"), ("Hợp đồng", "text"), ("Ghi chú", "text")], _orders),
     "contracts": Sheet("Sổ hợp đồng & tạm ứng", "hop-dong", "hop-dong", [
-        ("Mã HĐ", "text"), ("Mã đơn", "text"), ("Mã nội bộ", "text"), ("Khách hàng", "text"), ("Số lượng", "num"),
+        ("Mã HĐ", "text"), ("Mã đơn", "text"), ("Tên đơn hàng", "text"), ("Mã nội bộ", "text"), ("Khách hàng", "text"), ("Số lượng", "num"),
         ("Đơn vị", "text"), ("Khối lượng (kg)", "kg"), ("Đơn giá (₫/kg)", "money"), ("Giá trị HĐ", "money"),
         ("Chuyển kế toán", "date"), ("Hạn soạn thảo HĐ", "date"), ("Tình trạng soạn thảo HĐ", "text"), ("Hạn nhận đủ hồ sơ", "date"), ("Tình trạng hồ sơ", "text"), ("Ngày ký", "date"),
         ("Tạm ứng %", "pct"), ("Tạm ứng yêu cầu", "money"), ("Tạm ứng đã về", "money"), ("Tình trạng tạm ứng", "text"),
         ("Đã giao (kg)", "kg"), ("Số chuyến đã giao", "num"), ("Giá trị hàng đã giao", "money"),
         ("Tiền về lũy kế", "money"), ("Công nợ", "money"), ("Trạng thái", "text"), ("Phụ trách", "text")], _contracts),
     "lsx": Sheet("Sổ lệnh sản xuất", "lsx", "lenh-san-xuat", [
-        ("Mã lệnh", "text"), ("Tên lệnh", "text"), ("Hợp đồng", "text"), ("Khách hàng", "text"),
+        ("Mã lệnh", "text"), ("Tên lệnh", "text"), ("Hợp đồng", "text"), ("Khách hàng – Tên đơn", "text"),
         ("Phát lệnh lúc", "dt"), ("Phát lệnh bởi", "text"), ("Tiến độ (ngày)", "num"), ("Hạn hoàn thành", "date"),
         ("Gia hạn đến", "date"), ("SL kế hoạch", "num"), ("KL kế hoạch (kg)", "kg"), ("SL đã xong", "num"),
         ("KL đã xong (kg)", "kg"), ("% hoàn thành", "pct"), ("Trạng thái", "text"), ("Nhận lệnh lúc", "dt"),

@@ -7,7 +7,7 @@ import { useCreateLsx, useMeta, useRecordPayment, useUpdateContract } from '@/ap
 import type { Contract, Lsx } from '@/api/types'
 import { useAuth } from '@/lib/auth'
 import LeadHint from '@/pages/lsx/LeadHint'
-import { fmtNum, money } from '@/lib/format'
+import { fmtNum, money, custOrder } from '@/lib/format'
 import { usePeek } from '../../context'
 import { committedKg, MODAL_Z, numFormatter, numParser, PAYMENT_TYPES, positive } from './utils'
 
@@ -115,7 +115,7 @@ export function LsxFromContractModal({ contract: c, lsxs, onClose }: { contract:
   return (
     <Modal open zIndex={MODAL_Z} title="Phát lệnh sản xuất (Quản lý)" okText="Phát lệnh" cancelText="Hủy" onOk={submit} onCancel={onClose}
       confirmLoading={create.isPending} okButtonProps={{ disabled: rem <= 0 }} destroyOnHidden width={560}>
-      <p style={{ marginTop: 0 }}>Hợp đồng <b className="mono">{c.id}</b> — {c.customer}</p>
+      <p style={{ marginTop: 0 }}>Hợp đồng <b className="mono">{c.id}</b> — {custOrder(c)}</p>
       <p className="caption" style={{ marginTop: -6 }}>
         {rem > 0
           ? <>Còn <b>{fmtNum(rem)} kg</b> của hợp đồng này chưa phát lệnh (không tính lệnh bị từ chối).</>

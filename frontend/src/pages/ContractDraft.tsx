@@ -15,7 +15,7 @@ import SellerModal from './company/SellerModal'
 import type { ContractDocument, ContractDraftInput, Party } from '@/api/types'
 import { CompleteChip, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtD, fmtNum } from '@/lib/format'
+import { fmtD, fmtNum, custOrder } from '@/lib/format'
 import { numberWords } from '@/lib/numberWords'
 import { numFormatter, numParser } from '@/peek/drawers/contract/utils'
 import { useContractFlow } from '@/peek/drawers/contract/useContractFlow'
@@ -124,7 +124,7 @@ function Editor({ doc }: { doc: ContractDocument }) {
   return (
     <>
       <PageHeader title={`Soạn thảo hợp đồng — ${doc.contractId}`}
-        desc={<>Theo mẫu hợp đồng kinh tế của công ty · đơn hàng <b className="mono">{doc.orderId}</b>{c && <> · {c.customer}</>}</>}
+        desc={<>Theo mẫu hợp đồng kinh tế của công ty · đơn hàng <b className="mono">{doc.orderId}</b>{c && <> · {custOrder(c)}</>}</>}
         extra={<>
           <Button icon={<ArrowLeft size={14} />} onClick={() => navigate('/hop-dong')}>Danh sách</Button>
           <Button icon={<Download size={14} />} onClick={word}>Tải Word</Button>

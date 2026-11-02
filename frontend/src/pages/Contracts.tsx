@@ -7,7 +7,8 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTasks } from '@/api/hooks'
 import { useContractsByTag } from '@/api/hooksMaster'
-import { type CompleteInfo, type Contract, type ContractRow, type ContractStatus } from '@/api/types'
+import { paidOf, type CompleteInfo, type Contract, type ContractRow, type ContractStatus } from '@/api/types'
+import AdvancedFilter, { HiddenNote, inMoney, inRange, type AdvFilter } from '@/components/AdvancedFilter'
 import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
@@ -29,6 +30,19 @@ const QUICK_LABEL: Record<Exclude<Quick, ''>, string> = {
   pay: 'Có tiền về chờ Quản lý duyệt', adv: 'Đã nhận về — chưa về tạm ứng', debt: 'Khách còn nợ theo hàng đã giao',
   late: 'Sắp tới / quá hạn hoàn thành',
 }
+/* anh Thắng 02/11: mặc định "Đang thực hiện" — chỉ ẩn HĐ đã hoàn thành VÀ thu đủ tiền; chọn "Tất cả trạng thái" mới hiện lại. */
+const STATUS_OPTS = [{ value: 'active', label: 'Đang thực hiện' }, { value: '', label: 'Tất cả trạng thái' }, ...STATUSES.map((s) => ({ value: s, label: s }))]
+const DATE_FIELDS = [
+  { value: 'sentToKtAt', label: 'Ngày chuyển kế toán' }, { value: 'signDate', label: 'Ngày khách ký (nhận về)' },
+  { value: 'completedAt', label: 'Ngày hoàn thành' }, { value: 'completeBy', label: 'Hạn soạn thảo HĐ' }, { value: 'deliverBy', label: 'Hạn nhận đủ hồ sơ' },
+]
+const MONEY_OPTS = [
+  { value: 'debt', label: 'Khách còn nợ (hàng đã giao + VAT)' }, { value: 'paid', label: 'Đã thu đủ (hàng đã giao + VAT)' },
+  { value: 'pending', label: 'Có tiền về chờ Quản lý duyệt' }, { value: 'none', label: 'Chưa có tiền về' },
+]
+/** Còn phải thu theo hàng khách đã ký nhận, CÓ VAT (cùng cách backend xét "tiền về đủ"). */
+const owedVat = (c: ContractRow) => (c.billedValue || 0) * (1 + (c.vatPct || 0) / 100) - paidOf(c.payments)
+const dateOf = (c: ContractRow, k: string) => (c as unknown as Record<string, string | null>)[k]
 
 export default function Contracts() {
   const [tag, setTag] = useState<string>()
@@ -39,7 +53,8 @@ export default function Contracts() {
   const navigate = useNavigate()
   const flow = useContractFlow()
   const [q, setQ] = useState('')
-  const [fs, setFs] = useState('')
+  const [fs, setFs] = useState('active')
+  const [adv, setAdv] = useState<AdvFilter>({})
   const [fd, setFd] = useState('')
   const [quick, setQuick] = useState<Quick>('')
   const [paying, setPaying] = useState<Contract | null>(null)
@@ -51,7 +66,15 @@ export default function Contracts() {
     const s = q.trim().toLowerCase()
     return contracts.filter((c) => {
       if (s && !(c.id + c.customer + c.code + c.orderId + (c.orderName ?? '') + c.number).toLowerCase().includes(s)) return false
-      if (fs && c.status !== fs) return false
+      if (fs === 'active' ? c.closed : fs && c.status !== fs) return false
+      if (!inRange(dateOf(c, adv.dateKey ?? DATE_FIELDS[0].value), adv.range)) return false
+      if (adv.customers?.length && !adv.customers.includes(c.customer)) return false
+      if (adv.owners?.length && !adv.owners.includes(c.owner)) return false
+      if (!inMoney(c.value, adv)) return false
+      if (adv.money === 'debt' && !(owedVat(c) > 1000)) return false
+      if (adv.money === 'paid' && !(owedVat(c) <= 1000)) return false
+      if (adv.money === 'pending' && !(c.pendingPayment > 0)) return false
+      if (adv.money === 'none' && paidOf(c.payments) > 0) return false
       if (fd && c.complete.state !== fd && c.deliver.state !== fd) return false
       if (quick === 'pay' && !(c.pendingPayment > 0)) return false
       if (quick === 'late' && !LATE.has(c.complete.state) && !LATE.has(c.deliver.state)) return false
@@ -59,7 +82,9 @@ export default function Contracts() {
       if (quick === 'debt' && !((agg[c.id]?.debt ?? 0) > 0)) return false
       return true
     })
-  }, [contracts, agg, q, fs, fd, quick])
+  }, [contracts, agg, q, fs, fd, quick, adv])
+  const hiddenN = fs === 'active' ? contracts.filter((c) => c.closed).length : 0
+  const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'))
 
   /* ---- KPI ---- */
   const kpi = useMemo(() => {
@@ -151,7 +176,7 @@ export default function Contracts() {
       <PageHeader title="Hợp đồng & Tạm ứng"
         desc="Kế toán soạn hợp đồng theo mẫu trước hạn soạn thảo HĐ · khách ký trả hồ sơ (Đã nhận về) trước hạn nhận đủ hồ sơ · tiền về nhập tay, Quản lý duyệt · theo dõi lũy kế hàng — tiền"
         extra={<>
-          <ExportButton kind="contracts" params={{ status: fs, due: fd }} ids={rows.map((c) => c.id)} total={contracts.length} />
+          <ExportButton kind="contracts" params={{ status: fs === 'active' ? '' : fs, due: fd }} ids={rows.map((c) => c.id)} total={contracts.length} />
           <Button type="primary" icon={<ShoppingCart size={14} />} onClick={() => navigate('/don-hang?status=' + encodeURIComponent('Chốt đơn'))}>Đơn hàng chờ làm HĐ</Button>
         </>} />
       <PendingExtensionsPanel list={contracts.flatMap((c) => (c.pendingExtension ? [c.pendingExtension] : []))} />
@@ -176,16 +201,18 @@ export default function Contracts() {
         <div className="filter-bar">
           <Input allowClear prefix={<Search size={14} color="var(--ash)" />} placeholder="Tìm mã HĐ, khách hàng, mã đơn..."
             value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 220 }} />
-          <Select value={fs} onChange={setFs} style={{ minWidth: 180 }}
-            options={[{ value: '', label: 'Tất cả trạng thái' }, ...STATUSES.map((s) => ({ value: s, label: s }))]} />
+          <Select value={fs} onChange={setFs} style={{ minWidth: 180 }} options={STATUS_OPTS} />
           <Select value={fd} onChange={setFd} style={{ minWidth: 190 }}
             options={[
               { value: '', label: 'Hạn soạn thảo HĐ / hồ sơ: tất cả' }, { value: 'overdue', label: 'Quá hạn' },
               { value: 'soon', label: 'Sắp tới hạn (≤ 7 ngày)' },
             ]} />
           <TagFilter value={tag} onChange={setTag} />
+          <AdvancedFilter value={adv} onChange={setAdv} dateFields={DATE_FIELDS} moneyOptions={MONEY_OPTS}
+            customers={uniq(contracts.map((c) => c.customer))} owners={uniq(contracts.map((c) => c.owner))} />
           {quick && <Tag closable onClose={() => setQuick('')} color="volcano" style={{ margin: 0 }}>{QUICK_LABEL[quick]}</Tag>}
         </div>
+        {hiddenN > 0 && <HiddenNote n={hiddenN} what="hợp đồng đã hoàn thành và thu đủ tiền (hàng đã giao + VAT)" onShow={() => setFs('')} />}
         <Table<ContractRow> rowKey="id" size="middle" loading={isLoading} columns={columns} dataSource={rows}
           scroll={{ x: 1730 }} tableLayout="fixed" pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false}
           rowClassName={(c) => 'clickable-row' + (c.pendingExtension ? ' row-ext' : c.complete.state === 'overdue' || c.deliver.state === 'overdue' ? ' row-alert' : '')}

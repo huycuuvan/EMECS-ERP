@@ -136,8 +136,10 @@ async def upload_doc(file: UploadFile = File(...), user: User = Depends(get_curr
 def list_orders(tag: int | None = None, segment: str | None = None, db: Session = DB):
     rows = _list(db, Order, Order.date, S.order)
     ct = dict(db.execute(select(Contract.id, Contract.status)).all())  # trạng thái hợp đồng của từng đơn (anh Thắng 31/10)
+    closed = {c.id for c in db.scalars(select(Contract).where(Contract.status == C.CT_DONE)) if svc.contract_closed(db, c)}
     for o in rows:
         o["contractStatus"] = ct.get(o["contractId"])
+        o["contractClosed"] = o["contractId"] in closed  # HĐ xong hẳn → đơn ẩn khỏi lọc "Đang thực hiện" (anh Thắng 02/11)
     if tag:  # lọc theo thẻ khách hàng
         cus = svc.customer_ids_for_tag(db, tag)
         rows = [o for o in rows if o["customerId"] in cus]
@@ -216,7 +218,7 @@ def send_to_kt(oid: str, body: SC.SendToKtIn, db: Session = DB):
 # ---------------------------------------------------------------- hợp đồng
 # Hợp đồng bản rút gọn cho vai trò không có màn Hợp đồng (kho, xưởng, lái xe…): đủ để chọn / hiển thị, KHÔNG có tiền
 LITE_KEYS = ("id", "orderId", "orderName", "code", "number", "customer", "customerId", "status", "totalQty", "unit", "totalKg",
-             "completeBy", "deliverBy", "signDate", "sentToKtAt")
+             "completeBy", "deliverBy", "signDate", "sentToKtAt", "completedAt", "owner", "closed")
 MONEY_AGG_KEYS = ("billedValue", "billedValues", "deliveredValue", "paidTotal", "debt",
                   "pendingPayment", "pctPaid", "billedKg", "billPendingKg")
 
@@ -240,7 +242,7 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
             continue
         d = S.contract(c)
         o = orders.get(c.order_id)
-        d["customerId"], d["orderName"] = (o.customer_id, o.name or "") if o else (None, "")
+        d["customerId"] = o.customer_id if o else None
         d["adv"] = svc.advance_info(c)
         d["pendingExtension"] = ext_wait.get(c.id)  # đang xin gia hạn soạn thảo HĐ, chờ Quản lý duyệt
         d["complete"] = svc.complete_info(c)
@@ -248,6 +250,7 @@ def list_contracts(tag: int | None = None, segment: str | None = None, db: Sessi
         d["billedKg"], d["billPendingKg"] = svc.billed_kg(db, c.id)  # công nợ theo kg khách ký nhận
         b = svc.billing(db, c)  # kg khách ký nhận × đơn giá, không VAT
         d["billedValue"], d["debt"] = b["deliveredValue"], b["debt"]
+        d["closed"] = svc.contract_closed(db, c, b)  # xong hẳn (hoàn thành + tiền về đủ) → ẩn khỏi lọc "Đang thực hiện"
         out.append(d)
     return out if can(user, "hop-dong") else [contract_lite(d) for d in out]
 

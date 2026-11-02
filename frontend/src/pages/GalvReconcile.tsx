@@ -10,7 +10,7 @@ import { useContract, useContracts, useTasks } from '@/api/hooks'
 import type { Check as CheckT, Task, Weighing } from '@/api/types'
 import { Kpi, KpiGrid, PageHeader } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtD, fmtDelta, fmtKg, relTime } from '@/lib/format'
+import { fmtD, fmtDelta, fmtKg, relTime, custOrder } from '@/lib/format'
 import { usePeek } from '@/peek/context'
 import RecordLink from '@/peek/RecordLink'
 import CreateTaskModal from './tasks/CreateTaskModal'
@@ -89,7 +89,7 @@ export default function GalvReconcile() {
     <Select value={cid ?? ALL} onChange={(v) => setParams(v === ALL ? {} : { hd: v }, { replace: true })} style={{ minWidth: 320 }}
       showSearch={{ optionFilterProp: 'label' }}
       options={[{ value: ALL, label: `Tất cả hợp đồng (${galvContracts.length})` },
-        ...galvContracts.map((c) => ({ value: c.id, label: `${c.id} — ${c.customer}` }))]} />
+        ...galvContracts.map((c) => ({ value: c.id, label: `${c.id} — ${custOrder(c)}` }))]} />
   )
   const header = (
     <PageHeader title="Đối ứng gửi / nhận mạ kẽm"
@@ -180,7 +180,7 @@ function AllContracts({ contracts, diMa, giao, onPick }: {
     const sent = done.reduce((a, t) => a + (t.kgAtGalv ?? 0), 0)
     const picked = got.reduce((a, t) => a + (t.kgPicked ?? 0), 0)
     return {
-      id: c.id, customer: c.customer, sent, nSent: done.length,
+      id: c.id, customer: custOrder(c), sent, nSent: done.length,
       transit: s.filter((t) => t.kgAtGalv == null && t.status !== 'Từ chối').reduce((a, t) => a + t.kgRequired, 0),
       picked, nPicked: got.length, delivered: got.reduce((a, t) => a + (t.kgDelivered ?? 0), 0), left: sent - picked,
       pending: p.filter((t) => t.kgPicked == null && t.status !== 'Từ chối').length,

@@ -9,7 +9,7 @@ import {
   useWeighing, useWeighingPhoto, useWeighings,
 } from '@/api/hooks'
 import type { LedgerKey } from '@/api/types'
-import { fmtD, fmtDT, fmtT, hoursOver, moneyShort } from '@/lib/format'
+import { fmtD, fmtDT, fmtT, hoursOver, moneyShort, custOrder } from '@/lib/format'
 import { ddmm } from '@/pages/lsx/lsxUtil'
 import { ExtensionDecision } from '@/peek/drawers/contract/Extensions'
 import { ContractEditForm, LsxExtendForm, LsxProgressForm, PcFillForm } from './forms'
@@ -276,7 +276,7 @@ function HdOverview({ id }: { id: string }) {
         {dlv.state === 'overdue' && <span className="m-chip bad"><FileClock />Quá hạn nhận đủ hồ sơ</span>}
       </div>
       <DGrid>
-        <DItem k="Khách hàng" full small>{c.customer}</DItem>
+        <DItem k="Khách hàng – Tên đơn" full small>{custOrder(c)}</DItem>
         <DItem k="Giá trị HĐ">{moneyShort(c.value)}</DItem>
         <DItem k="Đơn giá">{fmtN(c.unitPrice)} ₫/kg</DItem>
         <DItem k="Khối lượng">{fmtT(c.totalKg)} · {fmtN(c.totalQty)} {c.unit}</DItem>

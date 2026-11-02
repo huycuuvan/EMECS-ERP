@@ -16,7 +16,7 @@ import { useDashboardByTag, useRunEndOfDay } from '@/api/hooksMaster'
 import type { ContractAggLite, MovementRow } from '@/api/types'
 import { AdvChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtD, fmtDT, fmtKg, fmtT, money, relTime } from '@/lib/format'
+import { fmtD, fmtDT, fmtKg, fmtT, money, relTime, custOrder } from '@/lib/format'
 import { PaymentDecision } from '@/peek/drawers/contract/PaymentApprovals'
 import { PendingExtensionsPanel } from '@/peek/drawers/contract/Extensions'
 import MaterialDecision from './materials/MaterialDecision'
@@ -115,7 +115,7 @@ export default function Dashboard() {
           <AlertCard icon={<Banknote size={15} color="var(--amber)" />} title="Tiền về chờ Quản lý duyệt" count={pays.length} bad={pays.length > 0}>
             {pays.length ? pays.map((p) => (
               <AlertItem key={p.id} onClick={() => open('hd', p.contractId)}
-                t1={<><span className="mono" style={{ fontWeight: 700 }}>{p.contractId}</span> · {p.customer}</>}
+                t1={<><span className="mono" style={{ fontWeight: 700 }}>{p.contractId}</span> · {custOrder(p)}</>}
                 t2={<>{p.type} · <b className="num">{money(p.amount)}</b> · {p.createdBy || 'kế toán'} nhập {relTime(p.date)}{p.note && <> · {p.note}</>}</>}
                 right={<PaymentDecision p={p} />} />
             )) : <AlertEmpty>Không có khoản tiền về chờ duyệt.</AlertEmpty>}
@@ -333,10 +333,10 @@ function WhereIsSteel({ contracts }: { contracts: ContractAggLite[] }) {
   ]
   return (
     <Panel
-      title={<span>Hàng HĐ <RecordLink id={c.id} type="hd" style={{ color: 'var(--rust)' }} /> ({c.code ? `${c.code} — ` : ''}{c.customer}) đang ở đâu?</span>}
+      title={<span>Hàng HĐ <RecordLink id={c.id} type="hd" style={{ color: 'var(--rust)' }} /> ({c.code ? `${c.code} — ` : ''}{custOrder(c)}) đang ở đâu?</span>}
       extra={withMove.length > 1 && (
         <Select size="small" value={c.id} onChange={setCid} style={{ minWidth: 150 }} popupMatchSelectWidth={false}
-          options={withMove.map((x) => ({ value: x.contract.id, label: `${x.contract.id} — ${x.contract.code || x.contract.customer}` }))} />
+          options={withMove.map((x) => ({ value: x.contract.id, label: `${x.contract.id} — ${custOrder(x.contract)}` }))} />
       )}
       sub={`${fmtT(c.totalKg)} theo hợp đồng · đã SX ${g.pctProduced}% · đã giao ${g.pctDelivered}%`}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, alignItems: 'center' }}>
@@ -411,7 +411,7 @@ function ContractChecks({ contracts }: { contracts: ContractAggLite[] }) {
   const columns: ColumnsType<ContractAggLite> = [
     {
       title: 'Hợp đồng', key: 'id', render: (_, g) => (
-        <div><RecordLink id={g.contract.id} type="hd" /><div style={{ fontSize: 11, color: 'var(--ash)' }}>{[g.contract.code, g.contract.customer].filter(Boolean).join(' · ')}</div>
+        <div><RecordLink id={g.contract.id} type="hd" /><div style={{ fontSize: 11, color: 'var(--ash)' }}>{[g.contract.code, custOrder(g.contract)].filter(Boolean).join(' · ')}</div>
           <CustomerTags name={g.contract.customer} /></div>
       ),
     },

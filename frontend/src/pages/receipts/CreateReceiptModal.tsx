@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useContracts, useCreateReceipt, useLsxList, useMeta, useReceipts } from '@/api/hooks'
 import { useGalvanizers, useVehicles } from '@/api/hooksMaster'
 import type { ID, Receipt } from '@/api/types'
-import { fmtD, fmtKg, fmtNum } from '@/lib/format'
+import { fmtD, fmtKg, fmtNum, custOrder } from '@/lib/format'
 import { InfoBox, WarnBox } from '../lsx/boxes'
 import ContractGoods, { perUnit, useContractGoods } from './ContractGoods'
 import { NUM } from '@/lib/numberInput'
@@ -69,7 +69,7 @@ export default function CreateReceiptModal({ lsxId, onClose, onCreated }: { lsxI
           }}>
           <Form.Item name="contractId" label="Hợp đồng" rules={[{ required: true, message: 'Chọn hợp đồng' }]}>
             <Select showSearch={{ optionFilterProp: 'label' }} onChange={pickContract}
-              options={cOpts.map((c) => ({ value: c.id, label: `${c.id} · số ${c.number || c.orderId} — ${c.customer}` }))} />
+              options={cOpts.map((c) => ({ value: c.id, label: `${c.id} · số ${c.number || c.orderId} — ${custOrder(c)}` }))} />
           </Form.Item>
           <ContractGoods contractId={cid} qtys={qtys} onQty={(id, val) => setQtys((p) => ({ ...p, [id]: val }))} />
           <Form.Item name="lsxId" label="Lệnh sản xuất của hợp đồng (đang SX / hoàn thành)" rules={[{ required: true, message: 'Chọn lệnh SX' }]}>

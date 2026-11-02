@@ -3,11 +3,11 @@ import { App } from 'antd'
 import { CalendarClock, PackageCheck, Save, SendHorizontal, XOctagon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
-  useContract, useCreateReceipt, useFillWeighing, useLsxExtend, useLsxExtReject, useLsxExtRequest, useLsxList, useLsxDaily, useLsxReject, useReceipts,
+  useContract, useContracts, useCreateReceipt, useFillWeighing, useLsxExtend, useLsxExtReject, useLsxExtRequest, useLsxList, useLsxDaily, useLsxReject, useReceipts,
   useMeta, useTaskFillDelivery, useTaskFillGalv, useTaskReject, useUpdateContract,
 } from '@/api/hooks'
 import type { Contract, Lsx, Task, Weighing } from '@/api/types'
-import { fmtD, fmtDT, fmtKg } from '@/lib/format'
+import { fmtD, fmtDT, fmtKg, custOrder } from '@/lib/format'
 import { ddmm } from '@/pages/lsx/lsxUtil'
 import { fmtN, num, signed, useMob } from './core'
 import { perUnit, useContractGoods } from '../receipts/ContractGoods'
@@ -222,6 +222,8 @@ export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
   const [lsxId, setLsxId] = useState(initial ?? '')
   const [cid, setCid] = useState(options.find((o) => o.id === initial)?.contractId ?? '')
   const cids = [...new Set(options.map((o) => o.contractId))]
+  const { data: cs = [] } = useContracts()
+  const cmap = Object.fromEntries(cs.map((c) => [c.id, c]))
   const ofC = options.filter((o) => o.contractId === cid)
   const goods = useContractGoods(cid || undefined)
   const [qtys, setQtys] = useState<Record<number, string>>({})
@@ -245,7 +247,7 @@ export function ReceiptForm({ lsxId: initial }: { lsxId?: string }) {
       <label className="f-lbl">Hợp đồng</label>
       <select className="inp" value={cid} onChange={(e) => pickC(e.target.value)}>
         <option value="">— Chọn hợp đồng —</option>
-        {cids.map((c) => <option key={c} value={c}>{c}</option>)}
+        {cids.map((c) => <option key={c} value={c}>{c}{cmap[c] ? ` — ${custOrder(cmap[c])}` : ''}</option>)}
       </select>
       <label className="f-lbl">Lệnh sản xuất bàn giao</label>
       <select className="inp" value={lsxId} onChange={(e) => setLsxId(e.target.value)} disabled={!cid}>

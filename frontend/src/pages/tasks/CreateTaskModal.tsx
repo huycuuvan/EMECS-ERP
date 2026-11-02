@@ -7,7 +7,7 @@ import { useEffect, useRef } from 'react'
 import { useContract, useContracts, useCreateTask, useMeta } from '@/api/hooks'
 import { useCustomers, useGalvanizers, useVehicles } from '@/api/hooksMaster'
 import type { TaskType } from '@/api/types'
-import { fmtKg, fmtT } from '@/lib/format'
+import { fmtKg, fmtT, custOrder } from '@/lib/format'
 import { MODAL_Z } from './TaskActions'
 
 interface V {
@@ -152,7 +152,7 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
           rules={[{ required: true, message: 'Chưa chọn hợp đồng' }]}
           validateStatus={noStock ? 'error' : undefined}
           help={noStock ? `HĐ ${cid} không còn hàng tại xưởng mạ — không giao việc lấy hàng được` : undefined}>
-          <Select showSearch={{ optionFilterProp: 'label' }} options={cs.map((c) => ({ value: c.id, label: `${c.id} — ${c.customer}` }))} />
+          <Select showSearch={{ optionFilterProp: 'label' }} options={cs.map((c) => ({ value: c.id, label: `${c.id} — ${custOrder(c)}` }))} />
         </Form.Item>
         {type === 'giao_khach' ? (
           <Form.Item name="kgRequired" label="KG lấy chuyến này (lái xe ký nhận với xưởng mạ)"

@@ -36,4 +36,8 @@ const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(
 /** Số NGÀY LỊCH còn lại tới hạn: qua 0h là trừ 1 ngày, không đợi đủ 24 giờ (anh Thắng 02/11). 0 = hạn hôm nay, âm = đã trễ. */
 export const daysLeft = (iso: string) => Math.round((dayStart(new Date(iso)) - dayStart(new Date())) / 86400000)
 export const hoursOver = (iso: string) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 3600000))
+/** "Khách hàng – Tên đơn hàng" — anh Thắng 02/11: khách thân thiết có nhiều đơn gối đầu / chạy song song,
+    chỉ tên khách thì không biết đơn nào. Dùng ở mọi chỗ chọn / hiện hợp đồng. */
+export const custOrder = (c?: { customer?: string; orderName?: string | null } | null) =>
+  c ? [c.customer, c.orderName?.trim()].filter(Boolean).join(' – ') : ''
 export const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0)

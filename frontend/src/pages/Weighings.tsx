@@ -13,7 +13,7 @@ import { useContracts, useMeta, useTasks, useWeighings } from '@/api/hooks'
 import type { Task, Weighing } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader } from '@/components/ui'
-import { fmtDT, fmtKg, fmtNum, fmtT, hoursOver, relTime } from '@/lib/format'
+import { fmtDT, fmtKg, fmtNum, fmtT, hoursOver, relTime, custOrder } from '@/lib/format'
 import { useAuth } from '@/lib/auth'
 import { usePeek } from '@/peek/context'
 import RecordLink from '@/peek/RecordLink'
@@ -49,7 +49,7 @@ export default function Weighings() {
   const hdOptions = useMemo(() => {
     const seen = new Set<string>()
     all.forEach((p) => seen.add(p.contractId))
-    return [...seen].map((id) => ({ value: id, label: id + (cmap[id] ? ` — ${cmap[id].customer}` : '') }))
+    return [...seen].map((id) => ({ value: id, label: id + (cmap[id] ? ` — ${custOrder(cmap[id])}` : '') }))
   }, [all, cmap])
 
   const rows = useMemo(() => [...all].sort((a, b) => (b.date || '').localeCompare(a.date || '')).filter((p) => {

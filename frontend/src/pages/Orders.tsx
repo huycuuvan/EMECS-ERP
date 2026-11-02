@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useOrdersByTag } from '@/api/hooksMaster'
 import type { Order, OrderStatus } from '@/api/types'
+import AdvancedFilter, { HiddenNote, inMoney, inRange, type AdvFilter } from '@/components/AdvancedFilter'
 import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
@@ -19,6 +20,9 @@ import { useAskSendKT } from './orders/useAskSendKT'
 import '@/peek/drawers/contract/contract.css'
 
 const STATUSES: OrderStatus[] = ['Chốt đơn', 'Đã chuyển kế toán', 'Đã có hợp đồng']
+/* anh Thắng 02/11: mặc định "Đang thực hiện" — ẩn đơn mà hợp đồng đã hoàn thành VÀ thu đủ tiền. */
+const STATUS_OPTS = [{ value: 'active', label: 'Đang thực hiện' }, { value: '', label: 'Tất cả trạng thái' }, ...STATUSES.map((s) => ({ value: s, label: s }))]
+const DATE_FIELDS = [{ value: 'date', label: 'Ngày chốt đơn' }]
 
 export default function Orders() {
   const [tag, setTag] = useState<string>()
@@ -29,7 +33,8 @@ export default function Orders() {
   const askSend = useAskSendKT()
   const [params] = useSearchParams()
   const [q, setQ] = useState('')
-  const [fs, setFs] = useState<string>(() => (STATUSES as string[]).includes(params.get('status') ?? '') ? params.get('status')! : '')
+  const [fs, setFs] = useState<string>(() => (STATUSES as string[]).includes(params.get('status') ?? '') ? params.get('status')! : 'active')
+  const [adv, setAdv] = useState<AdvFilter>({})
   const [creating, setCreating] = useState(false)
   const canEdit = can('don-hang', 'edit')
 
@@ -38,10 +43,14 @@ export default function Orders() {
     return orders.filter((o) => {
       const itn = o.items.map((i) => i.name).join(' ')
       if (s && !(o.id + o.customer + o.code + (o.name ?? '') + itn).toLowerCase().includes(s)) return false
-      if (fs && o.status !== fs) return false
+      if (fs === 'active' ? o.contractClosed : fs && o.status !== fs) return false
+      if (!inRange(o.date, adv.range)) return false
+      if (adv.customers?.length && !adv.customers.includes(o.customer)) return false
+      if (!inMoney(o.value, adv)) return false
       return true
     })
-  }, [orders, q, fs])
+  }, [orders, q, fs, adv])
+  const hiddenN = fs === 'active' ? orders.filter((o) => o.contractClosed).length : 0
 
   const pending = orders.filter((o) => o.status === 'Chốt đơn')
   const totalVal = orders.reduce((s, o) => s + (o.value || 0), 0)
@@ -111,7 +120,7 @@ export default function Orders() {
       <PageHeader title="Đơn hàng khách"
         desc="Khách ký chốt đơn kèm file — Quản lý chuyển kế toán làm hợp đồng (nhập hạn soạn thảo HĐ + hạn nhận đủ hồ sơ), giá theo giá thị trường ngày chốt"
         extra={<>
-          <ExportButton kind="orders" params={{ status: fs }} ids={rows.map((o) => o.id)} total={orders.length} />
+          <ExportButton kind="orders" params={{ status: fs === 'active' ? '' : fs }} ids={rows.map((o) => o.id)} total={orders.length} />
           <Button icon={<FileSignature size={14} />} onClick={() => navigate('/hop-dong')}>Sổ hợp đồng</Button>
           {canEdit && <Button type="primary" icon={<Plus size={14} />} onClick={() => setCreating(true)}>Đơn hàng mới</Button>}
         </>} />
@@ -132,10 +141,12 @@ export default function Orders() {
         <div className="filter-bar">
           <Input allowClear prefix={<Search size={14} color="var(--ash)" />} placeholder="Tìm mã đơn, khách hàng, tên hàng..."
             value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 220 }} />
-          <Select value={fs} onChange={setFs} style={{ minWidth: 200 }}
-            options={[{ value: '', label: 'Tất cả trạng thái' }, ...STATUSES.map((s) => ({ value: s, label: s }))]} />
+          <Select value={fs} onChange={setFs} style={{ minWidth: 200 }} options={STATUS_OPTS} />
           <TagFilter value={tag} onChange={setTag} />
+          <AdvancedFilter value={adv} onChange={setAdv} dateFields={DATE_FIELDS}
+            customers={[...new Set(orders.map((o) => o.customer))].sort((a, b) => a.localeCompare(b, 'vi'))} />
         </div>
+        {hiddenN > 0 && <HiddenNote n={hiddenN} what="đơn hàng có hợp đồng đã hoàn thành và thu đủ tiền" onShow={() => setFs('')} />}
         <Table<Order> rowKey="id" size="middle" loading={isLoading} columns={columns} dataSource={rows}
           scroll={{ x: 1100 }} pagination={rows.length > 20 ? { pageSize: 20, showSizeChanger: false } : false}
           rowClassName="clickable-row" onRow={(r) => ({ onClick: () => open('dh', r.id) })}

@@ -5,7 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useContracts } from '@/api/hooks'
 import { MV_OK, type MovementRow } from '@/api/types'
-import { fmtDT, fmtKg } from '@/lib/format'
+import { fmtDT, fmtKg, custOrder } from '@/lib/format'
 import RecordLink from '@/peek/RecordLink'
 import { usePeek } from '@/peek/context'
 import { Chip, KindBadge, type ChipTone } from './common'
@@ -43,7 +43,7 @@ export function MovementFilterBar({ f, setF, showKind = true }: { f: MovementFil
       <Button size="small" shape="round" onClick={() => preset(30)}>30 ngày</Button>
       <Button size="small" shape="round" onClick={() => preset('all')}>Tất cả</Button>
       <Select allowClear placeholder="Tất cả hợp đồng" value={f.contractId} onChange={(v) => setF({ ...f, contractId: v })} style={{ minWidth: 240 }}
-        options={(contracts ?? []).map((c) => ({ value: c.id, label: `${c.id} — ${c.customer}` }))} popupMatchSelectWidth={false} />
+        options={(contracts ?? []).map((c) => ({ value: c.id, label: `${c.id} — ${custOrder(c)}` }))} popupMatchSelectWidth={false} />
       {showKind && (
         <Select allowClear placeholder="Tất cả loại phiếu" value={f.kind} onChange={(v) => setF({ ...f, kind: v })} style={{ minWidth: 180 }}
           options={KINDS.map((k) => ({ value: k, label: k }))} />

@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { useDashboard } from '@/api/hooks'
 import type { ContractAggLite } from '@/api/types'
 import { StatusTag } from '@/components/ui'
-import { fmtT, moneyShort } from '@/lib/format'
+import { fmtT, moneyShort, custOrder } from '@/lib/format'
 import RecordLink from '@/peek/RecordLink'
 import { usePeek } from '@/peek/context'
 import { ThreePointChecks, threePoint } from '../dashboard/checks'
@@ -24,7 +24,7 @@ export default function HealthTab() {
           <div style={{ color: 'var(--ash)', fontSize: 11, marginTop: 2 }}>{g.contract.code && <>{g.contract.code} · </>}{fmtT(g.contract.totalKg)}</div></div>
       ),
     },
-    { title: 'Khách hàng', key: 'cus', render: (_, g) => g.contract.customer },
+    { title: 'Khách hàng', key: 'cus', render: (_, g) => custOrder(g.contract) },
     { title: '% Sản xuất', key: 'sx', render: (_, g) => <MiniProg pct={g.pctProduced} top={fmtT(g.producedKg)} color={g.pctProduced >= 100 ? 'var(--moss)' : 'var(--ink)'} /> },
     { title: '% Giao hàng', key: 'giao', render: (_, g) => <MiniProg pct={g.pctDelivered} top={fmtT(g.deliveredKg)} color={g.pctDelivered >= 100 ? 'var(--moss)' : 'var(--amber)'} /> },
     {

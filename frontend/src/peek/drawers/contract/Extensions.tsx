@@ -10,7 +10,7 @@ import { useApproveExtension, useRejectExtension, useRequestExtension } from '@/
 import type { CompleteInfo, Contract, ContractExtension, PendingExtension } from '@/api/types'
 import { CompleteChip, Sec, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtD, fmtDT } from '@/lib/format'
+import { fmtD, fmtDT, custOrder } from '@/lib/format'
 import { usePeek } from '@/peek/context'
 import { MODAL_Z } from './utils'
 
@@ -104,7 +104,7 @@ export function PendingExtensionsPanel({ list }: { list: PendingExtension[] }) {
             <div>
               <a className="mono ext-row-id" onClick={() => open('hd', e.contractId)}>{e.contractId}</a>
               {e.number && <span className="mono caption"> · Số HĐ {e.number}</span>}
-              <span> · <b>{e.customer}</b></span>
+              <span> · <b>{custOrder(e)}</b></span>
             </div>
             <div className="ext-row-meta">
               Hạn soạn thảo {fmtD(e.completeBy ?? e.oldBy)} {e.complete && <CompleteChip info={e.complete} />}

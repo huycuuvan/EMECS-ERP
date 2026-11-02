@@ -12,7 +12,7 @@ import { CompleteChip } from '@/components/ui'
 import { useContract, useLedger } from '@/api/hooks'
 import HistoryBlock from '@/components/HistoryBlock'
 import { useAuth } from '@/lib/auth'
-import { fmtNum, fmtT } from '@/lib/format'
+import { fmtNum, fmtT, custOrder } from '@/lib/format'
 import PeekShell from '../PeekShell'
 import FlowTab from './contract/FlowTab'
 import { ContractEditModal, LsxFromContractModal, PaymentModal } from './contract/modals'
@@ -65,7 +65,7 @@ export default function ContractDrawer({ id }: { id: string }) {
 
   return (
     <PeekShell type="hd" id={id} status={c?.status} loading={isLoading} notFound={isError || (!isLoading && !g)} actions={actions}
-      sub={c ? `${c.customer} · ${fmtNum(c.totalQty)} ${c.unit} · ${fmtT(c.totalKg)}` : undefined}>
+      sub={c ? `${custOrder(c)} · ${fmtNum(c.totalQty)} ${c.unit} · ${fmtT(c.totalKg)}` : undefined}>
       {g && c && (
         <>
           <div className="hd-steps">

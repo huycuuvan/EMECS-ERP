@@ -8,7 +8,7 @@ import { useContracts, useLsxList } from '@/api/hooks'
 import type { Lsx } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
-import { fmtDT, fmtKg, fmtT } from '@/lib/format'
+import { fmtDT, fmtKg, fmtT, custOrder } from '@/lib/format'
 import { usePeek } from '@/peek/context'
 import RecordLink from '@/peek/RecordLink'
 import { C } from '@/theme'
@@ -32,7 +32,7 @@ export default function LsxPage() {
 
   const rows = useMemo(() => all.filter((x) => {
     const c = cmap[x.contractId]
-    if (q && `${x.id} ${x.name} ${x.contractId} ${c?.customer ?? ''}`.toLowerCase().indexOf(q.toLowerCase()) < 0) return false
+    if (q && `${x.id} ${x.name} ${x.contractId} ${custOrder(c)}`.toLowerCase().indexOf(q.toLowerCase()) < 0) return false
     if (fs === 'late') return isLate(x)
     if (fs && x.status !== fs) return false
     return true
@@ -63,7 +63,7 @@ export default function LsxPage() {
       render: (_, x) => (
         <div>
           <RecordLink id={x.contractId} style={{ color: C.rust }} />
-          <div style={sub}>{cmap[x.contractId]?.customer ?? ''}</div>
+          <div style={sub}>{custOrder(cmap[x.contractId])}</div>
         </div>
       ),
     },

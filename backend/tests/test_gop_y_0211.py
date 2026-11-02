@@ -47,3 +47,24 @@ def test_on_truck_only_after_weighing_at_factory(c):
     snap = c.get("/api/reports/stock-snapshot", params={"contract_id": hd["id"]}).json()
     assert snap["stockKg"] == 0 and snap["inTransitToGalvKg"] == 3851  # 149 kg đã vào kho ảo, không còn tồn kho
     assert next(e for e in c.get("/api/vloss").json() if e["refId"] == pc["id"])["kg"] == 149
+
+
+def test_closed_only_when_done_and_paid_with_vat(c, monkeypatch):
+    """Lọc mặc định "Đang thực hiện": HĐ chỉ ẩn khi Đã hoàn thành VÀ tiền về đủ (hàng khách ký nhận + VAT, không còn chờ duyệt)."""
+    from test_contract_doc import _contract
+    _, hd = _contract(c)
+    cid = hd["id"]
+    monkeypatch.setattr(svc, "billing", lambda db, ct: {"deliveredValue": 100_000_000, "paidTotal": sum(
+        p.amount for p in ct.payments if p.status == "Đã duyệt"), "debt": 0, "billedValues": {}})
+    row = lambda: next(x for x in c.get("/api/contracts").json() if x["id"] == cid)  # noqa: E731
+    order = lambda: next(o for o in c.get("/api/orders").json() if o["contractId"] == cid)  # noqa: E731
+    c.put(f"/api/contracts/{cid}/document", json={})
+    for step in ("returned", "signed", "completed"):
+        c.post(f"/api/contracts/{cid}/{step}")
+    vat = row()["vatPct"]
+    pid = c.post(f"/api/contracts/{cid}/payments", json={"amount": 100_000_000, "type": "Thanh toán"}).json()["payments"][-1]["id"]
+    assert row()["closed"] is False  # còn khoản chờ Quản lý duyệt
+    c.post(f"/api/payments/{pid}/approve")
+    assert row()["closed"] is (vat == 0)  # đủ tiền hàng nhưng chưa đủ VAT
+    c.post(f"/api/payments/{c.post(f'/api/contracts/{cid}/payments', json={'amount': 100_000_000 * vat / 100, 'type': 'VAT'}).json()['payments'][-1]['id']}/approve")
+    assert row()["closed"] is True and order()["contractClosed"] is True

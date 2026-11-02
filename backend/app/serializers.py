@@ -1,6 +1,8 @@
 """ORM → JSON camelCase, giữ đúng shape bản demo để FE dùng thẳng."""
 from datetime import timedelta
 
+from sqlalchemy.orm import object_session
+
 from .models import (Contract, Lsx, Mismatch, Notification, Order, Receipt, Task, VLoss, Weighing)
 from .files import sign_photo
 from .utils import iso
@@ -36,9 +38,16 @@ def payment(p) -> dict:
             "approvedAt": iso(p.approved_at), "rejectReason": p.reject_reason}
 
 
+def order_name(c: Contract) -> str:
+    """Tên đơn hàng gốc (nhập tay ở đơn) — anh Thắng 02/11: hiện "Khách – Tên đơn" ở mọi chỗ có hợp đồng."""
+    db = object_session(c)
+    o = db.get(Order, c.order_id) if db is not None and c.order_id else None
+    return (o.name or "") if o else ""
+
+
 def contract(c: Contract) -> dict:
     return {
-        "id": c.id, "orderId": c.order_id, "code": c.code, "customer": c.customer,
+        "id": c.id, "orderId": c.order_id, "orderName": order_name(c), "code": c.code, "customer": c.customer,
         "sentToKtAt": iso(c.sent_to_kt_at), "dueAt": iso(c.due_at), "returnedAt": iso(c.returned_at),
         "signDate": iso(c.sign_date), "status": c.status, "owner": c.owner, "totalQty": c.total_qty,
         "unit": c.unit, "totalKg": c.total_kg, "unitPrice": c.unit_price, "value": c.value, "vatPct": c.vat_pct,

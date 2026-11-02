@@ -13,6 +13,8 @@ export interface Order {
   vatPct: number; vatAmount: number; valueAfterVat: number; customerId?: number | null; completeBy: string | null; deliverBy?: string | null
   /** trạng thái hiện tại của hợp đồng của đơn (Chờ soạn thảo → … → Đã hoàn thành); null = chưa có hợp đồng */
   contractStatus?: ContractStatus | null
+  /** HĐ của đơn đã xong hẳn (hoàn thành + tiền về đủ) → ẩn khỏi lọc mặc định "Đang thực hiện" */
+  contractClosed?: boolean
 }
 
 /** Kết quả đọc file Excel đặt hàng (POST /orders/import-excel) — chưa lưu. */
@@ -55,7 +57,9 @@ export interface AdvanceInfo { state: 'none' | 'wait' | 'ok' | 'missing'; label:
 /** GET /contracts trả kèm adv + 2 mốc: complete = hạn soạn thảo hợp đồng (kế toán soạn xong), deliver = hạn nhận đủ hồ sơ (hợp đồng Đã nhận về) */
 export interface ContractRow extends Contract { adv: AdvanceInfo; complete: CompleteInfo; deliver: CompleteInfo; pendingExtension: PendingExtension | null; billedKg: number; billPendingKg: number
   /** công nợ: giá trị hàng khách đã ký nhận (không VAT), và số còn nợ */
-  billedValue: number; debt: number }
+  billedValue: number; debt: number
+  /** xong hẳn: Đã hoàn thành + tiền về đủ (hàng đã giao + VAT, không còn chờ duyệt) → ẩn khỏi lọc mặc định "Đang thực hiện" */
+  closed: boolean }
 
 export type LsxStatus = 'Chờ nhận' | 'Đang SX' | 'Từ chối' | 'Hoàn thành'
 /** Sản lượng 1 ngày xưởng báo (kg; không làm = 0) + giờ nhập / sửa. */
