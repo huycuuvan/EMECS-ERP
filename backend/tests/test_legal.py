@@ -118,13 +118,13 @@ def _png(w: int = 8, h: int = 8) -> bytes:
 
 
 def _header_images(data: bytes) -> list[int]:
-    """Số ảnh trong header từng section của file Word."""
+    """Số logo chìm (watermark VML, anh Thắng 02/11) trong header từng section của file Word."""
     d = Document(io.BytesIO(data))
-    return [len(s.header._element.xpath(".//pic:pic")) for s in d.sections]
+    return [len(s.header._element.xpath(".//*[local-name()='imagedata']")) for s in d.sections]
 
 
 def test_company_logo_in_word_header(c):
-    """Anh Thắng 31/10: logo công ty tải 1 lần ở Thông tin công ty → in đầu trang hợp đồng + biên bản + chứng chỉ."""
+    """Anh Thắng 31/10: logo công ty tải 1 lần ở Thông tin công ty → in chìm mọi trang hợp đồng + biên bản + chứng chỉ."""
     hd = _contract(c)
     url = f"/api/contracts/{hd['id']}"
     assert _header_images(c.get(f"{url}/document.docx").content) == [0]  # chưa có logo

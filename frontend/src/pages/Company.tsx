@@ -1,5 +1,5 @@
 /* Danh mục → Thông tin công ty (anh Thắng 31/10: trước chỉ sửa được trong trang Soạn thảo của 1 hợp đồng, khó tìm):
-   Bên B trên hợp đồng + người ký bộ hồ sơ giao hàng + logo (in đầu trang file Word, 31/10) + giấy tờ công ty kèm bộ .zip.
+   Bên B trên hợp đồng + người ký bộ hồ sơ giao hàng + logo (in chìm mọi trang file Word — 31/10, đổi kiểu theo file mẫu anh Thắng 02/11) + giấy tờ công ty kèm bộ .zip.
    Chỉ Quản lý sửa. */
 import { Alert, Button, Popconfirm, Skeleton, Upload } from 'antd'
 import { ImageOff, Pencil, Trash2, Upload as UploadIcon } from 'lucide-react'
@@ -58,7 +58,7 @@ export default function Company() {
   )
 }
 
-/** Logo in ở đầu trang hợp đồng, biên bản giao nhận, chứng chỉ xuất xưởng (tải 1 lần). */
+/** Logo in chìm trên hợp đồng, biên bản giao nhận, chứng chỉ xuất xưởng (tải 1 lần). */
 function CompanyLogo({ url, canEdit }: { url?: string | null; canEdit: boolean }) {
   const setLogo = useSetLogo()
   const delLogo = useDeleteLogo()
@@ -69,8 +69,8 @@ function CompanyLogo({ url, canEdit }: { url?: string | null; canEdit: boolean }
       </div>
       <div style={{ display: 'grid', gap: 8, minWidth: 0, flex: 1 }}>
         <span className="caption">
-          {url ? 'Đang in ở góc trên bên trái mọi trang: hợp đồng, biên bản giao nhận, chứng chỉ xuất xưởng (cả trong bộ .zip).'
-            : 'Chưa có logo. Tải ảnh PNG / JPG (nền trong suốt càng đẹp, tối đa 5MB) — tự in ở đầu trang mọi file Word xuất ra.'}
+          {url ? 'Đang in chìm (mờ, nằm sau chữ) ở giữa phần trên mọi trang: hợp đồng, biên bản giao nhận, chứng chỉ xuất xưởng (cả trong bộ .zip).'
+            : 'Chưa có logo. Tải ảnh PNG / JPG (nền trong suốt càng đẹp, tối đa 5MB) — tự in chìm trên mọi file Word xuất ra.'}
         </span>
         {canEdit && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

@@ -104,11 +104,10 @@ def get_seller(db: Session) -> dict:
     return out
 
 
-# ---------------------------------------------------------------- logo công ty (in đầu trang mọi file Word xuất ra)
+# ---------------------------------------------------------------- logo công ty (in chìm mọi trang file Word xuất ra)
 LOGO_KEY = "company_logo"
 LOGO_EXTS = (".png", ".jpg", ".jpeg")
 LOGO_MAX = 5 * 1024 * 1024
-LOGO_HEIGHT_CM = 1.6
 
 
 def logo_file(db: Session) -> Path | None:
@@ -119,7 +118,7 @@ def logo_file(db: Session) -> Path | None:
 
 
 def set_logo(db: Session, filename: str, data: bytes) -> dict:
-    """Quản lý tải logo 1 lần (Danh mục → Thông tin công ty) → tự in ở đầu trang hợp đồng + bộ hồ sơ gửi khách."""
+    """Quản lý tải logo 1 lần (Danh mục → Thông tin công ty) → tự in chìm (watermark) trên hợp đồng + bộ hồ sơ gửi khách."""
     ext = Path(filename or "").suffix.lower()
     if ext not in LOGO_EXTS:
         raise HTTPException(400, "Logo phải là ảnh PNG hoặc JPG")
@@ -150,21 +149,41 @@ def delete_logo(db: Session) -> dict:
     return get_seller(db)
 
 
+# logo chìm: rộng ~8,2 cm, canh giữa ngang, cách lề trên ~5 cm; độ nhạt theo kiểu "Washout" của Word (như file mẫu)
+WATERMARK_W_PT, WATERMARK_TOP_PT = 232, 145
+WATERMARK_XML = (
+    '<w:r xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:v="urn:schemas-microsoft-com:vml" '
+    'xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w10="urn:schemas-microsoft-com:office:word" '
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:rPr><w:noProof/></w:rPr><w:pict>'
+    '<v:shapetype id="_x0000_t75" coordsize="21600,21600" o:spt="75" o:preferrelative="t" path="m@4@5l@4@11@9@11@9@5xe" '
+    'filled="f" stroked="f"><v:stroke joinstyle="miter"/><v:formulas><v:f eqn="if lineDrawn pixelLineWidth 0"/>'
+    '<v:f eqn="sum @0 1 0"/><v:f eqn="sum 0 0 @1"/><v:f eqn="prod @2 1 2"/><v:f eqn="prod @3 21600 pixelWidth"/>'
+    '<v:f eqn="prod @3 21600 pixelHeight"/><v:f eqn="sum @0 0 1"/><v:f eqn="prod @6 1 2"/><v:f eqn="prod @7 21600 pixelWidth"/>'
+    '<v:f eqn="sum @8 21600 0"/><v:f eqn="prod @7 21600 pixelHeight"/><v:f eqn="sum @10 21600 0"/></v:formulas>'
+    '<v:path o:extrusionok="f" gradientshapeok="t" o:connecttype="rect"/><o:lock v:ext="edit" aspectratio="t"/></v:shapetype>'
+    '<v:shape id="EmecsLogoWatermark" o:spid="_x0000_s2049" type="#_x0000_t75" style="position:absolute;margin-left:0;'
+    'margin-top:{top}pt;width:{w}pt;height:{h}pt;z-index:-251657216;mso-position-horizontal:center;'
+    'mso-position-horizontal-relative:margin;mso-position-vertical-relative:margin" o:allowincell="f">'
+    '<v:imagedata r:id="{rid}" o:title="Logo" gain="19661f" blacklevel="22938f"/><w10:wrap anchorx="margin" anchory="margin"/>'
+    '</v:shape></w:pict></w:r>')
+
+
 def stamp_logo(tpl, logo: Path | None) -> None:
-    """Đặt logo vào đầu trang (header) mọi trang, giữ nội dung header sẵn có của mẫu. Gọi TRƯỚC tpl.render():
+    """In logo CHÌM (watermark) giữa phần trên mọi trang, nằm sau chữ, màu nhạt — theo file mẫu anh Thắng 02/11
+    (trước in logo nhỏ góc trên trái). Giữ nội dung header sẵn có của mẫu. Gọi TRƯỚC tpl.render():
     docxtpl render thay part header bằng bản mới (python-docx vẫn giữ part cũ) nên sửa sau render sẽ bị mất."""
     if not logo:
         return
     tpl.init_docx()
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.shared import Cm
+    from docx.oxml import parse_xml
     for sec in tpl.docx.sections:
-        hdr = sec.header
-        hdr.is_linked_to_previous = False
-        first = hdr.paragraphs[0] if hdr.paragraphs else hdr.add_paragraph()
-        p = first if not first.text.strip() and not first.runs else first.insert_paragraph_before()
-        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        p.add_run().add_picture(str(logo), height=Cm(LOGO_HEIGHT_CM))
+        hdrs = [sec.header] + ([sec.first_page_header] if sec.different_first_page_header_footer else [])
+        for hdr in hdrs:
+            hdr.is_linked_to_previous = False
+            rid, img = hdr.part.get_or_add_image(str(logo))
+            h = WATERMARK_W_PT * img.px_height / (img.px_width or 1)
+            p = hdr.paragraphs[0] if hdr.paragraphs else hdr.add_paragraph()
+            p._p.append(parse_xml(WATERMARK_XML.format(rid=rid, w=WATERMARK_W_PT, h=round(h, 1), top=WATERMARK_TOP_PT)))
 
 
 def set_seller(db: Session, data: dict) -> dict:
@@ -312,7 +331,7 @@ def save_draft(db: Session, c: Contract, data: dict) -> dict:
 
 # ---------------------------------------------------------------- xuất Word
 def render_docx(doc: dict, mark: bool = True, logo: Path | None = None) -> bytes:
-    """mark: bôi vàng các ô điền theo hợp đồng (docx_marks) · logo: in đầu trang (logo_file)."""
+    """mark: bôi vàng các ô điền theo hợp đồng (docx_marks) · logo: in chìm mọi trang (logo_file)."""
     from docxtpl import DocxTemplate  # import muộn: chỉ cần khi xuất file
 
     from .docx_marks import prepared

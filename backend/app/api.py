@@ -367,7 +367,7 @@ def get_seller(db: Session = DB):
 
 @router.post("/settings/company-logo", dependencies=[Depends(require_roles("admin"))])
 async def put_company_logo(file: UploadFile = File(...), db: Session = DB):
-    """Logo công ty in ở đầu trang hợp đồng + bộ hồ sơ gửi khách (tải 1 lần)."""
+    """Logo công ty in chìm (watermark) trên hợp đồng + bộ hồ sơ gửi khách (tải 1 lần)."""
     return CD.set_logo(db, file.filename or "", await file.read())
 
 
