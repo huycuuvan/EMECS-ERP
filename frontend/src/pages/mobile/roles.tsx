@@ -15,7 +15,7 @@ import {
   useTaskDepart, useTasks, useWeighings,
 } from '@/api/hooks'
 import type { Lsx, Mismatch, OverdueDoc, Receipt, Task, Weighing } from '@/api/types'
-import { fmtD, fmtDT, fmtKg, fmtT, hoursOver, moneyShort, relTime, custOrder } from '@/lib/format'
+import { fmtD, fmtDT, fmtKg, fmtT, hoursOver, moneyShort, relTime, custOrder, kgReq } from '@/lib/format'
 import { TaskRoute } from './route'
 import { useSignFlow } from './sign'
 import AssignedGoods from '../weighings/AssignedGoods'
@@ -115,8 +115,8 @@ const taskRank = (t: Task) => (isOverdueTask(t) ? 0 : t.status === 'Chờ xác n
 function driverAlerts(tasks: Task[]): MAlert[] {
   const out: MAlert[] = []
   tasks.forEach((t) => {
-    if (isOverdueTask(t)) out.push({ ic: AlarmClock, t: `${t.id} QUÁ HẠN điền phiếu ${hoursOver(t.fillDeadline!)}h`, s: `${typeLabel(t)} · ${fmtKg(t.kgRequired)} — điền số cân + ảnh ngay`, red: true, open: ['vc', t.id] })
-    else if (t.status === 'Chờ xác nhận') out.push({ ic: Hourglass, t: `Thẻ mới ${t.id} chờ bạn xác nhận`, s: `Giao lúc ${fmtDT(t.assignedAt)} · ${fmtKg(t.kgRequired)}`, open: ['vc', t.id] })
+    if (isOverdueTask(t)) out.push({ ic: AlarmClock, t: `${t.id} QUÁ HẠN điền phiếu ${hoursOver(t.fillDeadline!)}h`, s: `${typeLabel(t)} · ${kgReq(t)} — điền số cân + ảnh ngay`, red: true, open: ['vc', t.id] })
+    else if (t.status === 'Chờ xác nhận') out.push({ ic: Hourglass, t: `Thẻ mới ${t.id} chờ bạn xác nhận`, s: `Giao lúc ${fmtDT(t.assignedAt)} · ${kgReq(t)}`, open: ['vc', t.id] })
   })
   return out
 }
@@ -474,7 +474,7 @@ function QlHome({ dash }: { dash: Dash }) {
         return (
           <Card key={t.id} open={['vc', t.id]}>
             <div className="mc-top"><TypeChip type={t.type} /><span className="mc-id">{t.id}</span><span className="mc-status"><StatusChip status={t.status} /></span></div>
-            <Line k={<>{t.driver} · HĐ {t.contractId}<CustOrderText id={t.contractId} prefix=" (" suffix=")" /></>} vClass="sm">{fmtN(t.kgRequired)} kg</Line>
+            <Line k={<>{t.driver} · HĐ {t.contractId}<CustOrderText id={t.contractId} prefix=" (" suffix=")" /></>} vClass="sm">{kgReq(t)}</Line>
             {rej ? <Line k="Lý do" kFix vClass="red-txt sm">{t.rejectReason}</Line> : <Line k={`Giao ${relTime(t.assignedAt)}`} vClass="sm">chờ lái xe xác nhận</Line>}
           </Card>
         )

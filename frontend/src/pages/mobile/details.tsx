@@ -9,7 +9,7 @@ import {
   useWeighing, useWeighingPhoto, useWeighings,
 } from '@/api/hooks'
 import type { LedgerKey } from '@/api/types'
-import { fmtD, fmtDT, fmtT, hoursOver, moneyShort, custOrder } from '@/lib/format'
+import { fmtD, fmtDT, fmtT, hoursOver, moneyShort, custOrder, kgReq } from '@/lib/format'
 import { ddmm } from '@/pages/lsx/lsxUtil'
 import { ExtensionDecision } from '@/peek/drawers/contract/Extensions'
 import { ContractEditForm, LsxExtendForm, LsxProgressForm, PcFillForm } from './forms'
@@ -189,7 +189,7 @@ function DetailVc({ id }: { id: string }) {
         <DItem k="Hạn trả phiếu">
           {t.fillDeadline ? <span className={overdue ? 'red-txt' : ''}>{fmtDT(t.fillDeadline)}{overdue ? ` · QUÁ ${hoursOver(t.fillDeadline)}h` : ''}</span> : '—'}
         </DItem>
-        <DItem k={isMa ? 'Kg cân xuất công ty' : 'Kg yêu cầu lấy từ mạ'}>{fmtN(t.kgRequired)} kg</DItem>
+        <DItem k={isMa ? 'Kg cân xuất công ty' : 'Kg yêu cầu lấy từ mạ'}>{kgReq(t)}</DItem>
         {isMa ? (
           <DItem k="Kg bên mạ cân">
             {t.kgAtGalv != null

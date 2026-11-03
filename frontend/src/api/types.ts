@@ -210,6 +210,8 @@ export interface Meta {
   /** loại hàng nguyên liệu mua vào (danh mục cố định) */
   materialCategories?: string[]
   toleranceKg: number; pcTolerancePct?: number; fillHours: number; contractDays: number
+  /** hàng sau khi mạ kẽm nặng thêm ~N% so với hàng đen (mặc định 3) */
+  galvGainPct?: number
   /** phiếu cân chưa có số/ảnh sau N giờ → quá hạn */
   pcFillHours: number
 }

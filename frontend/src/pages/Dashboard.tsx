@@ -16,7 +16,7 @@ import { useDashboardByTag, useRunEndOfDay } from '@/api/hooksMaster'
 import type { ContractAggLite, MovementRow } from '@/api/types'
 import { AdvChip, Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtD, fmtDT, fmtKg, fmtT, money, relTime, custOrder } from '@/lib/format'
+import { fmtD, fmtDT, fmtKg, fmtT, money, relTime, custOrder, kgReq } from '@/lib/format'
 import { PaymentDecision } from '@/peek/drawers/contract/PaymentApprovals'
 import { PendingExtensionsPanel } from '@/peek/drawers/contract/Extensions'
 import MaterialDecision from './materials/MaterialDecision'
@@ -183,7 +183,7 @@ export default function Dashboard() {
             return t.status === 'Chờ xác nhận' ? (
               <AlertItem key={t.id} onClick={() => open('vc', t.id)}
                 t1={<><span className="mono" style={{ fontWeight: 700 }}>{t.id}</span> · {t.driver}</>}
-                t2={<>{kindLbl} · HĐ <RecordLink id={t.contractId} type="hd" /><CustOrderText id={t.contractId} prefix=" (" suffix=")" /> · {fmtKg(t.kgRequired)}</>}
+                t2={<>{kindLbl} · HĐ <RecordLink id={t.contractId} type="hd" /><CustOrderText id={t.contractId} prefix=" (" suffix=")" /> · {kgReq(t)}</>}
                 right={<Chip tone="soon" icon={<Hourglass size={11} />}>Tài xế chưa nhận · {relTime(t.assignedAt)}</Chip>} />
             ) : (
               <AlertItem key={t.id} onClick={() => open('vc', t.id)}

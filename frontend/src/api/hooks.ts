@@ -149,7 +149,7 @@ export const useTaskReject = () => useAction(({ id, reason }: { id: ID; reason: 
 export const useTaskDepart = () => useAction((id: ID) => post<Task>(`/tasks/${id}/depart`), (t) => `${t.id}: xe đã xuất phát — hạn điền phiếu 24h`)
 export const useTaskFillGalv = () => useAction(({ id, ...v }: { id: ID; kg: number; photo?: string | null; reason?: string; reasonNote?: string }) => post<Task>(`/tasks/${id}/fill-galv`, v),
   (t) => t.mismatchId ? `${t.id}: LỆCH — đã tạo ${t.mismatchId}` : `${t.id}: mạ đã xác nhận`)
-export const useTaskFillDelivery = () => useAction(({ id, ...v }: { id: ID; kgPicked: number; kgDelivered: number; photo?: string | null; reason?: string; reasonNote?: string }) => post<Task>(`/tasks/${id}/fill-delivery`, v),
+export const useTaskFillDelivery = () => useAction(({ id, ...v }: { id: ID; kgPicked?: number | null; kgDelivered: number; photo?: string | null; reason?: string; reasonNote?: string }) => post<Task>(`/tasks/${id}/fill-delivery`, v),
   (t) => t.mismatchId ? `${t.id}: LỆCH — đã tạo ${t.mismatchId}` : `${t.id}: đã giao khách`)
 export const useTaskPhoto = () => useAction(({ id, photo }: { id: ID; photo: string | null }) => api.put<Task>(`/tasks/${id}/photo`, { photo }).then((r) => r.data), 'Đã cập nhật ảnh phiếu')
 

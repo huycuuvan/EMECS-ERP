@@ -68,7 +68,7 @@ def meta(db: Session = DB):
         "reasonsCan": C.REASONS_CAN, "reasonsTuChoiSx": C.REASONS_TU_CHOI_SX,
         "reasonsTuChoiLx": C.REASONS_TU_CHOI_LX, "vlossResolutions": C.VLOSS_RESOLUTIONS,
         "materialCategories": C.MATERIAL_CATEGORIES,
-        "toleranceKg": C.TOLERANCE_KG, "pcTolerancePct": C.PC_TOLERANCE_PCT, "fillHours": C.FILL_HOURS, "contractDays": C.CONTRACT_DAYS,
+        "toleranceKg": C.TOLERANCE_KG, "galvGainPct": C.GALV_GAIN_PCT, "pcTolerancePct": C.PC_TOLERANCE_PCT, "fillHours": C.FILL_HOURS, "contractDays": C.CONTRACT_DAYS,
         "pcFillHours": C.PC_FILL_HOURS,
     }
 

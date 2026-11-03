@@ -171,7 +171,7 @@ class TaskFillGalv(In):
 
 
 class TaskFillDelivery(In):
-    kg_picked: float = Field(ge=0)
+    kg_picked: float | None = Field(default=None, ge=0)  # không bắt buộc — trống thì lấy theo kg khách ký
     kg_delivered: float = Field(ge=0)
     photo: str | None = None
     reason: str | None = None

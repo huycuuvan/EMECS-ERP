@@ -102,10 +102,11 @@ def test_receipt_kg_only_and_task_auto_kg_arrival_delivery(c):
                                    "contactName": "Chị Lan", "contactPhone": "0913000222"}).json()
     assert g["deliver"]["receiverName"] == "Anh Hùng" and g["deliver"]["address"] == "Công trường KCN Yên Phong"
     left = c.get("/api/contracts/HD-2609-01").json()["atGalvKg"]
-    assert g["kgRequired"] == left and g["galvanizerId"]  # không nhập → lấy hết phần của HĐ còn tại mạ; xưởng mạ theo chuyến đi mạ
+    assert left > 0 and g["kgRequired"] == 0 and g["galvanizerId"]  # KG lấy không bắt buộc (03/11) — lái xe điền theo cân thực tế
     base_g = {"type": "giao_khach", "driver": "Lê Đức Vận", "contractId": "HD-2609-01", "arriveAt": "2099-01-02T08:00:00+07:00",
               "deliverAddress": "CT"}
-    assert c.post("/api/tasks", json={**base_g, "kgRequired": left + 1000}).status_code == 400  # vượt hàng còn tại mạ
+    assert c.post("/api/tasks", json={**base_g, "kgRequired": left * 1.03 + 100}).status_code == 400  # vượt hàng còn tại mạ (+3% mạ)
+    assert c.post("/api/tasks", json={**base_g, "kgRequired": round(left * 1.03)}).status_code == 200  # hàng đen +3% sau mạ: được
     assert c.post("/api/tasks", json={**base_g, "kgRequired": 3000}).json()["kgRequired"] == 3000  # Quản lý giao số kg
 
 
@@ -233,10 +234,11 @@ def test_galvanizer_stock_per_customer(c):
     photo = "data:image/png;base64,iVBORw0KGgo="
     r = c.post(f"/api/tasks/{t['id']}/fill-delivery", json={"kgPicked": left + 1000, "kgDelivered": left + 1000, "photo": photo})
     assert r.status_code == 400 and "không lấy hàng của khách khác" in r.json()["detail"]
-    r = c.post(f"/api/tasks/{t['id']}/fill-delivery", json={"kgPicked": left, "kgDelivered": left, "photo": photo})
+    full = round(left * 1.03)  # hàng đen còn tại mạ, sau mạ nặng thêm ~3%
+    r = c.post(f"/api/tasks/{t['id']}/fill-delivery", json={"kgPicked": full, "kgDelivered": full, "photo": photo})
     assert r.status_code == 200 and r.json()["status"] == "Hoàn thành"  # không còn đối chiếu với kg yêu cầu = 0
     login(c, "ql")
-    assert c.get("/api/contracts/HD-2609-01").json()["atGalvKg"] == 0
+    assert abs(c.get("/api/contracts/HD-2609-01").json()["atGalvKg"]) < 1
 
 
 def test_missed_yesterday_flag(c):

@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowLeftFromLine, ArrowRightToLine, Check, CheckCircle2
 import { useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useContract, useContracts, useTasks } from '@/api/hooks'
+import { useGalvGain } from '@/peek/GalvLeftNote'
 import type { Check as CheckT, Task, Weighing } from '@/api/types'
 import { Kpi, KpiGrid, PageHeader } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
@@ -55,6 +56,7 @@ export default function GalvReconcile() {
   const hd = params.get('hd')
   const cid = hd && galvContracts.some((c) => c.id === hd) ? hd : null  // null = tất cả hợp đồng
   const { data: g, isLoading } = useContract(cid)
+  const { k } = useGalvGain()  // hàng sau mạ nặng thêm ~3% — lấy ra quy về hàng đen để trừ tồn tại mạ
   const pcById = useMemo(() => new Map<string, Weighing>((g?.weighings ?? []).map((p) => [p.id, p])), [g])
   const canAssign = hasRole('admin') // server: chỉ Quản lý giao thẻ
 
@@ -145,7 +147,7 @@ export default function GalvReconcile() {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', fontSize: 17, fontWeight: 600 }}>
           <span>Gửi <BalNum>{fmtKg(g.sentGalvKg)}</BalNum></span>
           <span>−</span>
-          <span>Lấy <BalNum>{fmtKg(g.pickedKg)}</BalNum></span>
+          <span>Lấy <BalNum>{fmtKg(g.pickedKg)}</BalNum>{g.pickedKg > 0 && <span className="caption" style={{ fontSize: 12, fontWeight: 400 }}> (hàng đã mạ ≈ {fmtKg(Math.round(g.pickedKg / k))} hàng đen)</span>}</span>
           <span>=</span>
           <span>Còn tại mạ <BalNum color={z > 0 ? 'var(--rust-deep)' : 'var(--moss)'}>{fmtKg(z)}</BalNum></span>
           {z > 0
@@ -173,6 +175,7 @@ interface Row { id: string; customer: string; sent: number; nSent: number; trans
 function AllContracts({ contracts, diMa, giao, onPick }: {
   contracts: { id: string; customer: string }[]; diMa: Task[]; giao: Task[]; onPick: (id: string) => void
 }) {
+  const { k } = useGalvGain()
   const rows: Row[] = contracts.map((c) => {
     const s = diMa.filter((t) => t.contractId === c.id)
     const p = giao.filter((t) => t.contractId === c.id)
@@ -182,7 +185,7 @@ function AllContracts({ contracts, diMa, giao, onPick }: {
     return {
       id: c.id, customer: custOrder(c), sent, nSent: done.length,
       transit: s.filter((t) => t.kgAtGalv == null && t.status !== 'Từ chối').reduce((a, t) => a + t.kgRequired, 0),
-      picked, nPicked: got.length, delivered: got.reduce((a, t) => a + (t.kgDelivered ?? 0), 0), left: sent - picked,
+      picked, nPicked: got.length, delivered: got.reduce((a, t) => a + (t.kgDelivered ?? 0), 0), left: sent - picked / k,
       pending: p.filter((t) => t.kgPicked == null && t.status !== 'Từ chối').length,
     }
   }).sort((a, b) => b.left - a.left)

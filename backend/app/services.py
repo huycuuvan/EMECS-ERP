@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import serializers as S
-from .config import (PC_TOLERANCE_PCT, COMPLETE_WARN_DAYS, CONTRACT_EXTEND_DAYS, CT_DONE, CT_RECEIVED, CT_SENT, CT_WAIT, FILL_HOURS, PAY_OK,
+from .config import (GALV_GAIN_PCT, PC_TOLERANCE_PCT, COMPLETE_WARN_DAYS, CONTRACT_EXTEND_DAYS, CT_DONE, CT_RECEIVED, CT_SENT, CT_WAIT, FILL_HOURS, PAY_OK,
                      PAY_PENDING, PAY_REJECTED, PC_FILL_HOURS, PEOPLE, TOLERANCE_KG)
 from .db import utcnow
 from .security import actor
@@ -97,7 +97,7 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
                          lambda t: t.kg_required)
     picked_kg = _sum([t for t in giao if t.kg_picked is not None], lambda t: t.kg_picked)
     delivered_kg = _sum([t for t in giao if t.kg_delivered is not None], lambda t: t.kg_delivered)
-    at_galv_kg = sent_galv_kg - picked_kg
+    at_galv_kg = sent_galv_kg - to_black(picked_kg)
     # tồn kho chờ cân xuất = lệnh chuẩn bị hàng chưa cân; phiếu cân lập thẳng từ lệnh SX (không gắn phiếu chuẩn bị) đã cân
     # thì trừ vào phần chuẩn bị hàng chưa gắn phiếu cân (lệch cân đã vào kho ảo, không còn là tồn)
     linked = {p.receipt_id for p in pcs if p.receipt_id}
@@ -117,7 +117,8 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
          "Chênh = lệch cân xuất so với số giao (thiếu ≤5% đạt, quá 5% / dư Quản lý đã duyệt)", False),
         ("CÂN XUẤT CÔNG TY vs CÂN ĐẾN XƯỞNG MẠ", weighed_kg, sent_galv_kg + in_transit_kg, "Cân xuất tại công ty",
          "Mạ xác nhận + đang trên đường", "Số cân 2 đầu phải khớp từng chuyến", True),
-        ("GỬI MẠ vs LẤY RA TỪ MẠ", sent_galv_kg, picked_kg + at_galv_kg, "Đã gửi vào mạ", "Đã lấy ra + còn tại mạ",
+        ("GỬI MẠ vs LẤY RA TỪ MẠ", sent_galv_kg, to_black(picked_kg) + at_galv_kg, "Đã gửi vào mạ",
+         f"Đã lấy ra (quy về hàng đen, ÷{1 + GALV_GAIN_PCT / 100:g}) + còn tại mạ",
          "Chênh = thất thoát tại xưởng mạ", True),
         ("LẤY TỪ MẠ vs GIAO KHÁCH KÝ NHẬN", picked_kg, delivered_kg, "Ký nhận với mạ", "Khách ký nhận",
          "Chênh = hàng trên xe chưa giao đủ", True),
@@ -237,7 +238,8 @@ def stock_snapshot(db: Session, cid: str | None = None) -> dict:
         out["inTransitToGalvKg"] += g["inTransitToGalvKg"]
         out["atGalvKg"] += max(0.0, g["atGalvKg"])
     out["onTruckToCustomerKg"] = _sum([t for t in db.scalars(select(Task).where(Task.type == "giao_khach", Task.status == "Đang chạy"))
-                                       if t.kg_picked is None and (not cid or t.contract_id == cid)], lambda t: t.kg_required)
+                                       if t.kg_picked is None and (not cid or t.contract_id == cid)],
+                                      lambda t: t.kg_required or max(0.0, galv_remaining_kg(db, t.contract_id)))
     return out
 
 
@@ -1169,14 +1171,24 @@ def _kg_from_ref(db: Session, type_: str, ref_id: str | None) -> float:
     return (t.kg_at_galv if t and t.kg_at_galv is not None else (t.kg_required if t else 0)) or 0
 
 
+def to_black(kg: float) -> float:
+    """Kg hàng đã mạ (cân lúc lấy từ mạ / giao khách) quy về hàng đen đã gửi vào mạ — mạ kẽm làm nặng thêm ~3%."""
+    return (kg or 0) / (1 + GALV_GAIN_PCT / 100)
+
+
+def to_galv(kg: float) -> float:
+    """Kg hàng đen tại mạ → ước tính sau khi mạ (+3%)."""
+    return (kg or 0) * (1 + GALV_GAIN_PCT / 100)
+
+
 def galv_remaining_kg(db: Session, cid: str, exclude_task: str | None = None) -> float:
-    """Hàng CỦA HỢP ĐỒNG NÀY còn tại xưởng mạ = mạ đã cân nhận (thẻ đi mạ) − đã lấy ra (thẻ giao khách).
-    Hàng mỗi khách khác nhau → chỉ được lấy trong phần này, không lấy lẫn hàng của khách khác."""
+    """Hàng CỦA HỢP ĐỒNG NÀY còn tại xưởng mạ (HÀNG ĐEN) = mạ đã cân nhận (thẻ đi mạ) − đã lấy ra (thẻ giao khách,
+    quy về hàng đen). Hàng mỗi khách khác nhau → chỉ được lấy trong phần này, không lấy lẫn hàng của khách khác."""
     vcs = db.scalars(select(Task).where(Task.contract_id == cid)).all()
     sent = _sum([t for t in vcs if t.type == "di_ma" and t.kg_at_galv is not None], lambda t: t.kg_at_galv)
     picked = _sum([t for t in vcs if t.type == "giao_khach" and t.kg_picked is not None and t.id != exclude_task],
                   lambda t: t.kg_picked)
-    return sent - picked
+    return sent - to_black(picked)
 
 
 def contract_customer_id(db: Session, c: Contract) -> int | None:
@@ -1208,11 +1220,11 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
         left = galv_remaining_kg(db, cid)
         if left <= 0.5:
             raise HTTPException(400, f"HĐ {cid} ({c.customer}) không còn hàng tại xưởng mạ — không giao việc lấy hàng được")
-        # Quản lý giao số kg lấy chuyến này (không nhập → lấy hết phần của HĐ còn tại mạ); lái xe điền sẵn số này
-        if kg_required and kg_required > left + TOLERANCE_KG:
-            raise HTTPException(400, f"HĐ {cid} chỉ còn {fmt_kg(left)} tại xưởng mạ — không giao lấy {fmt_kg(kg_required)}")
-        if not kg_required and not ref_id:
-            kg_required = left
+        # Quản lý giao số kg lấy chuyến này — KHÔNG bắt buộc (anh Thắng 03/11: hàng mạ xong nặng thêm ~3%, chưa biết số
+        # chính xác) → để trống thì lái xe điền theo cân thực tế lúc lấy; tối đa = hàng đen còn tại mạ + 3%
+        if kg_required and kg_required > to_galv(left) + TOLERANCE_KG:
+            raise HTTPException(400, f"HĐ {cid} chỉ còn {fmt_kg(left)} hàng đen tại xưởng mạ (sau mạ ≈ {fmt_kg(round(to_galv(left)))})"
+                                     f" — không giao lấy {fmt_kg(kg_required)}")
     if not arrive_at:
         raise HTTPException(400, "Chưa nhập ngày giờ lái xe phải có mặt")
     if arrive_at.tzinfo is None:
@@ -1222,7 +1234,7 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
     fill_deadline = fill_deadline or add_hours(arrive_at, FILL_HOURS)  # hạn trả phiếu do Quản lý đặt khi giao việc
     if fill_deadline <= arrive_at:
         raise HTTPException(400, "Hạn trả phiếu phải sau giờ lái xe có mặt")
-    kg = kg_required if kg_required else _kg_from_ref(db, type_, ref_id)
+    kg = kg_required if kg_required else (_kg_from_ref(db, type_, ref_id) if ref_id or type_ == "di_ma" else 0)
     if type_ == "di_ma" and ref_id and (w := db.get(Weighing, ref_id)) and not w.signer_lai_xe:
         w.signer_lai_xe = driver
     t = Task(id=next_id(db, "VC", "vc"), type=type_, driver=driver, contract_id=cid, ref_id=ref_id,
@@ -1320,18 +1332,22 @@ def task_fill_galv(db: Session, tid: str, kg: float, photo: str | None, reason: 
     return t
 
 
-def task_fill_delivery(db: Session, tid: str, kg_picked: float, kg_delivered: float, photo: str | None,
+def task_fill_delivery(db: Session, tid: str, kg_picked: float | None, kg_delivered: float, photo: str | None,
                        reason: str | None, reason_note: str | None) -> Task:
     t = get_or_404(db, Task, tid)
     if t.type != "giao_khach":
         raise HTTPException(400, "Thẻ này không phải thẻ giao khách")
     if t.status not in ("Đang chạy", "Chờ QL duyệt"):
         raise HTTPException(400, f"Thẻ đang \"{t.status}\" — xuất phát trước khi điền phiếu")
+    # kg lấy từ mạ không bắt buộc (anh Thắng 03/11) — để trống thì coi như lấy đúng số khách ký nhận
+    if kg_picked is None:
+        kg_picked = kg_delivered
     left = galv_remaining_kg(db, t.contract_id, exclude_task=t.id)
-    if (kg_picked or 0) > left + TOLERANCE_KG:
+    if (kg_picked or 0) > to_galv(left) + TOLERANCE_KG:
         c = db.get(Contract, t.contract_id)
         raise HTTPException(400, f"Lấy {fmt_kg(kg_picked)} vượt số hàng của HĐ {t.contract_id}"
-                                 f"{f' ({c.customer})' if c else ''} còn tại mạ: {fmt_kg(max(left, 0))} — không lấy hàng của khách khác")
+                                 f"{f' ({c.customer})' if c else ''} còn tại mạ: {fmt_kg(max(left, 0))} hàng đen"
+                                 f" (sau mạ ≈ {fmt_kg(round(to_galv(max(left, 0))))}) — không lấy hàng của khách khác")
     t.kg_picked, t.kg_delivered = kg_picked or 0, kg_delivered or 0
     if photo:
         t.photo = photo

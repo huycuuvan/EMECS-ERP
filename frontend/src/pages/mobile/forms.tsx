@@ -13,6 +13,7 @@ import { fmtN, num, signed, useMob } from './core'
 import { perUnit, useContractGoods } from '../receipts/ContractGoods'
 import AssignedGoods from '../weighings/AssignedGoods'
 import { useCreateMaterial } from '@/api/hooksMaster'
+import GalvLeftNote, { useGalvGain } from '@/peek/GalvLeftNote'
 import { Btn, NumInput, PhotoPicker, ReasonBox, ReasonSelect } from './kit'
 
 const toIsoEndOfDay = (d: string) => new Date(d + 'T17:00:00').toISOString()
@@ -323,10 +324,12 @@ export function DelivForm({ t }: { t: Task }) {
   const [photo, setPhoto] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
+  const { k } = useGalvGain()
   const p = num(kgp), d = num(kgd)
-  // hàng của HĐ này còn tại mạ (cộng lại phần thẻ này đã khai nếu đang điền lại) — không được lấy hàng của khách khác
-  const left = agg ? agg.atGalvKg + (t.kgPicked ?? 0) : null
-  const over = left != null && p > left + m.tol
+  // hàng ĐEN của HĐ này còn tại mạ (cộng lại phần thẻ này đã khai nếu đang điền lại, quy về hàng đen) — không được lấy
+  // hàng của khách khác; sau mạ nặng thêm ~3%. Kg lấy đi không bắt buộc (anh Thắng 03/11) — trống thì tính bằng kg khách ký
+  const left = agg ? agg.atGalvKg + (t.kgPicked ?? 0) / k : null
+  const over = left != null && (p > 0 ? p : d) > Math.max(0, left) * k + m.tol
   const d1 = p - t.kgRequired, d2 = d - p
   const bad1 = t.kgRequired > 0 && p > 0 && Math.abs(d1) > m.tol
   const bad2 = p > 0 && d > 0 && Math.abs(d2) > 0.5
@@ -334,20 +337,19 @@ export function DelivForm({ t }: { t: Task }) {
   const msg = bad2 ? `Khách ký lệch ${signed(d2)} kg so với số ký với mạ — bắt buộc chọn lý do`
     : `Ký với mạ lệch ${signed(d1)} kg so với yêu cầu — bắt buộc chọn lý do`
   const submit = async () => {
-    if (!(p > 0)) { message.error('Nhập kg ký nhận với xưởng mạ.'); return }
     if (over) { message.error(`Vượt hàng của HĐ còn tại mạ (${fmtKg(left!)}) — không lấy hàng của khách khác.`); return }
     if (!(d > 0)) { message.error('Nhập kg khách ký nhận.'); return }
     if (!photo) { message.error('Bắt buộc ảnh phiếu giao nhận — chụp hoặc dùng ảnh demo.'); return }
     if (lech && !reason) { message.error('Có sai lệch — bắt buộc chọn lý do.'); return }
-    try { await fill.mutateAsync({ id: t.id, kgPicked: p, kgDelivered: d, photo, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined }) } catch { /* đã báo */ }
+    try { await fill.mutateAsync({ id: t.id, kgPicked: p > 0 ? p : null, kgDelivered: d, photo, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined }) } catch { /* đã báo */ }
   }
   return (
     <div className="m-form no-open">
-      <label className="f-lbl">Kg ký nhận với xưởng mạ</label>
+      <label className="f-lbl">Kg lấy đi — ký với xưởng mạ (không bắt buộc)</label>
       <NumInput big value={kgp} onChange={setKgp} bad={bad1 || over} />
       <div className="f-hint">
-        Hàng của HĐ {t.contractId} còn tại mạ: <b>{left != null ? fmtKg(left) : '…'}</b>
-        {t.kgRequired > 0 && <> · Quản lý giao lấy {fmtKg(t.kgRequired)} (đã điền sẵn — chỉ sửa khi mạ ký số khác)</>}.
+        {left != null ? <GalvLeftNote cid={t.contractId} left={left} strong={{}} /> : '…'}
+        {t.kgRequired > 0 ? <> Quản lý giao lấy {fmtKg(t.kgRequired)} (đã điền sẵn — chỉ sửa khi mạ ký số khác).</> : <> Để trống thì tính bằng kg khách ký nhận.</>}
         {over && <div className="red-txt" style={{ fontWeight: 700 }}>Vượt số còn tại mạ — không được lấy hàng của khách khác.</div>}
       </div>
       <label className="f-lbl">Kg khách ký nhận</label>

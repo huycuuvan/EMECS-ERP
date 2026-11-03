@@ -73,7 +73,7 @@ export function KgCell({ t, tol }: { t: Task; tol: number }) {
     )
   }
   if (t.kgDelivered == null && t.kgPicked == null) return idle ? <span className="text-ash">—</span> : miss
-  const badP = Math.abs((t.kgPicked ?? 0) - t.kgRequired) > tol
+  const badP = t.kgRequired > 0 && Math.abs((t.kgPicked ?? 0) - t.kgRequired) > tol
   const badD = Math.abs((t.kgDelivered ?? 0) - (t.kgPicked ?? 0)) > 0.5
   const bad = badP || badD
   return (

@@ -41,3 +41,7 @@ export const hoursOver = (iso: string) => Math.max(0, Math.round((Date.now() - n
 export const custOrder = (c?: { customer?: string; orderName?: string | null } | null) =>
   c ? [c.customer, c.orderName?.trim()].filter(Boolean).join(' – ') : ''
 export const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0)
+
+/** KG Quản lý giao trên thẻ lái xe — giao khách không nhập (không bắt buộc, anh Thắng 03/11) thì lấy theo cân thực tế. */
+export const kgReq = (t: { type: string; kgRequired: number }) =>
+  t.kgRequired || t.type !== 'giao_khach' ? fmtKg(t.kgRequired) : 'kg theo cân thực tế'

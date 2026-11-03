@@ -5,7 +5,7 @@ import { useContracts } from '@/api/hooks'
 import { custOrder } from '@/lib/format'
 import RecordLink from './RecordLink'
 
-function useCustOrder(id?: string | null) {
+export function useCustOrder(id?: string | null) {
   const { data } = useContracts()
   return id ? custOrder(data?.find((c) => c.id === id)) : ''
 }

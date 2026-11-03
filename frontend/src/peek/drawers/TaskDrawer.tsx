@@ -8,7 +8,7 @@ import HistoryBlock from '@/components/HistoryBlock'
 import PhotoBlock from '@/components/PhotoBlock'
 import { Cell, CellGrid, Sec } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtDelta, fmtDT, fmtKg, relTime } from '@/lib/format'
+import { fmtDelta, fmtDT, fmtKg, relTime, kgReq } from '@/lib/format'
 import TaskActions from '@/pages/tasks/TaskActions'
 import { TaskAdminActions } from '@/pages/tasks/TaskEditModals'
 import { countdown, hoursOverAt, isOverdue, useNow } from '@/pages/tasks/logic'
@@ -33,7 +33,7 @@ export default function TaskDrawer({ id }: { id: string }) {
 
   const sub = (
     <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      {t.driver} · HĐ {t.contractId}<CustOrderText id={t.contractId} prefix=" (" suffix=")" /> · {fmtKg(t.kgRequired)}
+      {t.driver} · HĐ {t.contractId}<CustOrderText id={t.contractId} prefix=" (" suffix=")" /> · {kgReq(t)}
       {over && <Tag variant="filled" className="chip-overdue" style={{ background: 'var(--signal-soft)', color: 'var(--signal)', fontWeight: 700, borderRadius: 999, margin: 0, display: 'inline-flex', gap: 4, alignItems: 'center' }}>
         <AlarmClock size={11} />QUÁ HẠN ĐIỀN {hoursOverAt(t.fillDeadline!, now)}h</Tag>}
     </span>
@@ -74,7 +74,7 @@ export default function TaskDrawer({ id }: { id: string }) {
 
       <Sec icon={<Scale />}>Đối ứng số cân</Sec>
       <CellGrid>
-        <Cell label="KL yêu cầu chở"><span className="num">{fmtKg(t.kgRequired)}</span></Cell>
+        <Cell label="KL yêu cầu chở"><span className="num">{kgReq(t)}</span></Cell>
         {isMa ? <GalvCell t={t} tol={tol} /> : <DeliveryCells t={t} />}
         {t.mismatchId && (
           <Cell label="Biên bản sai lệch" alert wide>

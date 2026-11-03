@@ -25,6 +25,8 @@ DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "steel123")
 ALLOW_DEMO_RESET = os.getenv("ALLOW_DEMO_RESET", "1") == "1"
 
 TOLERANCE_KG = 30   # dung sai cân xe tải — lệch quá mức này thì tạo sai lệch
+# hàng sau khi mạ kẽm nặng thêm ~3% so với hàng đen gửi vào (anh Thắng 03/11) — lấy từ mạ quy về hàng đen để trừ tồn tại mạ
+GALV_GAIN_PCT = float(os.getenv("GALV_GAIN_PCT", "3"))
 FILL_HOURS = 24     # hạn lái xe điền kg + ảnh phiếu kể từ khi xuất phát
 CONTRACT_DAYS = 5   # hạn kế toán soạn thảo hợp đồng kể từ khi nhận đơn
 CONTRACT_EXTEND_DAYS = int(os.getenv("CONTRACT_EXTEND_DAYS", "5"))  # số ngày gợi ý sẵn khi Quản lý duyệt gia hạn (Quản lý tự điền số ngày)
