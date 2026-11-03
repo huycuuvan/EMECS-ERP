@@ -54,7 +54,6 @@ PEOPLE = {
     "lx1": {"name": "Phạm Văn Tài", "dept": "Vận tải", "roles": ["lx"], "phone": "0900000005"},
     "lx2": {"name": "Lê Đức Vận", "dept": "Vận tải", "roles": ["lx"], "phone": "0900000006"},
 }
-DRIVERS = [PEOPLE["lx1"]["name"], PEOPLE["lx2"]["name"]]  # mặc định khi chưa có user lx trong DB
 
 REASONS_CAN = [
     "Hao hụt bavia / cắt gọt", "Sai số thiết bị cân", "Đếm thiếu / thừa số lượng",

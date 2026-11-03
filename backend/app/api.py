@@ -63,8 +63,9 @@ def meta(db: Session = DB):
     return {
         "people": {u.id: {"name": u.name, "dept": u.dept, "role": (u.role_list or [""])[0], "roles": u.role_list}
                    for u in db.scalars(select(User))},
-        "drivers": [u.name for u in db.scalars(select(User).where(User.active.is_(True))) if "lx" in u.role_list]
-        or C.DRIVERS, "roles": C.ROLES, "permissions": C.PERMISSIONS,
+        # chưa có tài khoản lái xe thì danh sách trống (không lấy tên demo — chạy thật anh Thắng 03/11)
+        "drivers": [u.name for u in db.scalars(select(User).where(User.active.is_(True))) if "lx" in u.role_list],
+        "roles": C.ROLES, "permissions": C.PERMISSIONS,
         "reasonsCan": C.REASONS_CAN, "reasonsTuChoiSx": C.REASONS_TU_CHOI_SX,
         "reasonsTuChoiLx": C.REASONS_TU_CHOI_LX, "vlossResolutions": C.VLOSS_RESOLUTIONS,
         "materialCategories": C.MATERIAL_CATEGORIES,

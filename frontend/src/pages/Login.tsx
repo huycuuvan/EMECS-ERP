@@ -9,8 +9,8 @@ import type { AuthUser } from '@/api/types'
 import { homeFor, NAV_FLAT } from '@/layout/nav'
 import { useAuth } from '@/lib/auth'
 import { C } from '@/theme'
+import { DEMO } from '@/lib/demo'
 
-const DEMO = import.meta.env.DEV || import.meta.env.VITE_DEMO_LOGIN === '1'
 const DEMO_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD || 'steel123'
 // Khớp tài khoản seed ở backend/app/config.py (PEOPLE)
 const DEMO_ACCOUNTS = [

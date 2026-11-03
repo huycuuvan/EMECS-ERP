@@ -8,6 +8,7 @@ import { useRef, useState, type ChangeEvent, type CSSProperties, type MouseEvent
 import { demoTicket, errorMessage, uploadImage } from '@/api/client'
 import type { Task } from '@/api/types'
 import { fmtN, KIND_META, type Kind, type MAlert, refKindOf, useMob } from './core'
+import { DEMO } from '@/lib/demo'
 
 /** Bấm vào vùng tương tác bên trong card thì không mở chi tiết. */
 const isInteractive = (e: MouseEvent) => !!(e.target as HTMLElement).closest('button, a, input, select, textarea, label, .no-open')
@@ -189,7 +190,7 @@ export function PhotoPicker({ value, onChange, label, demo }: {
         <button type="button" className={'btn-photo' + (value ? ' done' : '')} disabled={busy} onClick={() => camRef.current?.click()}>
           {busy ? <LoaderCircle className="spin" /> : <Camera />}{busy ? 'Đang tải ảnh…' : value ? 'Chụp lại' : 'Chụp ảnh phiếu'}
         </button>
-        <Btn sm icon={ImageIcon} disabled={busy} flex={0} onClick={() => run(() => demoTicket(demo.label, demo.kg))}>Ảnh demo</Btn>
+        {DEMO && <Btn sm icon={ImageIcon} disabled={busy} flex={0} onClick={() => run(() => demoTicket(demo.label, demo.kg))}>Ảnh demo</Btn>}
         {value && (
           <button type="button" className="thumb-wrap" onClick={() => m.zoom(value)} aria-label="Phóng to ảnh">
             <img className="thumb" src={value} alt="phiếu" />
@@ -224,7 +225,7 @@ export function PhotoManage({ photo, loading, onChange, demo }: {
           : <div className="empty-note" style={{ padding: '14px 12px' }}><ImageOff />Chưa có ảnh phiếu đính kèm.</div>}
       <div className="btn-row" style={{ marginTop: 9 }}>
         <Btn sm icon={Camera} loading={busy} onClick={() => ref.current?.click()}>{photo ? 'Thay ảnh' : 'Chụp / tải ảnh'}</Btn>
-        <Btn sm icon={ImageIcon} disabled={busy} onClick={() => run(() => demoTicket(demo.label, demo.kg))}>Ảnh demo</Btn>
+        {DEMO && <Btn sm icon={ImageIcon} disabled={busy} onClick={() => run(() => demoTicket(demo.label, demo.kg))}>Ảnh demo</Btn>}
         {photo && (
           <Btn sm variant="danger-line" icon={Trash2} disabled={busy} onClick={() => modal.confirm({
             title: 'Xóa ảnh phiếu?', content: 'Ảnh phiếu đính kèm sẽ bị gỡ khỏi bản ghi. Chứng từ thiếu ảnh sẽ bị hệ thống nhắc bổ sung. Xóa chứ?',

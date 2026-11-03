@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import services as svc
-from .config import DRIVERS, REASONS_CAN, TOLERANCE_KG
+from .config import REASONS_CAN, TOLERANCE_KG
 from .db import utcnow
 from .history import add_change, apply_changes, same_value
 from .models import Lsx, Mismatch, Receipt, Task, User, Weighing
@@ -47,7 +47,7 @@ def _pending_mismatch(db: Session, rec: Weighing | Task) -> Mismatch | None:
 
 def driver_names(db: Session) -> list[str]:
     names = [u.name for u in db.scalars(select(User).where(User.active.is_(True))) if "lx" in u.role_list]
-    return names or DRIVERS
+    return names
 
 
 def _check_driver(db: Session, driver: str) -> None:

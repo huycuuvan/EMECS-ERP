@@ -16,6 +16,7 @@ import { Donut, HBar, LegendRow } from './dashboard/charts'
 import { Grid, Panel } from './dashboard/common'
 import { SRC, SrcChip, signedKg, useSignMismatchDialog } from './mismatches/sign'
 import ContractRef from '@/peek/ContractRef'
+import { DEMO } from '@/lib/demo'
 
 type TabKey = 'pending' | 'signed' | 'all'
 
@@ -107,7 +108,7 @@ export default function Mismatches() {
         extra={<>
           <ExportButton kind="mismatches" params={{ status: tab === 'pending' ? 'Chờ QL ký' : tab === 'signed' ? 'Đã ký xác nhận' : undefined }}
             ids={rows.map((m) => m.id)} total={all.length} />
-          <Button icon={<Printer size={14} />} onClick={() => message.info('Demo: in sổ biên bản sai lệch')}>In sổ sai lệch</Button>
+          {DEMO && <Button icon={<Printer size={14} />} onClick={() => message.info('Demo: in sổ biên bản sai lệch')}>In sổ sai lệch</Button>}
         </>} />
 
       <KpiGrid>

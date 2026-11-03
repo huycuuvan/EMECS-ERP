@@ -32,6 +32,7 @@ import { signedKg, useSignMismatchDialog } from './mismatches/sign'
 import CustomerTags from './orders/CustomerTags'
 import { TagFilter } from './customers/tags'
 import { CustOrderText } from '@/peek/ContractRef'
+import { DEMO } from '@/lib/demo'
 
 const DONUT_COLORS = ['#1e6b3a', '#4b5563', '#e30f1b', '#8a6100', '#d4d5d9']
 const tons1 = (kg: number) => Math.round(kg / 100) / 10
@@ -212,7 +213,7 @@ export default function Dashboard() {
       <SectionLabel>Đối ứng 3 điểm cân theo hợp đồng</SectionLabel>
       <ContractChecks contracts={d.contracts} />
 
-      {can('dashboard', 'full') && (
+      {DEMO && can('dashboard', 'full') && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <Button type="text" size="small" icon={<RotateCcw size={13} />} loading={reset.isPending}
             onClick={() => modal.confirm({

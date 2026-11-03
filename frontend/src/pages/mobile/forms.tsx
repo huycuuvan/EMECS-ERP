@@ -295,7 +295,7 @@ export function GalvForm({ t }: { t: Task }) {
   const lech = v > 0 && Math.abs(d) > m.tol
   const submit = async () => {
     if (!(v > 0)) { message.error('Nhập số kg bên mạ cân trước khi gửi.'); return }
-    if (!photo) { message.error('Bắt buộc ảnh phiếu cân xưởng mạ — chụp hoặc dùng ảnh demo.'); return }
+    if (!photo) { message.error('Bắt buộc ảnh phiếu cân xưởng mạ — chụp ảnh phiếu.'); return }
     if (lech && !reason) { message.error(`Lệch quá ${m.tol} kg — bắt buộc chọn lý do.`); return }
     try { await fill.mutateAsync({ id: t.id, kg: v, photo, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined }) } catch { /* đã báo */ }
   }
@@ -340,7 +340,7 @@ export function DelivForm({ t }: { t: Task }) {
   const submit = async () => {
     if (!(p > 0)) { message.error('Nhập kg lấy ra từ mạ (ký với xưởng mạ).'); return }
     if (!(d > 0)) { message.error('Nhập kg khách ký nhận.'); return }
-    if (!photo) { message.error('Bắt buộc ảnh phiếu giao nhận — chụp hoặc dùng ảnh demo.'); return }
+    if (!photo) { message.error('Bắt buộc ảnh phiếu giao nhận — chụp ảnh phiếu.'); return }
     if (lech && !reason) { message.error('Có sai lệch — bắt buộc chọn lý do.'); return }
     try { await fill.mutateAsync({ id: t.id, kgPicked: p, kgDelivered: d, photo, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined }) } catch { /* đã báo */ }
   }

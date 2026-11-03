@@ -187,7 +187,7 @@ function FillGalvModal({ t, onClose }: { t: Task; onClose: () => void }) {
         </Form.Item>
         {lech && <ReasonBlock notePh="VD: cân mạ hiển thị thấp hơn ~0,5%..."
           title={<>LỆCH {fmtDelta(delta)} so với cân xuất công ty (dung sai ±{tol} kg) — bắt buộc chọn lý do, hệ thống sẽ lập phiếu sai lệch chờ Quản lý ký.</>} />}
-        <Form.Item name="photo" label="Ảnh phiếu (chụp phiếu in có chữ ký)" rules={[{ required: true, message: 'Phải tải ảnh phiếu cân bên mạ (hoặc dùng ảnh demo)' }]}>
+        <Form.Item name="photo" label="Ảnh phiếu (chụp phiếu in có chữ ký)" rules={[{ required: true, message: 'Phải tải ảnh phiếu cân bên mạ' }]}>
           <PhotoInput demo={{ label: `Phiếu cân xưởng mạ · ${t.id}`, kg: kg || t.kgRequired }} />
         </Form.Item>
       </Form>
@@ -240,7 +240,7 @@ function FillDeliveryModal({ t, onClose }: { t: Task; onClose: () => void }) {
         </Form.Item>
         {lech && <ReasonBlock notePh="VD: 40 kg để lại trên xe do khách kiểm thiếu..."
           title={<>{msgs.join(' · ')} — bắt buộc chọn lý do; phiếu chờ Quản lý duyệt, duyệt xong phần chênh ghi vào kho ảo.</>} />}
-        <Form.Item name="photo" label="Ảnh phiếu giao nhận (mạ ký + khách ký cùng 1 tờ)" rules={[{ required: true, message: 'Phải tải ảnh phiếu giao nhận (hoặc dùng ảnh demo)' }]}>
+        <Form.Item name="photo" label="Ảnh phiếu giao nhận (mạ ký + khách ký cùng 1 tờ)" rules={[{ required: true, message: 'Phải tải ảnh phiếu giao nhận' }]}>
           <PhotoInput demo={{ label: `Phiếu giao nhận · ${t.id}`, kg: kd || kp || t.kgRequired }} />
         </Form.Item>
       </Form>

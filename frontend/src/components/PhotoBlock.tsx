@@ -4,6 +4,7 @@ import { App, Button, Image, Space, Upload } from 'antd'
 import { Camera, Sparkles, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { demoTicket, errorMessage, uploadImage } from '@/api/client'
+import { DEMO } from '@/lib/demo'
 
 interface Props {
   photo: string | null | undefined
@@ -29,7 +30,7 @@ export default function PhotoBlock({ photo, onChange, demo, emptyText = 'Chưa c
           <Upload accept="image/*" showUploadList={false} beforeUpload={(file) => { run(() => uploadImage(file)); return false }}>
             <Button size="small" icon={<Camera size={14} />} loading={busy}>{photo ? 'Thay ảnh khác' : 'Chụp / tải ảnh lên'}</Button>
           </Upload>
-          {demo && <Button size="small" icon={<Sparkles size={14} />} disabled={busy} onClick={() => run(() => demoTicket(demo.label, demo.kg))}>Ảnh demo</Button>}
+          {demo && DEMO && <Button size="small" icon={<Sparkles size={14} />} disabled={busy} onClick={() => run(() => demoTicket(demo.label, demo.kg))}>Ảnh demo</Button>}
           {photo && (
             <Button size="small" danger icon={<Trash2 size={14} />} disabled={busy}
               onClick={() => modal.confirm({
@@ -45,5 +46,5 @@ export default function PhotoBlock({ photo, onChange, demo, emptyText = 'Chưa c
 
 /** Input chọn ảnh trong form (trả URL). Dùng cho form điền phiếu. */
 export function PhotoInput({ value, onChange, demo }: { value?: string | null; onChange?: (v: string | null) => void; demo?: { label: string; kg: number } }) {
-  return <PhotoBlock photo={value} onChange={(v) => onChange?.(v)} demo={demo} emptyText="Chưa có ảnh — chụp phiếu ký tay hoặc dùng ảnh demo." />
+  return <PhotoBlock photo={value} onChange={(v) => onChange?.(v)} demo={demo} emptyText="Chưa có ảnh — chụp phiếu ký tay." />
 }
