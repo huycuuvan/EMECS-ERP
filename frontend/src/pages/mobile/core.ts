@@ -50,7 +50,7 @@ export function useMob() {
   return v
 }
 
-export interface MAlert { ic: LucideIcon; t: string; s: string; red?: boolean; open?: [Kind, string] }
+export interface MAlert { ic: LucideIcon; t: string; s: ReactNode; red?: boolean; open?: [Kind, string] }
 
 /* ---------------------------------------------------------------- helpers nghiệp vụ */
 export const num = (v: string | number | null | undefined) => {

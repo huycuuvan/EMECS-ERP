@@ -14,6 +14,7 @@ import { GroupedBar, LegendRow } from '../dashboard/charts'
 import { Panel, StatCell } from '../dashboard/common'
 import { MovementFilterBar, MovementTable, PendingLines, tierTotals, useMovementFilter, type Tier } from '../dashboard/movement'
 import { MODAL_Z, signedKg } from '../mismatches/sign'
+import { CustOrderText } from '@/peek/ContractRef'
 
 const STAT_CSS = `
 .stat5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:16px}
@@ -143,7 +144,7 @@ function TruckModal({ open, rows, onClose }: { open: boolean; rows: Task[]; onCl
   const columns: ColumnsType<Task> = [
     { title: 'Thẻ xe', dataIndex: 'id', render: (id) => <PopLink id={id} type="vc" onNav={onClose} /> },
     { title: 'Phiếu cân gốc', dataIndex: 'refId', render: (id) => <PopLink id={id} type="pc" onNav={onClose} /> },
-    { title: 'Hợp đồng', dataIndex: 'contractId', render: (id) => <PopLink id={id} type="hd" onNav={onClose} /> },
+    { title: 'Hợp đồng', dataIndex: 'contractId', render: (id) => <><PopLink id={id} type="hd" onNav={onClose} /><div className="sub-soft" style={{ fontSize: 11.5 }}><CustOrderText id={id} /></div></> },
     { title: 'Tài xế', dataIndex: 'driver' },
     { title: 'KL cân xuất', dataIndex: 'kgRequired', align: 'right', render: (v) => <b className="num">{fmtKg(v)}</b> },
     {
@@ -168,7 +169,7 @@ function LossModal({ open, rows, onClose, mismatchStatus }: { open: boolean; row
   const columns: ColumnsType<Task> = [
     { title: 'Thẻ xe', dataIndex: 'id', render: (id) => <PopLink id={id} type="vc" onNav={onClose} /> },
     { title: 'Phiếu cân gốc', dataIndex: 'refId', render: (id) => <PopLink id={id} type="pc" onNav={onClose} /> },
-    { title: 'Hợp đồng', dataIndex: 'contractId', render: (id) => <PopLink id={id} type="hd" onNav={onClose} /> },
+    { title: 'Hợp đồng', dataIndex: 'contractId', render: (id) => <><PopLink id={id} type="hd" onNav={onClose} /><div className="sub-soft" style={{ fontSize: 11.5 }}><CustOrderText id={id} /></div></> },
     { title: 'Cân công ty', dataIndex: 'kgRequired', align: 'right', render: (v) => <span className="num">{fmtKg(v)}</span> },
     { title: 'Mạ xác nhận', dataIndex: 'kgAtGalv', align: 'right', render: (v) => <span className="num">{fmtKg(v)}</span> },
     {

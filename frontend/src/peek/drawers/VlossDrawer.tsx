@@ -6,6 +6,7 @@ import { fmtDT, fmtKg } from '@/lib/format'
 import PeekShell from '../PeekShell'
 import RecordLink from '../RecordLink'
 import LinkPills from './task/LinkPills'
+import { CustOrderText } from '@/peek/ContractRef'
 
 export default function VlossDrawer({ id }: { id: string }) {
   const { data: e, isLoading, isError } = useVloss(id)
@@ -34,6 +35,7 @@ export default function VlossDrawer({ id }: { id: string }) {
         {e.resolvedNote && <Cell label="Ghi chú xử lý" wide>{e.resolvedNote}</Cell>}
       </CellGrid>
 
+      <div className="caption" style={{ marginTop: 12 }}><CustOrderText id={e.contractId} prefix={`Hợp đồng ${e.contractId}: `} /></div>
       <LinkPills items={[{ id: e.refId }, { id: e.contractId }]} />
 
     </PeekShell>

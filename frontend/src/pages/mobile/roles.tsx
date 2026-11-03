@@ -28,6 +28,7 @@ import {
   fmtN, hoursLeftOf, isOverdueTask, lsxDeadline, type MAlert, type MRole, ROLES, signed, typeLabel, useMob,
 } from './core'
 import { AlertRow, Btn, Card, DLink, Empty, Kg, Line, Loading, PgRow, SecTitle, StatusChip, TypeChip } from './kit'
+import { CustOrderText } from '@/peek/ContractRef'
 
 /* ---------------------------------------------------------------- khung: header + body + bottom nav */
 interface ShellProps {
@@ -265,7 +266,7 @@ function LsxCard({ x }: { x: Lsx }) {
       {late && <div className="overdue-banner"><Siren />TRỄ HẠN {Math.abs(dl)} ngày — báo Quản lý!</div>}
       <div className="mc-top"><span className="mc-id">{x.id}</span><span className="mc-status"><StatusChip status={x.status} /></span></div>
       <Line vClass="left">{x.name}</Line>
-      <Line k={`HĐ ${x.contractId} · phát ${relTime(x.assignedAt)}`} vClass={'sm ' + (late ? 'red-txt' : '')}>
+      <Line k={<>HĐ {x.contractId}<CustOrderText id={x.contractId} prefix=" (" suffix=")" /> · phát {relTime(x.assignedAt)}</>} vClass={'sm ' + (late ? 'red-txt' : '')}>
         Hạn {fmtD(eff)}{x.extension ? ' (gia hạn)' : ''}{x.status === 'Đang SX' ? (late ? ` · TRỄ ${Math.abs(dl)}d` : ` · còn ${dl}d`) : ''}
       </Line>
       <PgRow label="Khối lượng" done={x.kgDone} plan={x.kgPlan} unit="kg" tone="success" />
@@ -295,7 +296,7 @@ function ReceiptCard({ r, chip, showBy }: { r: Receipt; chip: string; showBy?: b
   return (
     <Card open={['ptn', r.id]}>
       <div className="mc-top"><span className="mc-id">{r.id}</span><span className="mc-status m-chip ok"><CheckCheck />{chip}</span></div>
-      <Line k={`${r.lsxId} · ${r.contractId}`}><Kg value={r.kg} /></Line>
+      <Line k={<>{r.lsxId} · {r.contractId}<CustOrderText id={r.contractId} prefix=" (" suffix=")" /></>}><Kg value={r.kg} /></Line>
       <Line k={`${fmtDT(r.date)} · ${fmtN(r.qty)} SP${showBy ? ' · ' + r.by : ''}`} vClass="light">{showBy ? null : r.note || null}</Line>
       {showBy && r.note && <Line k="Ghi chú" kFix vClass="light">{r.note}</Line>}
     </Card>
@@ -307,7 +308,7 @@ function khoAlerts(ps: Weighing[], ods: OverdueDoc[]): MAlert[] {
   const out: MAlert[] = []
   ps.forEach((p) => {
     if (p.status === 'Chờ cân') out.push({ ic: Scale, t: `${p.id} chờ nhập kết quả cân`, s: `Lệnh xuất ${fmtKg(p.kgExpected)}`, red: true, open: ['pc', p.id] })
-    else if (p.status === 'Lệch — chờ ký') out.push({ ic: AlertTriangle, t: `${p.id} lệch ${signed((p.kgActual ?? 0) - p.kgExpected)} kg — chờ QL ký`, s: `HĐ ${p.contractId}`, red: true, open: ['pc', p.id] })
+    else if (p.status === 'Lệch — chờ ký') out.push({ ic: AlertTriangle, t: `${p.id} lệch ${signed((p.kgActual ?? 0) - p.kgExpected)} kg — chờ QL ký`, s: <>HĐ {p.contractId}<CustOrderText id={p.contractId} prefix=" (" suffix=")" /></>, red: true, open: ['pc', p.id] })
   })
   ods.forEach((d) => {
     if (d.type === 'pc') out.push({ ic: AlarmClock, t: `${d.id} thiếu ${d.missing}`, s: `Quá ${d.hoursOver}h chưa hoàn thiện phiếu`, red: true, open: ['pc', d.id] })
@@ -373,7 +374,7 @@ function PcCard({ p }: { p: Weighing }) {
   return (
     <Card open={['pc', p.id]}>
       <div className="mc-top"><span className="mc-id">{p.id}</span><span className="mc-status"><StatusChip status={p.status} /></span></div>
-      <Line k={`${p.contractId} · ${p.lsxId}`} vClass="light">{fmtDT(p.date)}</Line>
+      <Line k={<>{p.contractId}<CustOrderText id={p.contractId} prefix=" (" suffix=")" /> · {p.lsxId}</>} vClass="light">{fmtDT(p.date)}</Line>
       <Line k="Quản lý giao"><Kg value={p.kgExpected} /></Line>
       {(p.status === 'Chờ cân' || p.status === 'QL từ chối') && <AssignedGoods receiptId={p.receiptId} compact />}
       {p.signers.laiXe && <Line k="Tài xế (QL chỉ định)" vClass="sm">{p.signers.laiXe}{p.vehiclePlate ? ` · ${p.vehiclePlate}` : ''}</Line>}
@@ -449,7 +450,7 @@ function QlHome({ dash }: { dash: Dash }) {
       <SecTitle icon={Siren} count={nWarn} red={nWarn > 0}>Cảnh báo</SecTitle>
       {!nWarn && <Empty icon={ShieldCheck}>Không có cảnh báo — hệ thống sạch.</Empty>}
       {nMiss.map((x) => <AlertRow key={x.id} a={{ ic: Factory, t: `${x.id} — hôm qua ${ddmm(x.missedDays[0])} xưởng KHÔNG cập nhật sản lượng`, s: `${x.name}${x.missedDays.length > 1 ? ` · bỏ trống ${x.missedDays.length} ngày` : ''}`, red: true, open: ['lsx', x.id] }} />)}
-      {ods.map((d) => <AlertRow key={d.id} a={{ ic: AlarmClock, t: `${d.kind} ${d.id} — QUÁ HẠN ${d.hoursOver}h`, s: `${d.person} (${d.dept}) còn thiếu: ${d.missing} · HĐ ${d.contractId}`, red: true, open: [d.type, d.id] }} />)}
+      {ods.map((d) => <AlertRow key={d.id} a={{ ic: AlarmClock, t: `${d.kind} ${d.id} — QUÁ HẠN ${d.hoursOver}h`, s: <>{d.person} ({d.dept}) còn thiếu: {d.missing} · HĐ {d.contractId}<CustOrderText id={d.contractId} prefix=" (" suffix=")" /></>, red: true, open: [d.type, d.id] }} />)}
       {lxr.map((x) => x.extRequest && <AlertRow key={x.id} a={{ ic: CalendarClock, t: `${x.id} — xưởng xin gia hạn +${x.extRequest.days} ngày`, s: `${x.extRequest.by}: ${x.extRequest.reason} · hạn hiện tại ${fmtD(x.extension?.to ?? x.deadline)}`, red: true, open: ['lsx', x.id] }} />)}
       {nvl.map((mt) => <AlertRow key={mt.id} a={{ ic: PackagePlus, t: `Phiếu nhập NVL ${mt.id} chờ Quản lý duyệt`, s: `${mt.supplier} · ${fmtN(mt.kg)} kg${mt.kgSupplier != null && Math.abs(mt.kg - mt.kgSupplier) > 0.5 ? ` (NCC ${fmtN(mt.kgSupplier)} kg)` : ''} · duyệt trên máy tính`, red: false }} />)}
 
@@ -473,7 +474,7 @@ function QlHome({ dash }: { dash: Dash }) {
         return (
           <Card key={t.id} open={['vc', t.id]}>
             <div className="mc-top"><TypeChip type={t.type} /><span className="mc-id">{t.id}</span><span className="mc-status"><StatusChip status={t.status} /></span></div>
-            <Line k={`${t.driver} · HĐ ${t.contractId}`} vClass="sm">{fmtN(t.kgRequired)} kg</Line>
+            <Line k={<>{t.driver} · HĐ {t.contractId}<CustOrderText id={t.contractId} prefix=" (" suffix=")" /></>} vClass="sm">{fmtN(t.kgRequired)} kg</Line>
             {rej ? <Line k="Lý do" kFix vClass="red-txt sm">{t.rejectReason}</Line> : <Line k={`Giao ${relTime(t.assignedAt)}`} vClass="sm">chờ lái xe xác nhận</Line>}
           </Card>
         )
@@ -492,7 +493,7 @@ function MismatchList({ list }: { list: Mismatch[] }) {
         return (
           <Card key={mm.id} open={['sl', mm.id]} overdue={pending}>
             <div className="mc-top"><span className="mc-id">{mm.id}</span><span className="mc-status"><StatusChip status={mm.status} /></span></div>
-            <Line k={`${mm.source} · ${mm.refId} · HĐ ${mm.contractId}`} />
+            <Line k={<>{mm.source} · {mm.refId} · HĐ {mm.contractId}<CustOrderText id={mm.contractId} prefix=" (" suffix=")" /></>} />
             <Line k="Kỳ vọng / thực tế">{fmtN(mm.expected)} / {fmtN(mm.actual)} kg</Line>
             <Line k="Chênh lệch"><span className="mc-kg red-txt">{signed(mm.delta)} <small className="red-txt">kg</small></span></Line>
             <Line k="Lý do" kFix vClass="light">{mm.reason}{mm.reasonNote ? ` — ${mm.reasonNote}` : ''}</Line>

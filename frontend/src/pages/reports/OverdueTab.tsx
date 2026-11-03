@@ -11,6 +11,7 @@ import { fmtDT } from '@/lib/format'
 import RecordLink from '@/peek/RecordLink'
 import { usePeek } from '@/peek/context'
 import { Panel } from '../dashboard/common'
+import ContractRef from '@/peek/ContractRef'
 
 type Row = (OverdueDoc & { group?: false; key: string }) | { group: true; key: string; label: string; count: number }
 
@@ -47,7 +48,7 @@ export default function OverdueTab() {
         : r.kind,
     },
     { title: 'Mã', key: 'id', onCell: (r) => span(r), render: (_, r) => !r.group && <RecordLink id={r.id} type={r.type} danger /> },
-    { title: 'Hợp đồng', key: 'hd', onCell: (r) => span(r), render: (_, r) => !r.group && <RecordLink id={r.contractId} type="hd" style={{ color: 'var(--rust)' }} /> },
+    { title: 'Hợp đồng', key: 'hd', onCell: (r) => span(r), render: (_, r) => !r.group && <ContractRef id={r.contractId} style={{ color: 'var(--rust)' }} /> },
     { title: 'Thiếu gì', key: 'missing', onCell: (r) => span(r), render: (_, r) => !r.group && <span className="text-signal" style={{ fontWeight: 600 }}>Thiếu {r.missing}</span> },
     { title: 'Hạn điền', key: 'deadline', onCell: (r) => span(r), render: (_, r) => !r.group && <span className="num" style={{ whiteSpace: 'nowrap' }}>{fmtDT(r.deadline)}</span> },
     {

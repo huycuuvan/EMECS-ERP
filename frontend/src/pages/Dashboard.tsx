@@ -31,6 +31,7 @@ import { MovementFilterBar, MovementTable, PendingLines, tierTotals, useMovement
 import { signedKg, useSignMismatchDialog } from './mismatches/sign'
 import CustomerTags from './orders/CustomerTags'
 import { TagFilter } from './customers/tags'
+import { CustOrderText } from '@/peek/ContractRef'
 
 const DONUT_COLORS = ['#1e6b3a', '#4b5563', '#e30f1b', '#8a6100', '#d4d5d9']
 const tons1 = (kg: number) => Math.round(kg / 100) / 10
@@ -91,7 +92,7 @@ export default function Dashboard() {
             {d.overdueDocs.length ? d.overdueDocs.map((o) => (
               <AlertItem key={o.type + o.id} onClick={() => open(o.type, o.id)}
                 t1={<><span className="mono text-signal" style={{ fontWeight: 700 }}>{o.id}</span> · {o.person} ({o.dept})</>}
-                t2={<>{o.kind} · HĐ <RecordLink id={o.contractId} type="hd" /> · thiếu <b className="text-signal">{o.missing}</b></>}
+                t2={<>{o.kind} · HĐ <RecordLink id={o.contractId} type="hd" /><CustOrderText id={o.contractId} prefix=" (" suffix=")" /> · thiếu <b className="text-signal">{o.missing}</b></>}
                 right={<Chip tone="over" blink icon={<TimerOff size={11} />}>quá hạn {o.hoursOver}h</Chip>} />
             )) : <AlertEmpty>Mọi thẻ / phiếu đã điền đủ số và ảnh.</AlertEmpty>}
           </AlertCard>
@@ -101,7 +102,7 @@ export default function Dashboard() {
           <AlertCard icon={<Scale size={15} color="var(--rust)" />} title="Sai lệch cân chờ Quản lý ký" count={pm.length} bad>
             {pm.length ? pm.map((m) => (
               <AlertItem key={m.id} onClick={() => open('sl', m.id)}
-                t1={<><span className="mono" style={{ fontWeight: 700 }}>{m.id}</span> · phiếu <RecordLink id={m.refId} type={m.refType} /> · HĐ <RecordLink id={m.contractId} type="hd" /></>}
+                t1={<><span className="mono" style={{ fontWeight: 700 }}>{m.id}</span> · phiếu <RecordLink id={m.refId} type={m.refType} /> · HĐ <RecordLink id={m.contractId} type="hd" /><CustOrderText id={m.contractId} prefix=" (" suffix=")" /></>}
                 t2={<>{m.reason || m.source} · {m.reportedBy} ({m.dept}) · {fmtDT(m.date)}</>}
                 right={<>
                   <span className="mono num text-signal" style={{ fontWeight: 700, fontSize: 12.5, whiteSpace: 'nowrap' }}>{signedKg(m.delta)}</span>
@@ -158,7 +159,7 @@ export default function Dashboard() {
             {d.lsxMissedYesterday.map((x) => (
               <AlertItem key={x.id} onClick={() => open('lsx', x.id)}
                 t1={<><span className="mono text-signal" style={{ fontWeight: 700 }}>{x.id}</span> · {x.name}</>}
-                t2={<>HĐ <RecordLink id={x.contractId} type="hd" /> · lũy kế {fmtKg(x.kgDone)} / {fmtKg(x.kgPlan)}
+                t2={<>HĐ <RecordLink id={x.contractId} type="hd" /><CustOrderText id={x.contractId} prefix=" (" suffix=")" /> · lũy kế {fmtKg(x.kgDone)} / {fmtKg(x.kgPlan)}
                   {x.lastUpdateAt ? <> · nhập gần nhất {fmtDT(x.lastUpdateAt)}</> : ' · chưa nhập lần nào'}</>}
                 right={<Chip tone="over" icon={<AlertTriangle size={11} />}>{x.missedDays.length > 1 ? `Bỏ trống ${x.missedDays.length} ngày` : `Hôm qua ${ddmm(x.missedDays[0])}`}</Chip>} />
             ))}
@@ -169,12 +170,12 @@ export default function Dashboard() {
           {d.pendingLSX.map((x) => x.status === 'Chờ nhận' ? (
             <AlertItem key={x.id} onClick={() => open('lsx', x.id)}
               t1={<><span className="mono" style={{ fontWeight: 700 }}>{x.id}</span> · {x.name}</>}
-              t2={<>HĐ <RecordLink id={x.contractId} type="hd" /> · phát lệnh {fmtDT(x.assignedAt)}</>}
+              t2={<>HĐ <RecordLink id={x.contractId} type="hd" /><CustOrderText id={x.contractId} prefix=" (" suffix=")" /> · phát lệnh {fmtDT(x.assignedAt)}</>}
               right={<Chip tone="soon" icon={<Hourglass size={11} />}>Xưởng chưa nhận · {relTime(x.assignedAt)}</Chip>} />
           ) : (
             <AlertItem key={x.id} onClick={() => open('lsx', x.id)}
               t1={<><span className="mono text-signal" style={{ fontWeight: 700 }}>{x.id}</span> · {x.name}</>}
-              t2={<>HĐ <RecordLink id={x.contractId} type="hd" /> · lý do: <b className="text-signal">{x.rejectReason || '—'}</b></>}
+              t2={<>HĐ <RecordLink id={x.contractId} type="hd" /><CustOrderText id={x.contractId} prefix=" (" suffix=")" /> · lý do: <b className="text-signal">{x.rejectReason || '—'}</b></>}
               right={<Chip tone="over" icon={<XCircle size={11} />}>SX TỪ CHỐI</Chip>} />
           ))}
           {d.pendingTasks.map((t) => {
@@ -182,12 +183,12 @@ export default function Dashboard() {
             return t.status === 'Chờ xác nhận' ? (
               <AlertItem key={t.id} onClick={() => open('vc', t.id)}
                 t1={<><span className="mono" style={{ fontWeight: 700 }}>{t.id}</span> · {t.driver}</>}
-                t2={<>{kindLbl} · HĐ <RecordLink id={t.contractId} type="hd" /> · {fmtKg(t.kgRequired)}</>}
+                t2={<>{kindLbl} · HĐ <RecordLink id={t.contractId} type="hd" /><CustOrderText id={t.contractId} prefix=" (" suffix=")" /> · {fmtKg(t.kgRequired)}</>}
                 right={<Chip tone="soon" icon={<Hourglass size={11} />}>Tài xế chưa nhận · {relTime(t.assignedAt)}</Chip>} />
             ) : (
               <AlertItem key={t.id} onClick={() => open('vc', t.id)}
                 t1={<><span className="mono text-signal" style={{ fontWeight: 700 }}>{t.id}</span> · {t.driver}</>}
-                t2={<>{kindLbl} · HĐ <RecordLink id={t.contractId} type="hd" /> · lý do: <b className="text-signal">{t.rejectReason || '—'}</b></>}
+                t2={<>{kindLbl} · HĐ <RecordLink id={t.contractId} type="hd" /><CustOrderText id={t.contractId} prefix=" (" suffix=")" /> · lý do: <b className="text-signal">{t.rejectReason || '—'}</b></>}
                 right={<Chip tone="over" icon={<XCircle size={11} />}>TỪ CHỐI</Chip>} />
             )
           })}

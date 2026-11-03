@@ -20,6 +20,7 @@ import RecordLink from '@/peek/RecordLink'
 import { C } from '@/theme'
 import { WeighActions } from './receipts/WeighApproval'
 import { isMissing, isOverdue, PC_FILL_HOURS, useWeighingActions } from './weighings/WeighingModals'
+import ContractRef, { CustOrderText } from '@/peek/ContractRef'
 
 const sub = { color: C.ash, fontSize: 11, marginTop: 2 }
 const sameMonth = (iso?: string | null) => {
@@ -85,7 +86,7 @@ export default function Weighings() {
         )
       },
     },
-    { title: 'Hợp đồng', key: 'hd', render: (_, p) => <RecordLink id={p.contractId} style={{ color: C.rust, fontSize: 12 }} /> },
+    { title: 'Hợp đồng', key: 'hd', render: (_, p) => <ContractRef id={p.contractId} style={{ color: C.rust, fontSize: 12 }} /> },
     { title: 'Lệnh SX', key: 'lsx', render: (_, p) => <RecordLink id={p.lsxId} style={{ color: C.rust, fontSize: 12 }} /> },
     { title: 'KL theo lệnh xuất', key: 'exp', align: 'right', render: (_, p) => <span className="mono num" style={{ fontWeight: 600 }}>{fmtKg(p.kgExpected)}</span> },
     {
@@ -267,7 +268,7 @@ function LegStrip({ tasks, weighings, contractId }: { tasks: Task[]; weighings: 
   return (
     <Card styles={{ body: { padding: 14 } }} style={{ marginBottom: 12 }}>
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
-        Khối lượng theo chặng {contractId ? <>— HĐ <RecordLink id={contractId} style={{ color: C.rust }} /></> : '— tất cả hợp đồng'}
+        Khối lượng theo chặng {contractId ? <>— HĐ <RecordLink id={contractId} style={{ color: C.rust }} /><CustOrderText id={contractId} prefix=" (" suffix=")" /></> : '— tất cả hợp đồng'}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
         {legs.map((l, i) => (

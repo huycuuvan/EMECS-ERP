@@ -13,6 +13,7 @@ import RecordLink from '@/peek/RecordLink'
 import { KindChip } from '../Vehicles'
 import { Panel, StatCell } from '../dashboard/common'
 import { TypeChip } from '../tasks/util'
+import ContractRef from '@/peek/ContractRef'
 
 const PRESETS: { label: string; value: [Dayjs, Dayjs] }[] = [
   { label: '7 ngày qua', value: [dayjs().subtract(7, 'day'), dayjs()] },
@@ -27,7 +28,7 @@ function Trips({ trips }: { trips: VehicleTrip[] }) {
     { title: 'Loại', key: 'type', render: (_, t) => <TypeChip type={t.type} /> },
     { title: 'Ngày', key: 'date', render: (_, t) => <span className="num">{fmtDT(t.date)}</span> },
     { title: 'Tài xế', key: 'drv', dataIndex: 'driver' },
-    { title: 'HĐ', key: 'hd', render: (_, t) => <RecordLink id={t.contractId} type="hd" /> },
+    { title: 'HĐ', key: 'hd', render: (_, t) => <ContractRef id={t.contractId} /> },
     { title: 'KG yêu cầu', key: 'req', align: 'right', render: (_, t) => <span className="num">{fmtKg(t.kgRequired)}</span> },
     { title: 'Số cân điền', key: 'kg', align: 'right', render: (_, t) => t.kg == null ? <span className="text-amber">chưa điền</span> : <span className="num">{fmtKg(t.kg)}</span> },
     { title: 'Lệch', key: 'delta', align: 'right', render: (_, t) => t.delta ? <b className="num text-signal">{fmtDelta(t.delta)}</b> : <span className="text-ash">—</span> },

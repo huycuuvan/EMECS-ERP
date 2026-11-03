@@ -15,6 +15,7 @@ import { C } from '@/theme'
 import CreateReceiptModal from './receipts/CreateReceiptModal'
 import { useWeighingActions } from './weighings/WeighingModals'
 import { WeighActions, WeighResult } from './receipts/WeighApproval'
+import ContractRef from '@/peek/ContractRef'
 
 const sub = { color: C.ash, fontSize: 11, marginTop: 2 }
 const sameMonth = (iso?: string | null) => {
@@ -58,7 +59,7 @@ export default function Receipts() {
   const columns: TableColumnsType<Receipt> = [
     { title: 'Mã phiếu', key: 'id', render: (_, r) => <span className="mono" style={{ fontWeight: 600 }}>{r.id}</span> },
     { title: 'Lệnh SX', key: 'lsx', render: (_, r) => <RecordLink id={r.lsxId} style={{ color: C.rust, fontSize: 12 }} /> },
-    { title: 'Hợp đồng', key: 'hd', render: (_, r) => <RecordLink id={r.contractId} style={{ color: C.rust, fontSize: 12 }} /> },
+    { title: 'Hợp đồng', key: 'hd', render: (_, r) => <ContractRef id={r.contractId} style={{ color: C.rust, fontSize: 12 }} /> },
     { title: 'Ngày giờ', key: 'date', render: (_, r) => <div><span className="num">{fmtDT(r.date)}</span><div style={sub}>{relTime(r.date)}</div></div> },
     { title: 'QL giao', key: 'kg', align: 'right', render: (_, r) => <span className="mono num" style={{ fontWeight: 700 }}>{fmtKg(r.kg)}</span> },
     { title: 'Tài xế', key: 'driver', render: (_, r) => { const p = wOf[r.id]; return p?.signers.laiXe ? <div>{p.signers.laiXe}{p.vehiclePlate && <div style={sub} className="mono">{p.vehiclePlate}</div>}</div> : <span className="text-ash">—</span> } },

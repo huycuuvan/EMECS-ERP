@@ -14,6 +14,7 @@ import { isOverdue, PC_FILL_HOURS, useWeighingActions } from '@/pages/weighings/
 import { C } from '@/theme'
 import PeekShell from '../PeekShell'
 import RecordLink from '../RecordLink'
+import { CustOrderText } from '@/peek/ContractRef'
 
 export default function WeighingDrawer({ id }: { id: string }) {
   const { data: p, isLoading, isError } = useWeighing(id)
@@ -44,7 +45,7 @@ export default function WeighingDrawer({ id }: { id: string }) {
   )
 
   return (
-    <PeekShell type="pc" id={p.id} status={p.status} actions={actions} sub={`HĐ ${p.contractId} · LSX ${p.lsxId}`}>
+    <PeekShell type="pc" id={p.id} status={p.status} actions={actions} sub={<>HĐ {p.contractId}<CustOrderText id={p.contractId} prefix=" (" suffix=")" /> · LSX {p.lsxId}</>}>
       <Sec icon={<Info />}>Thông tin cân</Sec>
       <CellGrid>
         <Cell label="Ngày cân" alert={overdue}>

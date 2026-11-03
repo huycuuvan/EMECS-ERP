@@ -9,6 +9,7 @@ import { fmtDT, fmtKg, custOrder } from '@/lib/format'
 import RecordLink from '@/peek/RecordLink'
 import { usePeek } from '@/peek/context'
 import { Chip, KindBadge, type ChipTone } from './common'
+import ContractRef from '@/peek/ContractRef'
 
 export const KINDS = ['Chuẩn bị hàng', 'Cân xuất đi mạ', 'Nhập xưởng mạ', 'Giao khách'] as const
 
@@ -103,7 +104,7 @@ export function MovementTable({ rows, loading, nullText = 'CHƯA ĐIỀN', whoTi
     { title: 'Ngày giờ', dataIndex: 'date', width: 110, render: (d) => <span className="num" style={{ whiteSpace: 'nowrap' }}>{fmtDT(d)}</span> },
     { title: 'Loại phiếu', dataIndex: 'kind', width: 140, render: (k) => <KindBadge kind={k} /> },
     { title: 'Mã phiếu', dataIndex: 'id', width: 110, render: (id, r) => <RecordLink id={id} type={r.type} style={{ color: 'var(--rust)' }} /> },
-    { title: 'Hợp đồng', dataIndex: 'contractId', width: 120, render: (id) => <RecordLink id={id} type="hd" /> },
+    { title: 'Hợp đồng', dataIndex: 'contractId', width: 120, render: (id) => <ContractRef id={id} /> },
     {
       title: 'Khối lượng', dataIndex: 'kg', align: 'right', width: 120,
       render: (kg, r) => kg != null ? <b className="num mono" style={r.state && r.state !== MV_OK ? { color: 'var(--amber)' } : undefined}>{fmtKg(kg)}</b> : <>

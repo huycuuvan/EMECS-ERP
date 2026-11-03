@@ -17,6 +17,7 @@ import { fmtN, isOverdueTask, type Kind, lsxDeadline, signed, useMob } from './c
 import { Btn, DGrid, DItem, DLink, Empty, Loading, PgRow, PhotoManage, SecTitle, StatusChip, TypeChip } from './kit'
 import { useSignFlow } from './sign'
 import { TaskRoute } from './route'
+import { CustOrderText } from '@/peek/ContractRef'
 
 const NotFound = ({ id }: { id: string }) => <Empty icon={Inbox}>Không tìm thấy bản ghi {id}.</Empty>
 
@@ -49,7 +50,7 @@ function DetailLsx({ id }: { id: string }) {
       </div>
       <DGrid>
         <DItem k="Tên lệnh" full small>{x.name}</DItem>
-        <DItem k="Hợp đồng"><DLink kind="hd" id={x.contractId} /></DItem>
+        <DItem k="Hợp đồng" sub={<CustOrderText id={x.contractId} />}><DLink kind="hd" id={x.contractId} /></DItem>
         <DItem k="Hạn hoàn thành"><span className={late ? 'red-txt' : ''}>{fmtD(eff)}{x.extension && <small> (gia hạn)</small>}</span></DItem>
         <DItem k="Phát lệnh" sub={x.assignedBy}>{fmtDT(x.assignedAt)}</DItem>
         <DItem k="Xưởng nhận" sub={x.acceptedBy ?? undefined}>{x.acceptedAt ? fmtDT(x.acceptedAt) : '—'}</DItem>
@@ -120,7 +121,7 @@ function DetailPc({ id }: { id: string }) {
     <>
       <div className="mc-top" style={{ marginBottom: 4 }}><StatusChip status={p.status} /></div>
       <DGrid>
-        <DItem k="Hợp đồng"><DLink kind="hd" id={p.contractId} /></DItem>
+        <DItem k="Hợp đồng" sub={<CustOrderText id={p.contractId} />}><DLink kind="hd" id={p.contractId} /></DItem>
         <DItem k="Lệnh SX"><DLink kind="lsx" id={p.lsxId} /></DItem>
         <DItem k="Ngày cân">{fmtDT(p.date)}</DItem>
         <DItem k="Người lập" small>{p.by}</DItem>
@@ -155,7 +156,7 @@ function DetailPtn({ id }: { id: string }) {
       <div className="mc-top" style={{ marginBottom: 4 }}><span className="m-chip ok"><CheckCheck />Đã tiếp nhận</span></div>
       <DGrid>
         <DItem k="Lệnh SX"><DLink kind="lsx" id={r.lsxId} /></DItem>
-        <DItem k="Hợp đồng"><DLink kind="hd" id={r.contractId} /></DItem>
+        <DItem k="Hợp đồng" sub={<CustOrderText id={r.contractId} />}><DLink kind="hd" id={r.contractId} /></DItem>
         <DItem k="Ngày nhận">{fmtDT(r.date)}</DItem>
         <DItem k="Người nhận" small>{r.by}</DItem>
         <DItem k="Số lượng">{fmtN(r.qty)} SP</DItem>
@@ -180,7 +181,7 @@ function DetailVc({ id }: { id: string }) {
       <div className="mc-top" style={{ marginBottom: 4 }}><TypeChip type={t.type} /><StatusChip status={t.status} overdue={overdue} /></div>
       <TaskRoute t={t} />
       <DGrid>
-        <DItem k="Hợp đồng"><DLink kind="hd" id={t.contractId} /></DItem>
+        <DItem k="Hợp đồng" sub={<CustOrderText id={t.contractId} />}><DLink kind="hd" id={t.contractId} /></DItem>
         <DItem k="Chứng từ gốc">{t.refId ? <DLink id={t.refId} /> : '—'}</DItem>
         <DItem k="Tài xế" small>{t.driver}</DItem>
         <DItem k="Giao việc">{fmtDT(t.assignedAt)}</DItem>
@@ -226,7 +227,7 @@ function DetailSl({ id }: { id: string }) {
       <DGrid>
         <DItem k="Nguồn phát sinh" small>{s.source}</DItem>
         <DItem k="Chứng từ"><DLink kind={s.refType} id={s.refId} /></DItem>
-        <DItem k="Hợp đồng"><DLink kind="hd" id={s.contractId} /></DItem>
+        <DItem k="Hợp đồng" sub={<CustOrderText id={s.contractId} />}><DLink kind="hd" id={s.contractId} /></DItem>
         <DItem k="Ngày ghi nhận">{fmtDT(s.date)}</DItem>
         <DItem k="Kỳ vọng">{fmtN(s.expected)} kg</DItem>
         <DItem k="Thực tế">{fmtN(s.actual)} kg</DItem>

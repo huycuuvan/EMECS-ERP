@@ -3,12 +3,12 @@ import { Button, Input, Select, Table, Tabs } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { Info, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useMeta, useTasks } from '@/api/hooks'
+import { useContracts, useMeta, useTasks } from '@/api/hooks'
 import type { Task } from '@/api/types'
 import ExportButton from '@/components/ExportButton'
 import { Kpi, KpiGrid, PageHeader } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { fmtDT, fmtKg, hoursOver, relTime } from '@/lib/format'
+import { custOrder, fmtDT, fmtKg, hoursOver, relTime } from '@/lib/format'
 import { usePeek } from '@/peek/context'
 import RecordLink from '@/peek/RecordLink'
 import CreateTaskModal from './tasks/CreateTaskModal'
@@ -16,6 +16,7 @@ import TaskActions from './tasks/TaskActions'
 import { TaskAdminActions } from './tasks/TaskEditModals'
 import { isOverdue, useNow } from './tasks/logic'
 import { DueCell, KgCell, PhotoCell, RefCell, TaskStatusTag, TypeChip } from './tasks/util'
+import ContractRef from '@/peek/ContractRef'
 
 type TabKey = 'all' | 'cho' | 'dang' | 'quahan' | 'duyet' | 'xong' | 'tuchoi'
 
@@ -29,6 +30,7 @@ const panel = { background: 'var(--canvas)', border: '1px solid var(--rule)', bo
 export default function Tasks() {
   const { data: tasks = [], isLoading } = useTasks()
   const { data: meta } = useMeta()
+  const { data: cs = [] } = useContracts()
   const { can, hasRole } = useAuth()
   const { open } = usePeek()
   const now = useNow()
@@ -73,7 +75,7 @@ export default function Tasks() {
       <div><span className="mono" style={{ fontWeight: 700 }}>{t.id}</span><div className="caption" style={{ fontSize: 11 }}>{relTime(t.assignedAt)}</div></div>) },
     { title: 'Loại việc', dataIndex: 'type', render: (_, t) => <TypeChip type={t.type} /> },
     { title: 'Tài xế', dataIndex: 'driver', render: (_, t) => <>{t.driver}{t.vehiclePlate && <div className="caption mono" style={{ fontSize: 11 }}>{t.vehiclePlate}</div>}</> },
-    { title: 'HĐ', dataIndex: 'contractId', render: (v: string) => <RecordLink id={v} style={{ color: 'var(--rust)', fontSize: 12 }} /> },
+    { title: 'HĐ', dataIndex: 'contractId', width: 170, render: (v: string) => <ContractRef id={v} style={{ color: 'var(--rust)', fontSize: 12 }} /> },
     { title: 'Chứng từ gốc', dataIndex: 'refId', render: (_, t) => <RefCell t={t} /> },
     { title: 'Có mặt lúc', dataIndex: 'arriveAt', render: (_, t) => t.arriveAt
       ? <span className="num" style={{ fontSize: 12 }}>{fmtDT(t.arriveAt)}{t.deliver?.address && <div className="caption" style={{ fontSize: 11, maxWidth: 200 }}>{t.deliver.address}</div>}</span>
@@ -122,7 +124,7 @@ export default function Tasks() {
           <Select allowClear placeholder="Tất cả tài xế" value={driver} onChange={setDriver} style={{ minWidth: 180 }}
             options={(meta?.drivers ?? []).map((d) => ({ value: d, label: d }))} />
           <Select allowClear placeholder="Tất cả hợp đồng" value={contract} onChange={setContract} style={{ minWidth: 170 }}
-            options={contractIds.map((c) => ({ value: c, label: c }))} />
+            options={contractIds.map((c) => { const t = custOrder(cs.find((x) => x.id === c)); return { value: c, label: t ? `${c} — ${t}` : c } })} />
           <span className="caption" style={{ marginLeft: 'auto' }}>{rows.length} thẻ</span>
         </div>
         <Table<Task> rowKey="id" size="middle" loading={isLoading} dataSource={rows} columns={columns} scroll={{ x: 1200 }}

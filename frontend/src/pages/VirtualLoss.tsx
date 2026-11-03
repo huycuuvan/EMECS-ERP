@@ -13,8 +13,8 @@ import { Kpi, KpiGrid, PageHeader, StatusTag } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { fmtDT, fmtKg } from '@/lib/format'
 import { usePeek } from '@/peek/context'
-import RecordLink from '@/peek/RecordLink'
 import { SrcChip } from './vloss/SrcChip'
+import ContractRef from '@/peek/ContractRef'
 
 const panel = { background: 'var(--canvas)', border: '1px solid var(--rule)', borderRadius: 12, padding: 18 }
 const PREP = 'Cân xuất (chuẩn bị hàng)'
@@ -68,8 +68,8 @@ export default function VirtualLoss() {
   const columns: ColumnsType<VLoss> = [
     { title: 'Bút toán', dataIndex: 'id', render: (_, e) => <div><span className="mono" style={{ fontWeight: 700 }}>{e.id}</span><div className="caption num" style={{ fontSize: 11 }}>{fmtDT(e.date)}</div></div> },
     { title: 'Nguồn chênh', dataIndex: 'source', render: (v: string) => <SrcChip src={v} /> },
-    { title: 'Phiếu gốc', dataIndex: 'refId', render: (v: string) => <RecordLink id={v} style={{ color: 'var(--rust)' }} /> },
-    { title: 'Hợp đồng', dataIndex: 'contractId', render: (v: string) => <RecordLink id={v} style={{ color: 'var(--rust)' }} /> },
+    { title: 'Phiếu gốc', dataIndex: 'refId', render: (v: string) => <ContractRef id={v} style={{ color: 'var(--rust)' }} /> },
+    { title: 'Hợp đồng', dataIndex: 'contractId', render: (v: string) => <ContractRef id={v} style={{ color: 'var(--rust)' }} /> },
     { title: 'KL chênh', dataIndex: 'kg', align: 'right', render: (v: number, e) => <span className="num mono" style={{ fontWeight: 700, color: 'var(--steel)' }}>{fmtKg(Math.abs(v))}<div className="caption" style={{ fontSize: 11 }}>{word(v, e.refType === 'nl')}</div></span> },
     { title: 'Công thức tính chênh', key: 'formula', width: 300, render: (_, e) => e.formula
       ? <div style={{ fontSize: 12, lineHeight: 1.5 }}>

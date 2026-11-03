@@ -14,6 +14,7 @@ import { WeighActions, WeighResult } from '@/pages/receipts/WeighApproval'
 import { C } from '@/theme'
 import PeekShell from '../PeekShell'
 import RecordLink from '../RecordLink'
+import ContractRef from '@/peek/ContractRef'
 
 export default function ReceiptDrawer({ id }: { id: string }) {
   const { data: r, isLoading, isError } = useReceipt(id)
@@ -47,7 +48,7 @@ export default function ReceiptDrawer({ id }: { id: string }) {
         {r.qty > 0 && !r.items?.length && <Cell label="Số lượng">{fmtNum(r.qty)} SP</Cell>}
         <Cell label="Khối lượng" big>{fmtKg(r.kg)}</Cell>
         <Cell label="Lệnh SX"><RecordLink id={r.lsxId} style={{ color: C.rust }} />{x && <div className="caption" style={{ fontWeight: 400 }}>{x.name}</div>}</Cell>
-        <Cell label="Hợp đồng"><RecordLink id={r.contractId} style={{ color: C.rust }} /></Cell>
+        <Cell label="Hợp đồng"><ContractRef id={r.contractId} style={{ color: C.rust }} /></Cell>
         <Cell label="Ghi chú" wide>{r.note || '—'}</Cell>
       </CellGrid>
       {(() => {

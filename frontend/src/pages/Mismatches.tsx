@@ -15,6 +15,7 @@ import { usePeek } from '@/peek/context'
 import { Donut, HBar, LegendRow } from './dashboard/charts'
 import { Grid, Panel } from './dashboard/common'
 import { SRC, SrcChip, signedKg, useSignMismatchDialog } from './mismatches/sign'
+import ContractRef from '@/peek/ContractRef'
 
 type TabKey = 'pending' | 'signed' | 'all'
 
@@ -61,7 +62,7 @@ export default function Mismatches() {
     { title: 'Mã', dataIndex: 'id', width: 90, render: (id) => <span className="mono" style={{ fontWeight: 700 }}>{id}</span> },
     { title: 'Điểm phát sinh', dataIndex: 'source', render: (s) => <SrcChip source={s} /> },
     { title: 'Chứng từ gốc', dataIndex: 'refId', render: (id, m) => <RecordLink id={id} type={m.refType} style={{ color: 'var(--rust)' }} /> },
-    { title: 'Hợp đồng', dataIndex: 'contractId', render: (id) => <RecordLink id={id} type="hd" style={{ color: 'var(--rust)' }} /> },
+    { title: 'Hợp đồng', dataIndex: 'contractId', render: (id) => <ContractRef id={id} style={{ color: 'var(--rust)' }} /> },
     { title: 'Kỳ vọng', dataIndex: 'expected', align: 'right', render: (v) => <span className="num" style={{ whiteSpace: 'nowrap' }}>{fmtKg(v)}</span> },
     { title: 'Thực tế', dataIndex: 'actual', align: 'right', render: (v) => <span className="num" style={{ whiteSpace: 'nowrap' }}>{fmtKg(v)}</span> },
     {

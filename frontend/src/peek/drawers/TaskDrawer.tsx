@@ -15,6 +15,7 @@ import { countdown, hoursOverAt, isOverdue, useNow } from '@/pages/tasks/logic'
 import PeekShell from '../PeekShell'
 import RecordLink from '../RecordLink'
 import LinkPills from './task/LinkPills'
+import { CustOrderText } from '@/peek/ContractRef'
 
 export default function TaskDrawer({ id }: { id: string }) {
   const { data: t, isLoading, isError } = useTask(id)
@@ -32,7 +33,7 @@ export default function TaskDrawer({ id }: { id: string }) {
 
   const sub = (
     <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      {t.driver} · HĐ {t.contractId} · {fmtKg(t.kgRequired)}
+      {t.driver} · HĐ {t.contractId}<CustOrderText id={t.contractId} prefix=" (" suffix=")" /> · {fmtKg(t.kgRequired)}
       {over && <Tag variant="filled" className="chip-overdue" style={{ background: 'var(--signal-soft)', color: 'var(--signal)', fontWeight: 700, borderRadius: 999, margin: 0, display: 'inline-flex', gap: 4, alignItems: 'center' }}>
         <AlarmClock size={11} />QUÁ HẠN ĐIỀN {hoursOverAt(t.fillDeadline!, now)}h</Tag>}
     </span>
