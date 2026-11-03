@@ -563,7 +563,7 @@ function QlReport({ dash, days, setDays }: { dash: Dash; days: number; setDays: 
           <div className="rpt-grid">
             {tile(Factory, 'SX bàn giao kho', kgSX)}
             {tile(Scale, 'Cân xuất đi mạ', kgCan)}
-            {tile(Flame, 'Đến xưởng mạ', kgMa)}
+            {tile(Flame, 'Xưởng mạ nhận hàng đen', kgMa)}
             {tile(PackageCheck, 'Giao khách ký', kgGiao)}
           </div>
           {Math.abs(chenh) > 0.5

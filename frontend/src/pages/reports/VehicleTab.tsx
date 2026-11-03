@@ -57,7 +57,7 @@ export default function VehicleTab() {
       title: 'Chuyến', key: 'trips', align: 'right', sorter: (a, b) => a.tripCount - b.tripCount,
       render: (_, r) => <span className="num"><b>{r.tripCount}</b><div className="sub-soft">{r.diMaTrips} đi mạ · {r.giaoTrips} giao</div></span>,
     },
-    { title: 'Đến xưởng mạ', key: 'galv', align: 'right', sorter: (a, b) => a.kgToGalv - b.kgToGalv, render: (_, r) => <span className="num">{fmtKg(r.kgToGalv)}</span> },
+    { title: 'Xưởng mạ nhận hàng đen', key: 'galv', align: 'right', sorter: (a, b) => a.kgToGalv - b.kgToGalv, render: (_, r) => <span className="num">{fmtKg(r.kgToGalv)}</span> },
     { title: 'Lấy từ mạ', key: 'pick', align: 'right', render: (_, r) => <span className="num">{fmtKg(r.kgPicked)}</span> },
     { title: 'Giao khách ký', key: 'deliv', align: 'right', sorter: (a, b) => a.kgDelivered - b.kgDelivered, render: (_, r) => <span className="num">{fmtKg(r.kgDelivered)}</span> },
     {

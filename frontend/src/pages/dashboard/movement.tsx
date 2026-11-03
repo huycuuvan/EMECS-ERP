@@ -53,7 +53,8 @@ export function MovementFilterBar({ f, setF, showKind = true }: { f: MovementFil
   )
 }
 
-export type Tier = 'ptn' | 'pc' | 'ma' | 'giao'
+/** xuat = xuất hàng từ xưởng mạ (kg lấy ra, cùng phiếu giao nhận với giao khách) — anh Thắng 03/11 */
+export type Tier = 'ptn' | 'pc' | 'ma' | 'xuat' | 'giao'
 const TIER_OF: Record<string, Tier> = { 'Chuẩn bị hàng': 'ptn', 'Cân xuất đi mạ': 'pc', 'Nhập xưởng mạ': 'ma', 'Giao khách': 'giao' }
 /** Phiếu CHƯA CHỐT của 1 tầng gộp theo trạng thái (kg = số đã điền, chưa điền thì kg tạm: số trên xe / số giao). */
 export interface TierPending { state: string; kg: number; n: number }
@@ -61,17 +62,21 @@ export interface TierPending { state: string; kg: number; n: number }
 /** Tổng kg theo tầng — CHỈ phiếu đã chốt (đạt / Quản lý đã duyệt). Phiếu chờ cân, đang trên xe, chờ Quản lý duyệt,
     QL từ chối… không cộng vào tổng mà gom vào `pending` để hiện riêng dưới ô tầng (anh Thắng 31/10). */
 export function tierTotals(rows: MovementRow[]) {
-  const t = { ptn: 0, pc: 0, ma: 0, giao: 0 }
-  const pending: Record<Tier, TierPending[]> = { ptn: [], pc: [], ma: [], giao: [] }
-  rows.forEach((r) => {
-    const k = TIER_OF[r.kind]
-    if (!k) return
-    if (!r.state || r.state === MV_OK) { t[k] += Number(r.kg) || 0; return }
+  const t = { ptn: 0, pc: 0, ma: 0, xuat: 0, giao: 0 }
+  const pending: Record<Tier, TierPending[]> = { ptn: [], pc: [], ma: [], xuat: [], giao: [] }
+  const add = (k: Tier, r: MovementRow, kg: number | null | undefined) => {
+    if (!r.state || r.state === MV_OK) { t[k] += Number(kg) || 0; return }
     if (r.state === 'Lái xe từ chối' || r.state === 'Chờ cân tại xưởng') return  // chưa có hàng trên xe → chưa có số liệu
     let g = pending[k].find((p) => p.state === r.state)
     if (!g) pending[k].push(g = { state: r.state, kg: 0, n: 0 })
-    g.kg += Number(r.kg ?? r.kgPlan) || 0
+    g.kg += Number(kg ?? r.kgPlan) || 0
     g.n += 1
+  }
+  rows.forEach((r) => {
+    const k = TIER_OF[r.kind]
+    if (!k) return
+    if (k === 'giao') add('xuat', r, r.kgPicked)  // cùng phiếu giao nhận: kg lấy ra từ mạ
+    add(k, r, r.kg)
   })
   return { ...t, pending }
 }

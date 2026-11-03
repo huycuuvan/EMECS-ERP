@@ -1,4 +1,4 @@
-/* Tab 1 — Đối ứng phiếu theo kỳ: 4 ô tổng theo tầng (chỉ phiếu đã chốt; phiếu chờ duyệt / trên xe ghi riêng dưới ô) +
+/* Tab 1 — Đối ứng phiếu theo kỳ: 5 ô tổng theo tầng (… → xưởng mạ nhận hàng đen → xuất hàng từ xưởng mạ → giao khách) (chỉ phiếu đã chốt; phiếu chờ duyệt / trên xe ghi riêng dưới ô) +
    rơi rớt chưa duyệt; hàng giữa các tầng gọi đúng tên (anh Thắng 31/10, trước là "Chênh giữa các tầng"):
    tồn kho chờ cân xuất · đang đi đường tới mạ · tồn tại mạ / đang giao khách; biểu đồ 4 tuần, nhật ký chứng từ trong kỳ. */
 import { Button, Modal, Table, Tag } from 'antd'
@@ -17,14 +17,15 @@ import { MODAL_Z, signedKg } from '../mismatches/sign'
 import { CustOrderText } from '@/peek/ContractRef'
 
 const STAT_CSS = `
-.stat5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.stat5{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:16px}
 .stat5b{margin-top:-6px}
 .stat5b>div{position:relative}
 .stat5b>div::before{content:'';position:absolute;top:-9px;left:26px;width:1px;height:9px;background:var(--rule)}
 .stat5b .c1{grid-column:1/2;transform:translateX(50%)}
 .stat5b .c2{grid-column:2/3;transform:translateX(50%)}
 .stat5b .c3{grid-column:3/4;transform:translateX(50%)}
-@media (max-width:1100px){.stat5{grid-template-columns:repeat(2,minmax(0,1fr))}.stat5b .c1,.stat5b .c2,.stat5b .c3{grid-column:auto;transform:none}}
+.stat5b .c4{grid-column:4/5;transform:translateX(50%)}
+@media (max-width:1100px){.stat5{grid-template-columns:repeat(2,minmax(0,1fr))}.stat5b .c1,.stat5b .c2,.stat5b .c3,.stat5b .c4{grid-column:auto;transform:none}}
 `
 
 export default function PeriodTab() {
@@ -39,7 +40,7 @@ export default function PeriodTab() {
 
   const all = periodRows ?? []
   const shown = f.kind ? all.filter((r) => r.kind === f.kind) : all
-  // 5 ô tổng trong kỳ (không áp bộ lọc loại phiếu để đối ứng đủ tầng)
+  // 6 ô tổng trong kỳ (không áp bộ lọc loại phiếu để đối ứng đủ tầng)
   const t = tierTotals(all)
 
   // ---- bóc tách chênh CÂN XUẤT ↔ ĐẾN MẠ ----
@@ -64,7 +65,8 @@ export default function PeriodTab() {
   const loss = t.pc - t.ma - onTruck - maOpen - vaultKg
   // tồn hiện tại (không theo kỳ): tồn kho = lệnh chuẩn bị hàng chưa cân (lệch cân đã vào kho ảo không tính) — anh Thắng 02/11
   const stock = snap?.stockKg ?? 0
-  const atGalv = snap?.atGalvKg ?? 0
+  const onTruckGiao = Math.round(snap?.onTruckToCustomerKg ?? 0)
+  const atGalv = Math.round(Math.max(0, (snap?.atGalvKg ?? 0) - onTruckGiao))  // hàng trên xe đi giao (chưa trả phiếu) tách sang ô sau
   const pend = (k: Tier) => t.pending[k].length ? <PendingLines list={t.pending[k]} /> : undefined
 
   // ---- biểu đồ 4 tuần (theo hợp đồng, không theo kỳ) ----
@@ -88,7 +90,8 @@ export default function PeriodTab() {
         <div className="stat5">
           <StatCell label="SX bàn giao (PTN)" value={fmtKg(t.ptn)} cap="kho tiếp nhận từ xưởng" color="var(--steel)" />
           <StatCell label="Cân xuất công ty (PC)" value={fmtKg(t.pc)} cap={pend('pc') ?? 'kg thực cân tại trạm (đã chốt)'} />
-          <StatCell label="Đến xưởng mạ" value={fmtKg(t.ma)} cap={pend('ma') ?? 'bên mạ xác nhận cân (đã chốt)'} color="var(--rust)" />
+          <StatCell label="Xưởng mạ nhận hàng đen" value={fmtKg(t.ma)} cap={pend('ma') ?? 'bên mạ xác nhận cân (đã chốt)'} color="var(--rust)" />
+          <StatCell label="Xuất hàng từ xưởng mạ" value={fmtKg(t.xuat)} cap={pend('xuat') ?? 'lái xe lấy ra, ký với xưởng mạ (đã chốt) — hàng đã mạ'} color="#8a6100" />
           <StatCell label="Giao khách" value={fmtKg(t.giao)} cap={pend('giao') ?? 'khách ký nhận (đã chốt)'} color="var(--moss)" />
           <StatCell dashed danger={Math.abs(loss) > 0.5} color={Math.abs(loss) > 0.5 ? 'var(--signal)' : 'var(--moss)'} onClick={() => setPopup('loss')}
             title="Bấm xem phiếu liên quan" label="Rơi rớt chưa duyệt"
@@ -105,18 +108,22 @@ export default function PeriodTab() {
               cap={`${truckList.length} chuyến đã cân xuất, mạ chưa xác nhận — bấm xem phiếu`} />
           </div>
           <div className="c3">
-            <StatCell dashed label="Tồn tại mạ · đang giao" value={fmtKg(atGalv)} color="var(--rust)"
-              cap={`mạ đã nhận, chưa lấy đi giao (hiện tại)${snap?.onTruckToCustomerKg ? ` · gồm ${fmtKg(snap.onTruckToCustomerKg)} đang trên xe đi giao` : ''}`} />
+            <StatCell dashed label="Tồn tại mạ" value={fmtKg(atGalv)} color="var(--rust)"
+              cap="mạ đã nhận (hàng đen), chưa xuất khỏi xưởng mạ (hiện tại)" />
+          </div>
+          <div className="c4">
+            <StatCell dashed label="Đang trên xe đi giao" value={fmtKg(onTruckGiao)} color="#8a6100"
+              cap="lái xe đã xuất phát đi lấy hàng giao khách, chưa trả phiếu (theo KG Quản lý giao, hiện tại)" />
           </div>
         </div>
 
         <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>Đối ứng kg theo tuần (4 tuần gần nhất)</div>
         <LegendRow items={[
-          { label: 'Cân xuất công ty (PC)', color: '#17181c' }, { label: 'Đến xưởng mạ', color: '#d11a24' }, { label: 'Giao khách', color: '#1e6b3a' },
+          { label: 'Cân xuất công ty (PC)', color: '#17181c' }, { label: 'Xưởng mạ nhận hàng đen', color: '#d11a24' }, { label: 'Giao khách', color: '#1e6b3a' },
         ]} />
         <GroupedBar height={250} unit="kg" labels={['3 tuần trước', '2 tuần trước', 'Tuần trước', 'Tuần này']} datasets={[
           { name: 'Cân xuất công ty', color: '#17181c', values: series['Cân xuất đi mạ'] },
-          { name: 'Đến xưởng mạ', color: '#d11a24', values: series['Nhập xưởng mạ'] },
+          { name: 'Xưởng mạ nhận hàng đen', color: '#d11a24', values: series['Nhập xưởng mạ'] },
           { name: 'Giao khách', color: '#1e6b3a', values: series['Giao khách'] },
         ]} />
       </Panel>

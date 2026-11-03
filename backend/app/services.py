@@ -244,7 +244,7 @@ def stock_snapshot(db: Session, cid: str | None = None) -> dict:
         out["atGalvKg"] += max(0.0, g["atGalvKg"])
     out["onTruckToCustomerKg"] = _sum([t for t in db.scalars(select(Task).where(Task.type == "giao_khach", Task.status == "Đang chạy"))
                                        if t.kg_picked is None and (not cid or t.contract_id == cid)],
-                                      lambda t: t.kg_required or max(0.0, galv_remaining_kg(db, t.contract_id)))
+                                      lambda t: t.kg_required)  # Quản lý không giao số kg → chưa biết, vẫn tính ở tồn tại mạ
     return out
 
 
@@ -281,7 +281,8 @@ def movement_log(db: Session, cid: str | None, frm: datetime | None, to: datetim
                         else f"{fmt_kg(t.kg_required)} chờ chở đi mạ"})
         else:
             out.append({"kind": "Giao khách", "type": "vc", "id": t.id, "contractId": t.contract_id, "date": d,
-                        "kg": t.kg_delivered, "kgPlan": t.kg_delivered if t.kg_delivered is not None
+                        # kgPicked = kg xuất (lấy ra) từ xưởng mạ — ô "Xuất hàng từ xưởng mạ" (anh Thắng 03/11)
+                        "kg": t.kg_delivered, "kgPicked": t.kg_picked, "kgPlan": t.kg_delivered if t.kg_delivered is not None
                         else (t.kg_picked if t.kg_picked is not None else t.kg_required),
                         "state": st, "who": t.driver,
                         "desc": f"Khách ký {fmt_kg(t.kg_delivered)}" if t.kg_delivered is not None

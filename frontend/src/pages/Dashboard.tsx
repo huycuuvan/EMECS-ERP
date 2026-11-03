@@ -264,7 +264,8 @@ function Header({ tag, setTag }: { tag?: string; setTag: (v?: string) => void })
 const GAPS: { label: string; hint: string; key: keyof StockSnapshot }[] = [
   { label: 'Tồn kho chờ cân xuất', hint: 'lệnh chuẩn bị hàng đã giao kho, chưa cân tại xưởng', key: 'stockKg' },
   { label: 'Đang trên xe tới mạ', hint: 'đã cân tại xưởng, mạ chưa cân', key: 'inTransitToGalvKg' },
-  { label: 'Tồn tại mạ · đang giao', hint: 'mạ đã nhận, chưa lấy đi giao khách', key: 'atGalvKg' },
+  { label: 'Tồn tại mạ', hint: 'mạ đã nhận, chưa xuất khỏi xưởng mạ', key: 'atGalvKg' },
+  { label: 'Đang trên xe đi giao', hint: 'lái xe đã xuất phát đi lấy hàng giao khách, chưa trả phiếu giao nhận', key: 'onTruckToCustomerKg' },
 ]
 
 function MovementSection() {
@@ -277,7 +278,7 @@ function MovementSection() {
   const tot = tierTotals(rows)
   const tiers: { label: string; k: Tier }[] = [
     { label: 'Chuẩn bị hàng (giao kho)', k: 'ptn' }, { label: 'Cân xuất công ty', k: 'pc' },
-    { label: 'Mạ xác nhận', k: 'ma' }, { label: 'Giao khách ký', k: 'giao' },
+    { label: 'Xưởng mạ nhận hàng đen', k: 'ma' }, { label: 'Xuất hàng từ xưởng mạ', k: 'xuat' }, { label: 'Giao khách ký', k: 'giao' },
   ]
   const cell = (lb: string, k: Tier) => (
     <div style={{ padding: '8px 12px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 10, flex: '1 1 0', minWidth: 140, alignSelf: 'stretch' }}>
@@ -287,7 +288,8 @@ function MovementSection() {
     </div>
   )
   const gap = (i: number) => {
-    const v = snap ? snap[GAPS[i].key] : null
+    // tồn tại mạ đã gồm hàng trên xe đi giao (chưa trả phiếu) → tách riêng sang khoảng sau
+    const v = !snap ? null : Math.round(GAPS[i].key === 'atGalvKg' ? Math.max(0, snap.atGalvKg - snap.onTruckToCustomerKg) : snap[GAPS[i].key])
     return (
       <div title={GAPS[i].hint} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, fontSize: 10, color: 'var(--ash)', width: 92, flex: 'none', textAlign: 'center' }}>
         <ArrowRight size={13} />
@@ -311,7 +313,7 @@ function MovementSection() {
       <p className="caption" style={{ margin: '8px 0 0' }}>
         <Info size={12} style={{ verticalAlign: -2 }} /> Tổng theo tầng trong kỳ lọc, <b>chỉ cộng phiếu đã chốt</b> (đạt / Quản lý đã duyệt).
         Phiếu chờ cân, đang trên xe, chờ Quản lý duyệt, Quản lý từ chối… ghi riêng dưới từng ô. Giữa các ô là hàng đang ở đâu
-        <b> lúc này</b>: tồn kho chờ cân xuất → đang trên xe tới mạ (đã cân xưởng) → tồn tại mạ; phần lệch cân đã vào kho ảo không tính là tồn.
+        <b> lúc này</b>: tồn kho chờ cân xuất → đang trên xe tới mạ (đã cân xưởng) → tồn tại mạ → đang trên xe đi giao; phần lệch cân đã vào kho ảo không tính là tồn.
       </p>
     </Panel>
   )
@@ -418,7 +420,7 @@ function ContractChecks({ contracts }: { contracts: ContractAggLite[] }) {
     },
     { title: 'Cân xuất công ty', key: 'pc', align: 'right', render: (_, g) => kgCell(g.weighedKg) },
     {
-      title: 'Đến xưởng mạ', key: 'ma', align: 'right',
+      title: 'Xưởng mạ nhận hàng đen', key: 'ma', align: 'right',
       render: (_, g) => kgCell(g.sentGalvKg, g.inTransitToGalvKg > 0 ? <span style={{ color: 'var(--amber)' }}>+ {fmtKg(g.inTransitToGalvKg)} trên đường</span> : undefined),
     },
     { title: 'Lấy từ mạ', key: 'pick', align: 'right', render: (_, g) => kgCell(g.pickedKg, g.atGalvKg > 0 ? `còn tại mạ ${fmtKg(g.atGalvKg)}` : undefined) },

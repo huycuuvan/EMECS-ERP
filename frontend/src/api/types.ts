@@ -172,7 +172,11 @@ export interface LedgerRow {
 export interface Ledger { contract: Contract; rows: LedgerRow[]; final: Record<LedgerKey, number>; totalIn: number; allocated: number; balanced: boolean }
 
 /** state "Đã chốt" mới cộng vào tổng tầng; còn lại (Chờ cân, Đang trên xe, Chờ QL duyệt, QL từ chối…) hiện riêng với kg tạm kgPlan */
-export interface MovementRow { kind: string; type: 'ptn' | 'pc' | 'vc'; id: ID; contractId: ID; date: string | null; kg: number | null; kgPlan: number | null; state: string; desc: string; who: string }
+export interface MovementRow {
+  kind: string; type: 'ptn' | 'pc' | 'vc'; id: ID; contractId: ID; date: string | null; kg: number | null; kgPlan: number | null; state: string; desc: string; who: string
+  /** giao khách: kg xuất (lấy ra) từ xưởng mạ */
+  kgPicked?: number | null
+}
 export const MV_OK = 'Đã chốt'
 /** Phiếu nhập NVL kho gửi lên chờ Quản lý duyệt (dashboard). */
 export interface PendingMaterial { id: ID; date: string; supplier: string; steelGrade: string; spec: string; kg: number; kgSupplier: number | null; by: string }
