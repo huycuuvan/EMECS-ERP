@@ -326,31 +326,32 @@ export function DelivForm({ t }: { t: Task }) {
   const [note, setNote] = useState('')
   const { k } = useGalvGain()
   const p = num(kgp), d = num(kgd)
-  // hàng ĐEN của HĐ này còn tại mạ (cộng lại phần thẻ này đã khai nếu đang điền lại, quy về hàng đen) — không được lấy
-  // hàng của khách khác; sau mạ nặng thêm ~3%. Kg lấy đi không bắt buộc (anh Thắng 03/11) — trống thì tính bằng kg khách ký
-  const left = agg ? agg.atGalvKg + (t.kgPicked ?? 0) / k : null
-  const over = left != null && (p > 0 ? p : d) > Math.max(0, left) * k + m.tol
+  // hàng của HĐ này còn tại mạ sau mạ (hàng đen +3%) — đang điền lại thì dùng số đã chốt lúc điền lần trước.
+  // Anh Thắng 03/11: kg lấy ra bắt buộc, được vượt (mạ có thể tăng hơn 3%) — phần vượt là chênh lệch → Quản lý duyệt → kho ảo
+  const est = t.kgGalvLeft ?? (agg ? Math.max(0, agg.atGalvKg) * k : null)
+  const left = est != null ? est / k : null
+  const over = est != null && p > est + m.tol
   const d1 = p - t.kgRequired, d2 = d - p
   const bad1 = t.kgRequired > 0 && p > 0 && Math.abs(d1) > m.tol
   const bad2 = p > 0 && d > 0 && Math.abs(d2) > 0.5
-  const lech = bad1 || bad2
-  const msg = bad2 ? `Khách ký lệch ${signed(d2)} kg so với số ký với mạ — bắt buộc chọn lý do`
-    : `Ký với mạ lệch ${signed(d1)} kg so với yêu cầu — bắt buộc chọn lý do`
+  const lech = bad1 || bad2 || over
+  const msg = [over && `Lấy ra vượt hàng còn tại mạ ${signed(Math.round(p - est!))} kg`, bad1 && `Ký với mạ lệch ${signed(d1)} kg so với Quản lý giao`,
+    bad2 && `Khách ký lệch ${signed(d2)} kg so với số lấy ra`].filter(Boolean).join(' · ') + ' — bắt buộc chọn lý do, Quản lý duyệt rồi ghi kho ảo'
   const submit = async () => {
-    if (over) { message.error(`Vượt hàng của HĐ còn tại mạ (${fmtKg(left!)}) — không lấy hàng của khách khác.`); return }
+    if (!(p > 0)) { message.error('Nhập kg lấy ra từ mạ (ký với xưởng mạ).'); return }
     if (!(d > 0)) { message.error('Nhập kg khách ký nhận.'); return }
     if (!photo) { message.error('Bắt buộc ảnh phiếu giao nhận — chụp hoặc dùng ảnh demo.'); return }
     if (lech && !reason) { message.error('Có sai lệch — bắt buộc chọn lý do.'); return }
-    try { await fill.mutateAsync({ id: t.id, kgPicked: p > 0 ? p : null, kgDelivered: d, photo, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined }) } catch { /* đã báo */ }
+    try { await fill.mutateAsync({ id: t.id, kgPicked: p, kgDelivered: d, photo, reason: lech ? reason : undefined, reasonNote: lech ? note.trim() : undefined }) } catch { /* đã báo */ }
   }
   return (
     <div className="m-form no-open">
-      <label className="f-lbl">Kg lấy đi — ký với xưởng mạ (không bắt buộc)</label>
+      <label className="f-lbl">Kg lấy ra từ mạ — ký với xưởng mạ</label>
       <NumInput big value={kgp} onChange={setKgp} bad={bad1 || over} />
       <div className="f-hint">
         {left != null ? <GalvLeftNote cid={t.contractId} left={left} strong={{}} /> : '…'}
-        {t.kgRequired > 0 ? <> Quản lý giao lấy {fmtKg(t.kgRequired)} (đã điền sẵn — chỉ sửa khi mạ ký số khác).</> : <> Để trống thì tính bằng kg khách ký nhận.</>}
-        {over && <div className="red-txt" style={{ fontWeight: 700 }}>Vượt số còn tại mạ — không được lấy hàng của khách khác.</div>}
+        {t.kgRequired > 0 && <> Quản lý giao lấy {fmtKg(t.kgRequired)} (đã điền sẵn — chỉ sửa khi mạ ký số khác).</>}
+        {over && <div className="red-txt" style={{ fontWeight: 700 }}>Lấy ra nhiều hơn số còn tại mạ (mạ tăng hơn 3%) — chọn lý do, Quản lý duyệt.</div>}
       </div>
       <label className="f-lbl">Kg khách ký nhận</label>
       <NumInput big value={kgd} onChange={setKgd} bad={bad2} />

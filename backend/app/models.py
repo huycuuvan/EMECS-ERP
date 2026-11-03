@@ -271,6 +271,8 @@ class Task(Base):
     kg_at_galv: Mapped[float | None] = mapped_column(Float)
     kg_picked: Mapped[float | None] = mapped_column(Float)
     kg_delivered: Mapped[float | None] = mapped_column(Float)
+    # giao khách: hàng của HĐ còn tại mạ (hàng đen +3% sau mạ) lúc lái xe điền phiếu — lấy ra vượt số này là chênh lệch
+    kg_galv_left: Mapped[float | None] = mapped_column(Float)
     filled_at = mapped_column(UTCDateTime, nullable=True)
     photo: Mapped[str | None] = mapped_column(Text)
     reject_reason: Mapped[str | None] = mapped_column(Text)

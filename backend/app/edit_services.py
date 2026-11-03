@@ -201,7 +201,7 @@ def edit_task(db: Session, tid: str, data: dict) -> tuple[Task, dict]:
         else:
             picked, delivered = t.kg_picked or 0, t.kg_delivered or 0
             delta = delivered - picked
-            out = abs(delta) > 0.5 or abs(picked - t.kg_required) > TOLERANCE_KG
+            out = abs(delta) > 0.5 or (bool(t.kg_required) and abs(picked - t.kg_required) > TOLERANCE_KG)
             exp, act = (picked, delivered) if abs(delta) > 0.5 else (t.kg_required, picked)
             action, mid, msg = _reconcile(db, t, "vc", out, "Giao khách", exp, act, data.get("mismatch_reason"),
                                           data.get("reason_note"), t.driver, "Vận tải", reason)

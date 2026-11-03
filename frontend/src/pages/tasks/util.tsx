@@ -75,13 +75,15 @@ export function KgCell({ t, tol }: { t: Task; tol: number }) {
   if (t.kgDelivered == null && t.kgPicked == null) return idle ? <span className="text-ash">—</span> : miss
   const badP = t.kgRequired > 0 && Math.abs((t.kgPicked ?? 0) - t.kgRequired) > tol
   const badD = Math.abs((t.kgDelivered ?? 0) - (t.kgPicked ?? 0)) > 0.5
-  const bad = badP || badD
+  const badO = t.kgGalvLeft != null && (t.kgPicked ?? 0) > t.kgGalvLeft + tol  // lấy vượt hàng còn tại mạ (+3%)
+  const bad = badP || badD || badO
   return (
     <div>
       <span className="num" style={{ fontWeight: 700, color: bad ? 'var(--signal)' : undefined }}>
         mạ ký {fmtKg(t.kgPicked)} / khách ký {fmtKg(t.kgDelivered)}
       </span>{bad && sl}
       {badD && <div className="caption" style={{ color: 'var(--signal)', fontSize: 11 }}>khách ký thiếu {fmtKg((t.kgPicked ?? 0) - (t.kgDelivered ?? 0))}</div>}
+      {badO && <div className="caption" style={{ color: 'var(--signal)', fontSize: 11 }}>lấy vượt còn tại mạ {fmtDelta(Math.round((t.kgPicked ?? 0) - (t.kgGalvLeft ?? 0)))}</div>}
     </div>
   )
 }

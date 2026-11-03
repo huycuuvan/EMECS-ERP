@@ -200,15 +200,17 @@ function FillDeliveryModal({ t, onClose }: { t: Task; onClose: () => void }) {
   const { data: meta } = useMeta()
   const { data: agg } = useContract(t.contractId)
   const tol = meta?.toleranceKg ?? 30
-  const [form] = Form.useForm<{ kgPicked?: number | null; kgDelivered: number; photo: string | null; reason?: string; reasonNote?: string }>()
+  const [form] = Form.useForm<{ kgPicked: number; kgDelivered: number; photo: string | null; reason?: string; reasonNote?: string }>()
   const kp = Form.useWatch('kgPicked', form)
   const kd = Form.useWatch('kgDelivered', form)
   const { k } = useGalvGain()
-  // hàng ĐEN của HĐ này còn tại mạ (cộng lại phần thẻ này đã khai, quy về hàng đen); sau mạ nặng thêm ~3%
-  const left = agg ? agg.atGalvKg + (t.kgPicked ?? 0) / k : null
-  const kTake = typeof kp === 'number' ? kp : kd  // không nhập kg lấy → coi như lấy đúng số khách ký
-  const over = typeof kTake === 'number' && left != null && kTake > Math.max(0, left) * k + tol
+  // hàng của HĐ này còn tại mạ sau mạ (hàng đen +3%) — đang điền lại thì dùng số đã chốt lúc điền lần trước
+  const est = t.kgGalvLeft ?? (agg ? Math.max(0, agg.atGalvKg) * k : null)
+  const left = est != null ? est / k : null  // hàng đen
+  // anh Thắng 03/11: được lấy vượt (mạ có thể tăng hơn 3%) — phần vượt là chênh lệch, chọn lý do → Quản lý duyệt → kho ảo
+  const over = typeof kp === 'number' && est != null && kp > est + tol
   const msgs: string[] = []
+  if (over) msgs.push(`Lấy ra ${fmtKg(kp)} vượt hàng của HĐ còn tại mạ (≈ ${fmtKg(Math.round(est!))} sau mạ) ${fmtDelta(Math.round(kp - est!))}`)
   if (t.kgRequired > 0 && typeof kp === 'number' && Math.abs(kp - t.kgRequired) > tol)
     msgs.push(`KG ký với mạ lệch ${fmtDelta(Math.round((kp - t.kgRequired) * 100) / 100)} so với yêu cầu (${fmtKg(t.kgRequired)})`)
   if (typeof kp === 'number' && typeof kd === 'number' && Math.abs(kd - kp) > 0.5)
@@ -216,8 +218,7 @@ function FillDeliveryModal({ t, onClose }: { t: Task; onClose: () => void }) {
   const lech = msgs.length > 0
   const submit = async () => {
     const v = await form.validateFields()
-    if (over) return
-    await m.mutateAsync({ id: t.id, kgPicked: v.kgPicked ?? null, kgDelivered: v.kgDelivered, photo: v.photo,
+    await m.mutateAsync({ id: t.id, kgPicked: v.kgPicked, kgDelivered: v.kgDelivered, photo: v.photo,
       reason: lech ? v.reason : undefined, reasonNote: lech ? v.reasonNote : undefined })
     onClose()
   }
@@ -230,17 +231,15 @@ function FillDeliveryModal({ t, onClose }: { t: Task; onClose: () => void }) {
       </p>
       <Form form={form} layout="vertical"
         initialValues={{ kgPicked: t.kgPicked ?? (t.kgRequired || undefined), kgDelivered: t.kgDelivered ?? undefined }}>
-        <Form.Item name="kgPicked" label="KG lấy đi — ký nhận với xưởng mạ (không bắt buộc)"
-          extra={over ? undefined : 'Để trống thì tính bằng số kg khách ký nhận.'}
-          validateStatus={over ? 'error' : undefined}
-          help={over ? `Vượt hàng của HĐ còn tại mạ (${fmtKg(Math.max(0, left ?? 0))} hàng đen, sau mạ ≈ ${fmtKg(Math.round(Math.max(0, left ?? 0) * k))}) — không lấy hàng của khách khác` : undefined}>
-          <InputNumber {...NUM} style={{ width: '100%' }} min={0} step={10} placeholder="Để trống nếu không có số mạ ký" suffix="kg" />
+        <Form.Item name="kgPicked" label="KG lấy ra từ mạ — ký nhận với xưởng mạ" rules={kgRule('Phải nhập KG lấy ra từ mạ')}
+          extra="Mạ có thể tăng hơn 3% — lấy ra nhiều hơn số còn tại mạ vẫn nhập đúng số cân, chọn lý do để Quản lý duyệt.">
+          <InputNumber {...NUM} style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(t.kgRequired || Math.round(est ?? 0))}`} suffix="kg" />
         </Form.Item>
         <Form.Item name="kgDelivered" label="KG khách ký nhận" rules={kgRule('Phải nhập KG khách ký')}>
           <InputNumber {...NUM} style={{ width: '100%' }} min={0} step={10} placeholder={`VD: ${fmtNum(t.kgRequired || Math.round(Math.max(0, left ?? 0) * k))}`} suffix="kg" />
         </Form.Item>
         {lech && <ReasonBlock notePh="VD: 40 kg để lại trên xe do khách kiểm thiếu..."
-          title={<>{msgs.join(' · ')} — bắt buộc chọn lý do, hệ thống lập phiếu sai lệch chờ Quản lý ký.</>} />}
+          title={<>{msgs.join(' · ')} — bắt buộc chọn lý do; phiếu chờ Quản lý duyệt, duyệt xong phần chênh ghi vào kho ảo.</>} />}
         <Form.Item name="photo" label="Ảnh phiếu giao nhận (mạ ký + khách ký cùng 1 tờ)" rules={[{ required: true, message: 'Phải tải ảnh phiếu giao nhận (hoặc dùng ảnh demo)' }]}>
           <PhotoInput demo={{ label: `Phiếu giao nhận · ${t.id}`, kg: kd || kp || t.kgRequired }} />
         </Form.Item>

@@ -105,6 +105,8 @@ export interface Task {
   id: ID; type: TaskType; driver: string; contractId: ID; refId: ID | null; assignedAt: string
   status: TaskStatus; acceptedAt: string | null; departedAt: string | null; fillDeadline: string | null
   kgRequired: number; kgAtGalv: number | null; kgPicked: number | null; kgDelivered: number | null
+  /** giao khách: hàng của HĐ còn tại mạ (hàng đen +3%) lúc lái xe điền phiếu — lấy ra vượt số này là chênh lệch */
+  kgGalvLeft?: number | null
   /** thẻ giao khách chưa lấy hàng: kg của HĐ còn tại xưởng mạ */
   galvLeftKg?: number
   filledAt: string | null; photo: string | null; hasPhoto: boolean; rejectReason: string | null

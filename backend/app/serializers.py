@@ -140,7 +140,7 @@ def task(t: Task, photo: bool = True) -> dict:
         "id": t.id, "type": t.type, "driver": t.driver, "contractId": t.contract_id, "refId": t.ref_id,
         "assignedAt": iso(t.assigned_at), "status": t.status, "acceptedAt": iso(t.accepted_at),
         "departedAt": iso(t.departed_at), "fillDeadline": iso(t.fill_deadline), "kgRequired": t.kg_required,
-        "kgAtGalv": t.kg_at_galv, "kgPicked": t.kg_picked, "kgDelivered": t.kg_delivered,
+        "kgAtGalv": t.kg_at_galv, "kgPicked": t.kg_picked, "kgDelivered": t.kg_delivered, "kgGalvLeft": t.kg_galv_left,
         "filledAt": iso(t.filled_at), "photo": sign_photo(t.photo) if photo else None, "hasPhoto": bool(t.photo), "rejectReason": t.reject_reason,
         "mismatchId": t.mismatch_id, "note": t.note, "lossAccepted": t.loss_accepted,
         "vehiclePlate": t.vehicle_plate, "galvanizerId": t.galvanizer_id, "arriveAt": iso(t.arrive_at),

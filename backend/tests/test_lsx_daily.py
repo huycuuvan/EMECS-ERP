@@ -105,8 +105,7 @@ def test_receipt_kg_only_and_task_auto_kg_arrival_delivery(c):
     assert left > 0 and g["kgRequired"] == 0 and g["galvanizerId"]  # KG lấy không bắt buộc (03/11) — lái xe điền theo cân thực tế
     base_g = {"type": "giao_khach", "driver": "Lê Đức Vận", "contractId": "HD-2609-01", "arriveAt": "2099-01-02T08:00:00+07:00",
               "deliverAddress": "CT"}
-    assert c.post("/api/tasks", json={**base_g, "kgRequired": left * 1.03 + 100}).status_code == 400  # vượt hàng còn tại mạ (+3% mạ)
-    assert c.post("/api/tasks", json={**base_g, "kgRequired": round(left * 1.03)}).status_code == 200  # hàng đen +3% sau mạ: được
+    assert c.post("/api/tasks", json={**base_g, "kgRequired": left * 1.05}).status_code == 200  # mạ có thể tăng hơn 3%: nhập vượt được
     assert c.post("/api/tasks", json={**base_g, "kgRequired": 3000}).json()["kgRequired"] == 3000  # Quản lý giao số kg
 
 
@@ -233,7 +232,7 @@ def test_galvanizer_stock_per_customer(c):
     c.post(f"/api/tasks/{t['id']}/accept"); c.post(f"/api/tasks/{t['id']}/depart")
     photo = "data:image/png;base64,iVBORw0KGgo="
     r = c.post(f"/api/tasks/{t['id']}/fill-delivery", json={"kgPicked": left + 1000, "kgDelivered": left + 1000, "photo": photo})
-    assert r.status_code == 400 and "không lấy hàng của khách khác" in r.json()["detail"]
+    assert r.status_code == 400 and "vượt hàng còn tại mạ" in r.json()["detail"]  # vượt → bắt lý do, Quản lý duyệt
     full = round(left * 1.03)  # hàng đen còn tại mạ, sau mạ nặng thêm ~3%
     r = c.post(f"/api/tasks/{t['id']}/fill-delivery", json={"kgPicked": full, "kgDelivered": full, "photo": photo})
     assert r.status_code == 200 and r.json()["status"] == "Hoàn thành"  # không còn đối chiếu với kg yêu cầu = 0

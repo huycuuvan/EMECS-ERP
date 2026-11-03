@@ -151,9 +151,9 @@ export default function CreateTaskModal({ open, onClose, initial }: { open: bool
         </Form.Item>
         {type === 'giao_khach' ? (
           <Form.Item name="kgRequired" label="KG lấy chuyến này (không bắt buộc)"
-            extra={agg ? <><GalvLeftNote cid={cid} left={galvLeft} /> Để trống thì lái xe điền theo số cân thực tế lúc lấy hàng; nhập thì lái xe được điền sẵn số này.</> : undefined}
-            rules={[{ validator: (_, v?: number) => (v != null && agg && v > Math.max(0, galvLeft) * k + (meta?.toleranceKg ?? 30)
-              ? Promise.reject(new Error(`Vượt hàng của HĐ còn tại mạ (${fmtKg(galvLeft)} hàng đen, sau mạ ≈ ${fmtKg(Math.round(galvLeft * k))})`)) : Promise.resolve()) }]}>
+            extra={agg ? <><GalvLeftNote cid={cid} left={galvLeft} /> Để trống thì lái xe điền theo số cân thực tế lúc lấy hàng; nhập thì lái xe được điền sẵn số này.
+              {kgInput != null && kgInput > Math.max(0, galvLeft) * k + (meta?.toleranceKg ?? 30) &&
+                <div className="text-signal">Nhiều hơn số còn tại mạ (sau mạ ≈ {fmtKg(Math.round(Math.max(0, galvLeft) * k))}) — lái xe lấy vượt thì phiếu chờ Quản lý duyệt, phần chênh ghi kho ảo.</div>}</> : undefined}>
             <InputNumber min={1} step={100} style={{ width: '100%' }} suffix="kg" placeholder="Để trống — lấy theo cân thực tế" />
           </Form.Item>
         ) : (

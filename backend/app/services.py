@@ -97,7 +97,8 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
                          lambda t: t.kg_required)
     picked_kg = _sum([t for t in giao if t.kg_picked is not None], lambda t: t.kg_picked)
     delivered_kg = _sum([t for t in giao if t.kg_delivered is not None], lambda t: t.kg_delivered)
-    at_galv_kg = sent_galv_kg - to_black(picked_kg)
+    raw_galv = sent_galv_kg - to_black(picked_kg)
+    at_galv_kg = max(0.0, raw_galv)  # lấy ra vượt (mạ tăng hơn 3%) → không còn hàng tại mạ, phần thừa ở kho ảo
     # tồn kho chờ cân xuất = lệnh chuẩn bị hàng chưa cân; phiếu cân lập thẳng từ lệnh SX (không gắn phiếu chuẩn bị) đã cân
     # thì trừ vào phần chuẩn bị hàng chưa gắn phiếu cân (lệch cân đã vào kho ảo, không còn là tồn)
     linked = {p.receipt_id for p in pcs if p.receipt_id}
@@ -117,7 +118,7 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
          "Chênh = lệch cân xuất so với số giao (thiếu ≤5% đạt, quá 5% / dư Quản lý đã duyệt)", False),
         ("CÂN XUẤT CÔNG TY vs CÂN ĐẾN XƯỞNG MẠ", weighed_kg, sent_galv_kg + in_transit_kg, "Cân xuất tại công ty",
          "Mạ xác nhận + đang trên đường", "Số cân 2 đầu phải khớp từng chuyến", True),
-        ("GỬI MẠ vs LẤY RA TỪ MẠ", sent_galv_kg, to_black(picked_kg) + at_galv_kg, "Đã gửi vào mạ",
+        ("GỬI MẠ vs LẤY RA TỪ MẠ", sent_galv_kg, to_black(picked_kg) + max(0.0, raw_galv), "Đã gửi vào mạ",
          f"Đã lấy ra (quy về hàng đen, ÷{1 + GALV_GAIN_PCT / 100:g}) + còn tại mạ",
          "Chênh = thất thoát tại xưởng mạ", True),
         ("LẤY TỪ MẠ vs GIAO KHÁCH KÝ NHẬN", picked_kg, delivered_kg, "Ký nhận với mạ", "Khách ký nhận",
@@ -125,6 +126,10 @@ def contract_agg(db: Session, cid: str, detail: bool = True) -> dict:
     ]
     checks_out = [{"label": l, "a": a, "b": b, "aLbl": al, "bLbl": bl, "note": n, "key": k,
                    "delta": b - a, "ok": abs(b - a) <= 0.5} for l, a, b, al, bl, n, k in checks]
+    if raw_galv < -0.5 and not any(t.status == "Chờ QL duyệt" for t in giao):
+        # lấy ra từ mạ nhiều hơn hàng đen +3% (mạ thực tế tăng hơn) — Quản lý đã duyệt, phần thừa đã ghi kho ảo
+        ck = checks_out[3]
+        ck["ok"], ck["note"] = True, "Lấy ra nhiều hơn do mạ tăng hơn 3% — Quản lý đã duyệt, phần thừa đã ghi kho ảo"
     tk = c.total_kg or 0
     lists = {
         "lsxs": [S.lsx(x) for x in lsxs], "receipts": [S.receipt(r) for r in rcs],
@@ -1050,7 +1055,7 @@ def _final_delta(rec, ref_type: str) -> tuple[float, str] | None:
     if rec.type == "di_ma":
         ok = abs((rec.kg_at_galv or 0) - (rec.kg_required or 0)) <= TOLERANCE_KG or not rec.kg_required
     else:
-        ok = abs((rec.kg_delivered or 0) - (rec.kg_picked or 0)) <= 0.5 and \
+        ok = abs((rec.kg_delivered or 0) - (rec.kg_picked or 0)) <= 0.5 and not _giao_over(rec) and \
             (not rec.kg_required or abs((rec.kg_picked or 0) - rec.kg_required) <= TOLERANCE_KG)
     return _task_delta(rec) if ok else None
 
@@ -1220,11 +1225,8 @@ def create_task(db: Session, type_: str, driver: str, cid: str, ref_id: str | No
         left = galv_remaining_kg(db, cid)
         if left <= 0.5:
             raise HTTPException(400, f"HĐ {cid} ({c.customer}) không còn hàng tại xưởng mạ — không giao việc lấy hàng được")
-        # Quản lý giao số kg lấy chuyến này — KHÔNG bắt buộc (anh Thắng 03/11: hàng mạ xong nặng thêm ~3%, chưa biết số
-        # chính xác) → để trống thì lái xe điền theo cân thực tế lúc lấy; tối đa = hàng đen còn tại mạ + 3%
-        if kg_required and kg_required > to_galv(left) + TOLERANCE_KG:
-            raise HTTPException(400, f"HĐ {cid} chỉ còn {fmt_kg(left)} hàng đen tại xưởng mạ (sau mạ ≈ {fmt_kg(round(to_galv(left)))})"
-                                     f" — không giao lấy {fmt_kg(kg_required)}")
+        # Quản lý giao số kg lấy chuyến này — KHÔNG bắt buộc (anh Thắng 03/11: hàng mạ xong nặng thêm ~3%, có khi hơn,
+        # chưa biết số chính xác) → để trống thì lái xe điền theo cân thực tế lúc lấy; nhập vượt số còn tại mạ cũng được
     if not arrive_at:
         raise HTTPException(400, "Chưa nhập ngày giờ lái xe phải có mặt")
     if arrive_at.tzinfo is None:
@@ -1292,13 +1294,29 @@ def task_depart(db: Session, tid: str) -> Task:
     return t
 
 
+def _giao_over(t: Task) -> bool:
+    """Thẻ giao khách lấy ra từ mạ VƯỢT hàng của HĐ còn tại mạ (hàng đen +3%) quá dung sai — mạ tăng hơn 3%."""
+    return t.type == "giao_khach" and t.kg_galv_left is not None and (t.kg_picked or 0) > t.kg_galv_left + TOLERANCE_KG
+
+
+def _giao_base(t: Task) -> tuple[str, float]:
+    """Số GỐC để tính chênh của thẻ giao khách: hàng còn tại mạ (+3%) khi lấy vượt số này · KG Quản lý giao (nếu có) ·
+    còn lại = KG lấy ra từ mạ (chỉ còn chênh khách ký)."""
+    if t.kg_galv_left is not None and (t.kg_picked or 0) > t.kg_galv_left:
+        return "Hàng của HĐ còn tại mạ (hàng đen +3%)", t.kg_galv_left
+    if t.kg_required:
+        return "KG giao lấy tại mạ", t.kg_required
+    return "Cân tại mạ (lấy hàng)", t.kg_picked or 0
+
+
 def _task_delta(t: Task) -> tuple[float, str]:
-    """(kg chênh = số gốc − số sau, nguồn) của thẻ lái xe đã điền."""
+    """(kg chênh = số gốc − số sau, nguồn) của thẻ lái xe đã điền. Giao khách: số gốc theo _giao_base, số sau = khách ký
+    — gộp chênh tại mạ (lấy vượt / lệch số Quản lý giao) và chênh trên đường (khách ký thiếu) vào một khoản."""
     if t.type == "di_ma":
         return ((t.kg_required or 0) - (t.kg_at_galv or 0) if t.kg_required else 0), "Cân tại xưởng mạ"
-    if abs((t.kg_delivered or 0) - (t.kg_picked or 0)) > 0.5:
-        return (t.kg_picked or 0) - (t.kg_delivered or 0), "Giao khách"
-    return ((t.kg_required or 0) - (t.kg_picked or 0) if t.kg_required else 0), "Giao khách"
+    _, base = _giao_base(t)
+    after = t.kg_delivered if t.kg_delivered is not None else (t.kg_picked or 0)
+    return base - after, "Giao khách"
 
 
 def _task_result(db: Session, t: Task, off: bool, what: str, reason: str | None, reason_note: str | None) -> None:
@@ -1332,29 +1350,25 @@ def task_fill_galv(db: Session, tid: str, kg: float, photo: str | None, reason: 
     return t
 
 
-def task_fill_delivery(db: Session, tid: str, kg_picked: float | None, kg_delivered: float, photo: str | None,
+def task_fill_delivery(db: Session, tid: str, kg_picked: float, kg_delivered: float, photo: str | None,
                        reason: str | None, reason_note: str | None) -> Task:
     t = get_or_404(db, Task, tid)
     if t.type != "giao_khach":
         raise HTTPException(400, "Thẻ này không phải thẻ giao khách")
     if t.status not in ("Đang chạy", "Chờ QL duyệt"):
         raise HTTPException(400, f"Thẻ đang \"{t.status}\" — xuất phát trước khi điền phiếu")
-    # kg lấy từ mạ không bắt buộc (anh Thắng 03/11) — để trống thì coi như lấy đúng số khách ký nhận
-    if kg_picked is None:
-        kg_picked = kg_delivered
-    left = galv_remaining_kg(db, t.contract_id, exclude_task=t.id)
-    if (kg_picked or 0) > to_galv(left) + TOLERANCE_KG:
-        c = db.get(Contract, t.contract_id)
-        raise HTTPException(400, f"Lấy {fmt_kg(kg_picked)} vượt số hàng của HĐ {t.contract_id}"
-                                 f"{f' ({c.customer})' if c else ''} còn tại mạ: {fmt_kg(max(left, 0))} hàng đen"
-                                 f" (sau mạ ≈ {fmt_kg(round(to_galv(max(left, 0))))}) — không lấy hàng của khách khác")
+    # KG lấy ra từ mạ bắt buộc, ĐƯỢC vượt hàng của HĐ còn tại mạ (anh Thắng 03/11: mạ có thể tăng hơn 3%) — phần vượt
+    # là chênh lệch: bắt lý do → Quản lý duyệt → kho ảo (như mọi chênh lệch khác)
+    t.kg_galv_left = round(to_galv(max(0.0, galv_remaining_kg(db, t.contract_id, exclude_task=t.id))), 1)
     t.kg_picked, t.kg_delivered = kg_picked or 0, kg_delivered or 0
     if photo:
         t.photo = photo
     delta = t.kg_delivered - t.kg_picked
     off_req = bool(t.kg_required) and abs(t.kg_picked - t.kg_required) > TOLERANCE_KG
-    what = f"Khách ký lệch {delta:+g} kg" if abs(delta) > 0.5 else f"Lấy từ mạ lệch {t.kg_picked - t.kg_required:+g} kg"
-    _task_result(db, t, abs(delta) > 0.5 or off_req, what, reason, reason_note)
+    msgs = ([f"Lấy từ mạ vượt hàng còn tại mạ {round(t.kg_picked - t.kg_galv_left):+g} kg"] if _giao_over(t) else []) + \
+        ([f"Lấy từ mạ lệch {t.kg_picked - t.kg_required:+g} kg so với Quản lý giao"] if off_req else []) + \
+        ([f"Khách ký lệch {delta:+g} kg"] if abs(delta) > 0.5 else [])
+    _task_result(db, t, bool(msgs), " · ".join(msgs), reason, reason_note)
     if t.status == "Hoàn thành":
         _billed_notify(db, t)
     db.commit()
@@ -1437,9 +1451,9 @@ def vloss_detail(db: Session, e: VLoss) -> dict:
                 a = (f"Cân tại xưởng ({t.ref_id})" if t.ref_id else "KG giao chở đi mạ", t.kg_required)
                 b = ("Cân tại mạ", t.kg_at_galv)
             elif t.kg_delivered is not None and t.kg_picked is not None and abs(t.kg_delivered - t.kg_picked) > 0.5:
-                a, b = ("Cân tại mạ (lấy hàng)", t.kg_picked), ("Cân giao khách", t.kg_delivered)
+                a, b = _giao_base(t), ("Cân giao khách", t.kg_delivered)
             else:
-                a, b = ("KG giao lấy tại mạ", t.kg_required), ("Cân tại mạ (lấy hàng)", t.kg_picked)
+                a, b = _giao_base(t), ("Cân tại mạ (lấy hàng)", t.kg_picked)
             if t.reason:
                 reason = t.reason + (f" — {t.reason_note}" if t.reason_note else "")
             elif t.mismatch_id and (m := db.get(Mismatch, t.mismatch_id)):
